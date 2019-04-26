@@ -13,7 +13,8 @@ pools = []
 partial_elements = []
 all_elements = []
 
-CONTOUR_AREA_THRESHOLD = 500
+# CONTOUR_AREA_THRESHOLD = 500
+CONTOUR_AREA_THRESHOLD = 0
 
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLUE = (255, 0, 0)
@@ -22,7 +23,7 @@ COLOR_RED = (0, 0, 255)
 COLOR_BLACK = (0, 0, 0)
 
 BLACK_BORDER_THICKNESS = 5
-CONTOUR_THICKNESS = 1
+CONTOUR_THICKNESS = 2
 
 POOL_AREA_THRESHOLD = 50000
 
@@ -112,9 +113,7 @@ def get_points_dist(p1, p2):
 
 
 def get_layers_img(f, show):
-    path = "samples/imgs"
-    image_file = path + "/" + f
-    pre_process(image_file)
+    pre_process(f)
     output_dir = "samples/layers/" + f[:-4]
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -194,16 +193,15 @@ def draw_pools(pools_list):
             # cv.imshow("pool", drawing)
             # cv.waitKey(0)
 
-        elements = pool["elements"]
-        keys = list(elements.keys())
-        keys.sort()
-        for key in keys:
-            elements_in_lane = elements[key]
-            for element in elements_in_lane:
-                drawing = draw_one_rect(drawing, element, COLOR_BLUE, CONTOUR_THICKNESS)
+        elements = pool.get("elements")
+        if elements is not None:
+            keys = list(elements.keys())
+            keys.sort()
+            for key in keys:
+                elements_in_lane = elements[key]
+                for element in elements_in_lane:
+                    drawing = draw_one_rect(drawing, element, COLOR_BLUE, CONTOUR_THICKNESS)
 
-            # cv.imshow("pool", drawing)
-            # cv.waitKey(0)
     return drawing
 
 
@@ -301,6 +299,7 @@ def pre_process(file_name):
     global contours
     global partial_elements
     input_img = cv.imread(file_name, cv.COLOR_BGR2GRAY)
+    show(input_img, name="input")
     contours, hierarchy, partial_elements = get_contours(input_img)
     layers = divide_layers(hierarchy)
     get_contours_rec()
@@ -318,12 +317,14 @@ def get_contours(image):
 
     element = get_structure_ele(morph_elem, morph_size)
     morph = cv.morphologyEx(image, operation, element)
+    show(morph, "morph")
 
+    # 获取边框比较粗的元素的位置
     erosion_element = get_structure_ele(morph_elem, 1)
     erosion = cv.erode(morph, erosion_element)
+    # show(erosion, "erosion")
 
     erosion.dtype = np.uint8
-
     erosion_gray = cv.cvtColor(erosion, cv.COLOR_BGR2GRAY)
     _, erosion_binary = cv.threshold(erosion_gray, 100, 255, cv.THRESH_BINARY)
     _, erosion_contours, erosion_hierarchy = cv.findContours(erosion_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
@@ -334,12 +335,11 @@ def get_contours(image):
         if contour_rec[2] > CONTOUR_AREA_THRESHOLD and erosion_hierarchy[0][i][3] == -1:
             partial_elements_rec.append(contour_rec[0])
 
+    # 获取所有元素轮廓
     morph.dtype = np.uint8
     morph_gray = cv.cvtColor(morph, cv.COLOR_BGR2GRAY)
     _, morph_binary = cv.threshold(morph_gray, 100, 255, cv.THRESH_BINARY)
-
     _, morph_contours, morph_hierarchy = cv.findContours(morph_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
     return morph_contours, morph_hierarchy, partial_elements_rec
 
 
@@ -1690,6 +1690,8 @@ def parse_img(f):
     global pools
     pre_process(f)
     pools, type_tag = get_pools()
+    pools_img = draw_pools(pools)
+    show(pools_img, "pools_img_no_elements")
     pools = get_elements(pools, type_tag)
 
     flows_img = remove_elements(2)
@@ -1697,7 +1699,7 @@ def parse_img(f):
     flows_img = remove_elements(4)
     flows_only = remove_text(flows_img)
 
-    flows_cp = np.copy(flows_only)
+    # flows_cp = np.copy(flows_only)
     line_list = detect_lines(flows_only)
 
     line_list = normalize_all_lines(line_list)
@@ -1813,13 +1815,14 @@ def parse_img(f):
                 flow[2] = begin_ele_id
 
     pools_img = draw_pools(pools)
+    show(pools_img, "pools_img_no_lines")
 
     for arrow_id in range(len(arrows)):
         arrow_flows = flows[arrow_id]
         arrow_ele = arrow_ele_map.get(arrow_id)
         if len(arrow_flows) == 0:
             arrow = arrows[arrow_id]
-            dilated_arrow = dilate(arrow, 5)
+            # dilated_arrow = dilate(arrow, 5)
             ele_path = arrow_ele[0]
             end_ele_id = get_element_id(ele_path)
             ele_rec = get_element_rec_by_path(ele_path)
@@ -1882,11 +1885,16 @@ def parse_img(f):
                     for i in range(1, len(flow_points)):
                         cv.line(pools_img, flow_points[i - 1], flow_points[i], color, CONTOUR_THICKNESS)
 
-    cv.imshow("pools_img", pools_img)
-    cv.imshow("input", input_img)
-    # cv.imshow("flows", flows_only)
-    # cv.imshow("others", flows_cp)
+    show(pools_img, name="pools_img")
     cv.waitKey(0)
+
+
+def show(img_matrix, name="img"):
+    # cv.namedWindow(name)
+    # cv.imshow(name, img_matrix)
+    file_name = "samples/imgs/example/"+ name+".png"
+    cv.imwrite(file_name, img_matrix)
+    # cv.waitKey(0)
 
 
 if __name__ == '__main__':
@@ -1895,9 +1903,9 @@ if __name__ == '__main__':
     # 5, -1, -4
 
     index_list = list(range(len(images)))
-    # index_list = [1]
+    index_list = [11]
     for im_index in index_list:
         im = images[im_index]
-        # get_layers_img(im, True)
         file_path = sample_dir + "/" + im
-        parse_img(file_path)
+        get_layers_img(file_path, True)
+        # parse_img(file_path)
