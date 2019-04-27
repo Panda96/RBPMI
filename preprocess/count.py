@@ -164,12 +164,26 @@ def count_one_bpmn(file):
             element = elements[0]
 
             main_type = get_tag_type(element.tag)
+            main_type = main_type.replace("intermediate", "inter")
+            main_type = main_type.replace("boundary", "bound")
+            main_type = main_type.replace("Reference", "")
+            main_type = main_type.replace("business", "busi")
+            main_type = main_type.replace("SubProcess", "Sub")
             type_info = [main_type]
-            if main_type.endswith("Event"):
-                for sub_node in element:
-                    element_type_info = get_tag_type(sub_node.tag)
+            for sub_node in element:
+                element_type_info = get_tag_type(sub_node.tag)
+                if main_type.endswith("Event"):
                     if element_type_info.endswith("Definition"):
-                        type_info.append(element_type_info)
+                        info = element_type_info.replace("EventDefinition", "")
+                        type_info.append(info)
+                else:
+                    if element_type_info.endswith("Characteristics"):
+                        if len(sub_node.attrib) > 0:
+                            element_type_info = element_type_info + "_seq"
+                        info = element_type_info.replace("multiInstance", "mulIns")
+                        info = info.replace("standard", "std")
+                        info = info.replace("oopCharacteristics", "")
+                        type_info.append(info)
 
             element_type = "_".join(type_info)
 
@@ -206,8 +220,10 @@ def count_one_bpmn(file):
                 flow_label = [file_id, element_type, points_label]
                 flows_label.append(flow_label)
 
+            name = element.attrib.get("name", "")
             labels = node.findall("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNLabel")
-            for label in labels:
+            if name != "" and len(labels) > 0:
+                label = labels[0]
                 bounds = label.find("{http://www.omg.org/spec/DD/20100524/DC}Bounds")
                 if bounds is not None:
                     label_bound = [bounds.attrib["x"], bounds.attrib["y"], bounds.attrib["width"],
@@ -228,6 +244,11 @@ def count_one_bpmn(file):
 
     offset_x = 6 - min_x
     offset_y = 6 - min_y
+
+    # print(min_x)
+    # print(min_y)
+    # print(offset_x)
+    # print(offset_y)
 
     for shape_label in shapes_label:
         shape_label[2][0] += offset_x
@@ -266,11 +287,14 @@ def output():
             texts.write(text_record + "\n")
 
 
-def count():
-    # file_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
-    file_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/data700_3/bpmn/"
+def count(file_dir):
+
+    # file_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/data700_3/bpmn/"
     files = os.listdir(file_dir)
     for f in files:
+        file_id = "_".join(f.split("_")[0:2])
+        print(file_id)
+        # if file_id == "157_08":
         file_path = file_dir + f
         count_one_bpmn(file_path)
 
@@ -323,9 +347,12 @@ def statistic():
         shape_type_dict[shape_record[1]].append(shape_id)
     shape_type_list = list(shape_type_dict.keys())
     shape_type_list.sort()
-    sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
-    for shape_type in sorted_shape_type_list:
+    # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
+    for shape_type in shape_type_list:
         print("{}:{}".format(shape_type, len(shape_type_dict[shape_type])))
+    # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
+    # for shape_type in sorted_shape_type_list:
+    #     print("{}:{}".format(shape_type, len(shape_type_dict[shape_type])))
 
 
 def all_type():
@@ -344,11 +371,12 @@ all_texts_label = []
 shape_type_dict = defaultdict(list)
 
 if __name__ == '__main__':
-    # judge_crossed()
-    # pass
 
-    count()
+    files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
+    count(files_dir)
+    #
+    # for shape_label in all_shapes_label:
+    #     print(shape_label)
     statistic()
     # output()
 
-    # all_type()
