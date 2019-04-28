@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import os
+import rec_helper as rh
 from collections import defaultdict
 from functools import cmp_to_key
 
@@ -13,8 +14,8 @@ pools = []
 partial_elements = []
 all_elements = []
 
-# CONTOUR_AREA_THRESHOLD = 500
 CONTOUR_AREA_THRESHOLD = 0
+# CONTOUR_AREA_THRESHOLD = 50
 
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLUE = (255, 0, 0)
@@ -23,7 +24,7 @@ COLOR_RED = (0, 0, 255)
 COLOR_BLACK = (0, 0, 0)
 
 BLACK_BORDER_THICKNESS = 5
-CONTOUR_THICKNESS = 2
+CONTOUR_THICKNESS = 1
 
 POOL_AREA_THRESHOLD = 50000
 
@@ -114,20 +115,26 @@ def get_points_dist(p1, p2):
 
 def get_layers_img(f, show):
     pre_process(f)
-    output_dir = "samples/layers/" + f[:-4]
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+
     for i in range(len(layers)):
         layer = layers[i].keys()
         contours_drawing = draw_contours(layer)
-        contour_file = output_dir + "/" + "layer_{}_contour.png".format(i)
         rec_drawing = draw_contours_rec(layer)
-        rec_file = output_dir + "/" + "layer_{}_rec.png".format(i)
+        contours_drawing = rh.dilate_drawing(contours_drawing)
+        rec_drawing = rh.dilate_drawing(rec_drawing)
+        img = rh.dilate_drawing(input_img)
+
         if show:
+            cv.imshow("input", img)
             cv.imshow("contour", contours_drawing)
             cv.imshow("rect", rec_drawing)
             cv.waitKey(0)
         else:
+            output_dir = "samples/layers/" + f[:-4]
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            contour_file = output_dir + "/" + "layer_{}_contour.png".format(i)
+            rec_file = output_dir + "/" + "layer_{}_rec.png".format(i)
             cv.imwrite(contour_file, contours_drawing)
             cv.imwrite(rec_file, rec_drawing)
     cv.destroyAllWindows()
@@ -298,8 +305,9 @@ def pre_process(file_name):
     global layers
     global contours
     global partial_elements
-    input_img = cv.imread(file_name, cv.COLOR_BGR2GRAY)
-    show(input_img, name="input")
+    input_img = cv.imread(file_name)
+    # input_img = cv.imread(file_name, cv.COLOR_BGR2GRAY)
+    # show(input_img, name="input")
     contours, hierarchy, partial_elements = get_contours(input_img)
     layers = divide_layers(hierarchy)
     get_contours_rec()
@@ -317,7 +325,7 @@ def get_contours(image):
 
     element = get_structure_ele(morph_elem, morph_size)
     morph = cv.morphologyEx(image, operation, element)
-    show(morph, "morph")
+    # show(morph, "morph")
 
     # 获取边框比较粗的元素的位置
     erosion_element = get_structure_ele(morph_elem, 1)
@@ -338,20 +346,20 @@ def get_contours(image):
     # 获取所有元素轮廓
     morph.dtype = np.uint8
     morph_gray = cv.cvtColor(morph, cv.COLOR_BGR2GRAY)
-    _, morph_binary = cv.threshold(morph_gray, 100, 255, cv.THRESH_BINARY)
+    _, morph_binary = cv.threshold(morph_gray, 50, 255, cv.THRESH_BINARY)
     _, morph_contours, morph_hierarchy = cv.findContours(morph_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     return morph_contours, morph_hierarchy, partial_elements_rec
 
 
 # remove the contours with small area
-def get_contours_bt(area_threshold, contour_list):
+def get_contours_bt(contours, area_threshold, contour_list):
     return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
 
 
-def divide_layers(hierarchy):
+def divide_layers(hierarchy, contours):
     res = np.where(hierarchy[0, :, 3] == -1)
     layer = list(res[0])
-    layer = get_contours_bt(CONTOUR_AREA_THRESHOLD, layer)
+    layer = get_contours_bt(contours, CONTOUR_AREA_THRESHOLD, layer)
 
     layer_dic = {}
     layer_count = -1
@@ -366,7 +374,7 @@ def divide_layers(hierarchy):
             curr_layer[c] = c_children
             next_layer.extend(c_children)
 
-        next_layer = get_contours_bt(CONTOUR_AREA_THRESHOLD, next_layer)
+        next_layer = get_contours_bt(contours, CONTOUR_AREA_THRESHOLD, next_layer)
 
         layer_dic[layer_count] = curr_layer
         layer = next_layer
@@ -1721,6 +1729,7 @@ def parse_img(f):
     for arrow in arrows:
         flows_only = draw_one_rect(flows_only, arrow, COLOR_GREEN, CONTOUR_THICKNESS)
 
+    # 需要判断一下是否有箭头或连线
     flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
 
     for i, line in enumerate(discrete_lines):
@@ -1890,22 +1899,23 @@ def parse_img(f):
 
 
 def show(img_matrix, name="img"):
-    # cv.namedWindow(name)
-    # cv.imshow(name, img_matrix)
-    file_name = "samples/imgs/example/"+ name+".png"
-    cv.imwrite(file_name, img_matrix)
+    cv.namedWindow(name)
+    cv.imshow(name, img_matrix)
+    # file_name = "samples/imgs/example/"+ name+".png"
+    # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
 
 
 if __name__ == '__main__':
-    sample_dir = "samples/imgs"
+    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/task/"
+    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/boundEvent_cancel/"
+    sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
 
-    index_list = list(range(len(images)))
-    index_list = [11]
-    for im_index in index_list:
-        im = images[im_index]
-        file_path = sample_dir + "/" + im
-        get_layers_img(file_path, True)
-        # parse_img(file_path)
+    for im in images:
+        file_path = sample_dir + im
+        # get_shape_layers_img(file_path)
+        # get_layers_img(file_path, True)
+        if os.path.isfile(file_path):
+            parse_img(file_path)

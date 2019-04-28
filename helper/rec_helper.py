@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import cv2 as cv
+import numpy as np
 
 
 def draw_one_rect(draw_img, bound_rect, color, thickness):
@@ -72,3 +73,26 @@ def truncate(base, roi_rec):
                max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1])]
     else:
         print("The image's channels are not 2 or 3.")
+
+
+# place rec2 at the center of rec1
+def get_center_position(rec1, rec2_shape):
+    x_begin = rec1[0] + (rec1[2] - rec2_shape[1])//2
+    y_begin = rec1[1] + (rec1[3] - rec2_shape[0])//2
+
+    return x_begin, y_begin
+
+
+def dilate_drawing(drawing):
+    drawing_shape = drawing.shape
+    if drawing_shape[0] > 300 and drawing_shape[1] > 300:
+        return drawing
+    else:
+        (x_begin, y_begin) = get_center_position((0, 0, 300, 300), drawing_shape)
+        if len(drawing_shape) == 2:
+            base = np.zeros((300, 300), dtype=np.uint8)
+            base[y_begin:y_begin+drawing_shape[0], x_begin:x_begin+drawing_shape[1]] = drawing
+        elif len(drawing_shape) == 3:
+            base = np.zeros((300, 300, 3), dtype=np.uint8)
+            base[y_begin:y_begin + drawing_shape[0], x_begin:x_begin + drawing_shape[1], :] = drawing
+        return base

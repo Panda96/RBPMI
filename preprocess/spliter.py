@@ -8,6 +8,32 @@ def get_file_id(file_name):
     return "_".join(file_name.split("_")[0:2])
 
 
+def filter_deviation():
+    deviation_list = ["007_05", "008_03", "029_16", "048_13", "057_01", "072_04", "077_14", "080_03", "121_09",
+                      "009_01", "015_03", "017_05", "017_14", "028_02", "034_09", "036_03", "036_06", "041_11",
+                      "042_11", "042_15", "043_01", "047_14", "048_08", "048_17", "050_01", "062_09", "065_17",
+                      "075_04", "075_11", "076_14", "077_19", "078_07", "078_12", "078_13", "079_09", "087_18",
+                      "100_00", "107_13", "112_00", "112_16", "119_14", "123_08", "126_18", "130_11", "130_12",
+                      "130_13", "135_15", "136_08", "138_08", "156_05", "179_11", "183_05", "184_04", "186_13",
+                      "187_07", "188_15", "034_01", "042_01", "073_18", "100_10", "104_06", "106_19", "114_05",
+                      "122_10", "135_00", "153_17", "177_01"]
+
+    files = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
+    images = "E:/diagrams/bpmn-io/bpmn2image/data0423/images/"
+
+    files_deviation = "E:/diagrams/bpmn-io/bpmn2image/data0423/files_deviation/"
+    images_deviation = "E:/diagrams/bpmn-io/bpmn2image/data0423/images_deviation/"
+
+    bpmns = os.listdir(files)
+    imgs = os.listdir(images)
+
+    for i in range(len(bpmns)):
+        f_id = get_file_id(bpmns[i])
+        if f_id in deviation_list:
+            shutil.move(files + bpmns[i], files_deviation)
+            shutil.move(images + imgs[i], images_deviation)
+
+
 def filter_invalid():
     invalid_list = ["033_01", "033_14", "035_12", "045_10", "045_10", "056_11", "063_13", "131_17", "169_05", "179_01",
                     "179_01", "181_13", "186_10", "186_11", "186_12"]
@@ -24,8 +50,8 @@ def filter_invalid():
     for i in range(len(bpmns)):
         f_id = get_file_id(bpmns[i])
         if f_id in invalid_list:
-            shutil.move(files_mapped+bpmns[i], files_invalid)
-            shutil.move(images+imgs[i], images_invalid)
+            shutil.move(files_mapped + bpmns[i], files_invalid)
+            shutil.move(images + imgs[i], images_invalid)
 
 
 def map_image_and_file(file_dir, img_dir, mapped_dir, unmapped_dir):
@@ -38,9 +64,9 @@ def map_image_and_file(file_dir, img_dir, mapped_dir, unmapped_dir):
         img_id = get_file_id(imgs[j])
         if bpmn_id == img_id:
             j += 1
-            shutil.copy(file_dir+bpmn, mapped_dir)
+            shutil.copy(file_dir + bpmn, mapped_dir)
         else:
-            shutil.copy(file_dir+bpmn, unmapped_dir)
+            shutil.copy(file_dir + bpmn, unmapped_dir)
 
 
 def filter_bad(file, bad_dir):
