@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import os
-import rec_helper as rh
+import helper.rec_helper as rh
 from collections import defaultdict
 from functools import cmp_to_key
 
@@ -14,8 +14,8 @@ pools = []
 partial_elements = []
 all_elements = []
 
-CONTOUR_AREA_THRESHOLD = 0
-# CONTOUR_AREA_THRESHOLD = 50
+# CONTOUR_AREA_THRESHOLD = 0
+CONTOUR_AREA_THRESHOLD = 500
 
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLUE = (255, 0, 0)
@@ -356,7 +356,7 @@ def get_contours_bt(contours, area_threshold, contour_list):
     return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
 
 
-def divide_layers(hierarchy, contours):
+def divide_layers(hierarchy):
     res = np.where(hierarchy[0, :, 3] == -1)
     layer = list(res[0])
     layer = get_contours_bt(contours, CONTOUR_AREA_THRESHOLD, layer)

@@ -6,22 +6,21 @@ from functools import reduce
 
 from scipy.spatial.distance import cdist
 import numpy as np
-import cv2
 import sklearn
 import sklearn.cluster
 import pickle
+import time
 
 from evolution import evolution
 from shape_context import shape_context
 from llc import llc_coding_approx
-import image_parser
-import time
+import image_parser as image_parser
 
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/train/"
-        self.CODEBOOK_FILE = "model/codebook_25.data"
+        self.DATA_DIR = "data/ele_type_data/"
+        self.CODEBOOK_FILE = "model/codebook_all.data"
         self.CLASSIFIER_FILE = "model/classifier"
         self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
@@ -44,7 +43,7 @@ class BCF:
 
     def get_image_shape_feats(self, image_path):
         shapes_feature = []
-        input_img, _, contours = image_parser.get_layers(image_path)
+        input_img, _, contours = image_parser.get_layers_by_file_name(image_path)
         selected_contours_id = image_parser.filter_contours(input_img.shape, contours)
         sz = input_img.shape
         for contour_id in selected_contours_id:
@@ -80,7 +79,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images[max(0, len(images)-25):]:
+            for image in images:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -327,10 +326,10 @@ class BCF:
 
 
 if __name__ == "__main__":
-    #sys.path.append("../helper")
+    # sys.path.append("../helper")
     sys.path.append("..")
     sys.path.append("../bcf")
-    #print(sys.path)
+    # print(sys.path)
     bcf = BCF()
     bcf.train_codebook()
     # bcf.train()
