@@ -1,5 +1,5 @@
 import os
-import sys
+
 from collections import defaultdict
 from functools import reduce
 
@@ -19,8 +19,8 @@ import time
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/train/"
-        self.CODEBOOK_FILE = "model/codebook.data"
+        self.DATA_DIR = "data/ele_data/"
+        self.CODEBOOK_FILE = "model/codebook_50.data"
         self.CLASSIFIER_FILE = "model/classifier"
         self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
@@ -30,59 +30,65 @@ class BCF:
         self.clf = None
         self.label_to_class_mapping = None
 
-    def _save_label_to_class_mapping(self):
-        self.label_to_class_mapping = {hash(cls): cls for cls in self.classes}
-        with open(self.LABEL_TO_CLASS_MAPPING_FILE, 'wb') as out_file:
-            pickle.dump(self.label_to_class_mapping, out_file, -1)
+    # def save_label_to_class_mapping(self):
+    #     self.label_to_class_mapping = {hash(cls): cls for cls in os.listdir(self.DATA_DIR)}
+    #     with open(self.LABEL_TO_CLASS_MAPPING_FILE, 'wb') as out_file:
+    #         pickle.dump(self.label_to_class_mapping, out_file, -1)
+    #
+    # def load_label_to_class_mapping(self):
+    #     if self.label_to_class_mapping is None:
+    #         with open(self.LABEL_TO_CLASS_MAPPING_FILE, 'rb') as in_file:
+    #             self.label_to_class_mapping = pickle.load(in_file)
+    #     return self.label_to_class_mapping
 
-    def _load_label_to_class_mapping(self):
-        if self.label_to_class_mapping is None:
-            with open(self.LABEL_TO_CLASS_MAPPING_FILE, 'rb') as in_file:
-                self.label_to_class_mapping = pickle.load(in_file)
-        return self.label_to_class_mapping
+    def get_image_shape_feats(self, image_path):
+        shapes_feature = []
+        input_img, _, contours = image_parser.get_layers(image_path)
+        selected_contours_id = image_parser.filter_contours(input_img.shape, contours)
+        sz = input_img.shape
+        for contour_id in selected_contours_id:
+            contour = contours[contour_id]
+            points = []
+            for point in contour:
+                points.append([point[0][0], point[0][1]])
+            max_curvature = 1.5
+            n_contsamp = 50
+            n_pntsamp = 10
+            if len(points) > 1:
+                cfs = self.extr_raw_points(np.array(points), max_curvature, n_contsamp, n_pntsamp)
 
-    def _extract_cf(self):
+                num_cfs = len(cfs)
+                # print("Extracted %s points" % num_cfs)
+                contour_feature = np.zeros((300, num_cfs))
+                xy = np.zeros((num_cfs, 2))
+                for i in range(num_cfs):
+                    cf = cfs[i]
+                    sc, _, _, _ = shape_context(cf)
+                    # shape context is 60x5 (60 bins at 5 reference points)
+                    sc = sc.flatten(order='F')
+                    sc /= np.sum(sc)  # normalize
+                    contour_feature[:, i] = sc
+                    # shape context descriptor sc for each cf is 300x1
+                    # save a point at the midpoint of the contour fragment
+                    xy[i, 0:2] = cf[np.round(len(cf) / 2. - 1).astype('int32'), :]
+                shapes_feature.append([contour_feature, xy])
+        shape_feats = [np.array(shapes_feature), sz]
+        return shape_feats
+
+    def extract_cf(self):
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images[0:25]:
+            for image in images[0:15]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
-                input_img, _, contours = image_parser.get_layers(image_path)
-                selected_contours_id = image_parser.filter_contours(input_img.shape, contours)
-                sz = input_img.shape
+                self.data[image_key]['cfs'] = self.get_image_shape_feats(image_path)
 
-                shapes_feature = []
-                for contour_id in selected_contours_id:
-                    contour = contours[contour_id]
-                    points = []
-                    for point in contour:
-                        points.append([point[0][0], point[0][1]])
-                    max_curvature = 1.5
-                    n_contsamp = 50
-                    n_pntsamp = 10
-                    if len(points) > 1:
-                        cfs = self._extr_raw_points(np.array(points), max_curvature, n_contsamp, n_pntsamp)
+    def print_time(self):
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
 
-                        num_cfs = len(cfs)
-                        # print("Extracted %s points" % num_cfs)
-                        contour_feature = np.zeros((300, num_cfs))
-                        xy = np.zeros((num_cfs, 2))
-                        for i in range(num_cfs):
-                            cf = cfs[i]
-                            sc, _, _, _ = shape_context(cf)
-                            # shape context is 60x5 (60 bins at 5 reference points)
-                            sc = sc.flatten(order='F')
-                            sc /= np.sum(sc)  # normalize
-                            contour_feature[:, i] = sc
-                            # shape context descriptor sc for each cf is 300x1
-                            # save a point at the midpoint of the contour fragment
-                            xy[i, 0:2] = cf[np.round(len(cf) / 2. - 1).astype('int32'), :]
-                        shapes_feature.append([contour_feature, xy])
-                self.data[image_key]['cfs'] = [np.array(shapes_feature), sz]
-
-    def _learn_codebook(self):
+    def learn_codebook(self):
         MAX_CFS = 800  # max number of contour fragments per image; if above, sample randomly
         CLUSTERING_CENTERS = 1500
         feats_sc = []
@@ -101,56 +107,77 @@ class BCF:
         feats_sc = np.concatenate(feats_sc, axis=1).transpose()
         print("feats_sc size:{}".format(len(feats_sc)))
         print("Running KMeans...")
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+        self.print_time()
         self.kmeans = sklearn.cluster.KMeans(min(CLUSTERING_CENTERS, feats_sc.shape[0]), n_jobs=-1,
                                              algorithm='elkan').fit(feats_sc)
+        self.print_time()
         print("Saving codebook...")
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-        self._save_kmeans(self.kmeans)
+
+        self.save_kmeans(self.kmeans)
         return self.kmeans
 
-    def _save_kmeans(self, kmeans):
+    def save_kmeans(self, kmeans):
         with open(self.CODEBOOK_FILE, 'wb') as out_file:
             pickle.dump(kmeans, out_file, -1)
 
-    def _load_kmeans(self):
+    def load_kmeans(self):
         if self.kmeans is None:
             with open(self.CODEBOOK_FILE, 'rb') as in_file:
                 self.kmeans = pickle.load(in_file)
         return self.kmeans
 
-    def _encode_cf(self):
-        K_NN = 5
-        kmeans = self._load_kmeans()
+    def encode_shape_feats(self, shape_feats, kmeans, k_nn):
+        shapes_feature = shape_feats[0]
+        encoded_shape_feats = []
+        for shape_feature in shapes_feature:
+            contour_feature = shape_feature[0]
+            encoded_shape_feats.append(
+                llc_coding_approx(kmeans.cluster_centers_, contour_feature.transpose(), k_nn))
+        return encoded_shape_feats
+
+    def encode_cf(self):
+        print("Encoding ...")
+        self.print_time()
+        k_nn = 5
+        kmeans = self.load_kmeans()
         # Represent each contour fragment shape descriptor as a combination of K_NN of the
         # clustering centers
         for image in self.data.values():
-            shapes_feature = image['cfs'][0]
-            encoded_shape_features = []
-            for shape_feature in shapes_feature:
-                contour_feature = shape_feature[0]
-                encoded_shape_features.append(
-                    llc_coding_approx(kmeans.cluster_centers_, contour_feature.transpose(), K_NN))
-            image["llc_coding"] = encoded_shape_features
+            image["llc_coding"] = self.encode_shape_feats(image["cfs"], kmeans, k_nn)
+        self.print_time()
+        print("Encoding finished!")
 
-    def _spp(self):
-        PYRAMID = np.array([1, 2, 4])
+    def spp_llc_code(self, pyramid, shape_feats, encoded_shape_feats):
+        shapes_feature = shape_feats[0]
+        shapes_spp_feature = []
+        for shape_id, shape_feature in enumerate(shapes_feature):
+            shape_feas = self.pyramid_pooling(pyramid, shape_feats[1], shape_feature[1], encoded_shape_feats[shape_id])
+            shape_spp_fea = shape_feas.flatten()
+            shape_spp_fea /= np.sqrt(np.sum(shape_spp_fea ** 2))
+            shapes_spp_feature.append(shape_spp_fea)
+
+        spp_fea_size = len(shapes_spp_feature[0])
+        spp_feature = np.zeros(spp_fea_size * 30)
+
+        if len(shapes_spp_feature) > 30:
+            head = shapes_spp_feature[0:15]
+            tail = shapes_spp_feature[-15:]
+            head.extend(tail)
+            shapes_spp_feature = head
+
+        for i in range(len(shapes_spp_feature)):
+            spp_feature[i * spp_fea_size:(i + 1) * spp_fea_size] = shapes_spp_feature[i]
+        return spp_feature
+
+    def spp(self):
+        pyramid = np.array([1, 2, 4])
         for image_key, image in self.data.items():
             feat = image['cfs']
-            shapes_feature = feat[0]
-            shapes_spp_feature = []
-            for shape_id, shape_feature in enumerate(shapes_feature):
-                shape_feas = self._pyramid_pooling(PYRAMID, feat[1], shape_feature[1], image["llc_coding"][shape_id])
-                # feas = self._pyramid_pooling(PYRAMID, feat[3], feat[2], image['encoded_shape_descriptors'])
-                shape_spp_fea = shape_feas.flatten()
-                shape_spp_fea /= np.sqrt(np.sum(shape_spp_fea ** 2))
-                shapes_spp_feature.append(shape_spp_fea)
+            image['spp_descriptor'] = self.spp_llc_code(pyramid, image['cfs'], image["llc_coding"])
+            # print(image_key)
+            # print(image["spp_descriptor"].shape)
 
-            image['spp_descriptor'] = np.array(shapes_spp_feature)
-            print(image_key)
-            print(image["spp_descriptor"].shape)
-
-    def _pyramid_pooling(self, pyramid, sz, xy, encoded_shape_descriptors):
+    def pyramid_pooling(self, pyramid, sz, xy, encoded_shape_descriptors):
         feas = np.zeros((encoded_shape_descriptors.shape[1], np.sum(pyramid ** 2)))
         counter = 0
         height = sz[0]
@@ -172,35 +199,37 @@ class BCF:
                     counter += 1
         return feas
 
-    def _save_classifier(self, clf):
+    def save_classifier(self, clf):
         with open(self.CLASSIFIER_FILE, 'wb') as out_file:
             pickle.dump(clf, out_file, -1)
 
-    def _load_classifier(self):
+    def load_classifier(self):
         if self.clf is None:
             with open(self.CLASSIFIER_FILE, 'rb') as in_file:
                 self.clf = pickle.load(in_file)
         return self.clf
 
-    def _svm_train(self):
-        self._save_label_to_class_mapping()
+    def svm_train(self):
+        # self.save_label_to_class_mapping()
         clf = sklearn.svm.LinearSVC(multi_class='crammer_singer')
         training_data = []
         labels = []
         for (cls, idx) in self.data.keys():
             training_data.append(self.data[(cls, idx)]['spp_descriptor'])
-            labels.append(hash(cls))
+            labels.append(cls)
         print("Training SVM...")
+        self.print_time()
         self.clf = clf.fit(training_data, labels)
+        self.print_time()
         print("Saving classifier...")
-        self._save_classifier(self.clf)
+        self.save_classifier(self.clf)
         return self.clf
 
-    def show(self, image):
-        cv2.imshow('image', image)
-        _ = cv2.waitKey()
+    # def show(self, image):
+    #     cv2.imshow('image', image)
+    #     _ = cv2.waitKey()
 
-    def _extr_raw_points(self, c, max_value, N, nn):
+    def extr_raw_points(self, c, max_value, N, nn):
         # -------------------------------------------------------
         # [SegmentX, SegmentY,NO]=GenSegmentsNew(a,b,maxvalue,nn)
         # This function is used to generate all the segments
@@ -230,13 +259,13 @@ class BCF:
                     cf = np.append(c[i_kp[i]:, :], c[:i_kp[j] + 1, :], axis=0)
 
                 if cf.shape[0] > 1:
-                    pnts.append(self._sample_contour(cf, nn))
+                    pnts.append(self.sample_contour(cf, nn))
                 # s += 1
         # if c.shape[0] > 1:
-        pnts.append(self._sample_contour(c, nn))
+        pnts.append(self.sample_contour(c, nn))
         return pnts
 
-    def _sample_contour(self, cf, nn):
+    def sample_contour(self, cf, nn):
         # Sample points from contour fragment
         _len = cf.shape[0]
         try:
@@ -249,14 +278,55 @@ class BCF:
         cf = cf[ii, :]
         return cf
 
+    def train_codebook(self):
+        self.extract_cf()
+        self.learn_codebook()
+
     def train(self):
-        self._extract_cf()
-        self._learn_codebook()
-        # self._encode_cf()
-        # self._spp()
-        # self._svm_train()
+        self.extract_cf()
+        # self._learn_codebook()
+        self.encode_cf()
+        self.spp()
+        self.svm_train()
+
+    def get_one_image_feature(self, image_path):
+        shape_feats = self.get_image_shape_feats(image_path)
+        k_nn = 5
+        kmeans = self.load_kmeans()
+        encoded_shape_feats = self.encode_shape_feats(shape_feats, kmeans, k_nn)
+        pyramid = np.array([1, 2, 4])
+        spp_feature = self.spp_llc_code(pyramid, shape_feats, encoded_shape_feats)
+        return spp_feature
+
+    def test(self):
+        clf = self.load_classifier()
+        # label_to_cls = self.load_label_to_class_mapping()
+        testing_data = []
+        labels = []
+        type_dirs = os.listdir(self.DATA_DIR)
+        for type_dir in type_dirs:
+            images = os.listdir(self.DATA_DIR + type_dir)
+            for image in images[-1:]:
+                image_key = (type_dir, image)
+                print(image_key)
+                image_path = self.DATA_DIR + type_dir + "/" + image
+                testing_data.append(self.get_one_image_feature(image_path))
+                labels.append(type_dir)
+
+        predictions = clf.predict(testing_data)
+        correct = 0
+        for (i, label) in enumerate(labels):
+            if predictions[i] == label:
+                correct += 1
+                print("took %s for %s" % (label, predictions[i]))
+            else:
+                print("Mistook %s for %s" % (label, predictions[i]))
+        print(
+            "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
 
 
 if __name__ == "__main__":
     bcf = BCF()
-    bcf.train()
+    bcf.train_codebook()
+    # bcf.train()
+    # bcf.test()

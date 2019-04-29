@@ -9,6 +9,28 @@ train_data = data_set + "train/"
 test_data = data_set + "test/"
 
 
+def divide_50_data():
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
+    data_50 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_data_50/"
+    type_dirs = os.listdir(all_data)
+    for type_dir in type_dirs:
+        print(type_dir)
+        type_path = data_50+type_dir
+        if not os.path.exists(type_path):
+            os.mkdir(type_path)
+
+        shapes = os.listdir(all_data + type_dir)
+
+        size = len(shapes)
+        index = np.arange(size)
+        np.random.shuffle(index)
+        num = min(size, 50)
+
+        for i in range(num):
+            file_name = shapes[index[i]]
+            shutil.copy(all_data + type_dir + "/" + file_name, data_50 + type_dir + "/" + file_name)
+
+
 def prepare_test():
     data_set = "E:/diagrams/bpmn-io/bpmn2image/data0423/data_set_test/"
     train_data = data_set + "train/"
@@ -62,4 +84,5 @@ def divide_data():
 if __name__ == '__main__':
     # prepare()
     # divide_data()
-    prepare_test()
+    # prepare_test()
+    divide_50_data()

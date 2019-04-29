@@ -112,6 +112,6 @@ def distribute_shape_data():
 
 
 if __name__ == '__main__':
-    distribute_shape_data()
-    move_complex_type()
+    # distribute_shape_data()
+    # move_complex_type()
     filter_enough_data()
