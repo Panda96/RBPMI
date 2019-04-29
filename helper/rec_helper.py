@@ -88,11 +88,15 @@ def dilate_drawing(drawing):
     if drawing_shape[0] > 300 and drawing_shape[1] > 300:
         return drawing
     else:
-        (x_begin, y_begin) = get_center_position((0, 0, 300, 300), drawing_shape)
+        height = max(300, drawing_shape[0])+20
+        width = max(300, drawing_shape[1])+20
+        (x_begin, y_begin) = get_center_position((0, 0, width, height), drawing_shape)
         if len(drawing_shape) == 2:
-            base = np.zeros((300, 300), dtype=np.uint8)
+            base = np.zeros((height, width), dtype=np.uint8)
             base[y_begin:y_begin+drawing_shape[0], x_begin:x_begin+drawing_shape[1]] = drawing
         elif len(drawing_shape) == 3:
-            base = np.zeros((300, 300, 3), dtype=np.uint8)
+            base = np.zeros((height, width, 3), dtype=np.uint8)
             base[y_begin:y_begin + drawing_shape[0], x_begin:x_begin + drawing_shape[1], :] = drawing
         return base
+
+

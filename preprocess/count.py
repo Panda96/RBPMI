@@ -386,7 +386,7 @@ def statistic():
     for shape_type in shape_type_list:
         type_dir_name = "{}_{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
-        type_dirs.append(type_dir_name)
+        type_dirs.append(shape_type)
     return type_dirs
     # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
     # for shape_type in sorted_shape_type_list:

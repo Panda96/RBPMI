@@ -137,7 +137,22 @@ def relevance(s, index, peri, keep_endpoints):
     l2 = sqrt(seg2x * seg2x + seg2y * seg2y)
 
     # turning angle (0-180)
-    a = 180 - acos((seg1x * seg2x + seg1y * seg2y) / l1 / l2) * 180 / pi
+    value = (seg1x * seg2x + seg1y * seg2y) / l1 / l2
+    if value < -1:
+        value = -1
+
+    if value > 1:
+        value = 1
+
+    a = 180 - acos(value) * 180 / pi
+
+    # try:
+    #
+    # except ValueError:
+    #     print("seg1x:{},seg1y:{}, seg2x:{}, seg2y:{}".format(seg1x, seg1y, seg2x, seg2y))
+    #     print("l1:{}, l2:{}".format(l1, l2))
+    #     print(((seg1x * seg2x + seg1y * seg2y) / l1 / l2))
+    #     exit(0)
 
     # relevance measure
     v = a * l1 * l2 / (l1 + l2)
