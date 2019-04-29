@@ -20,8 +20,8 @@ import time
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/ele_data/"
-        self.CODEBOOK_FILE = "model/codebook_50.data"
+        self.DATA_DIR = "data/train/"
+        self.CODEBOOK_FILE = "model/codebook_25.data"
         self.CLASSIFIER_FILE = "model/classifier"
         self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
@@ -80,7 +80,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images:
+            for image in images[max(0, len(images)-25):]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -327,7 +327,10 @@ class BCF:
 
 
 if __name__ == "__main__":
-    sys.path.append("../")
+    #sys.path.append("../helper")
+    sys.path.append("..")
+    sys.path.append("../bcf")
+    #print(sys.path)
     bcf = BCF()
     bcf.train_codebook()
     # bcf.train()

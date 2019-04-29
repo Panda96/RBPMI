@@ -121,3 +121,5 @@ dmypy.json
 
 bcf/data
 bcf/model
+bcf/codebook_50_log.txt
+bcf/codebook_25_log.txt
