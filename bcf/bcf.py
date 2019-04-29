@@ -14,6 +14,7 @@ from evolution import evolution
 from shape_context import shape_context
 from llc import llc_coding_approx
 import image_parser
+import time
 
 
 class BCF:
@@ -44,7 +45,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images[0:5]:
+            for image in images[0:25]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -100,9 +101,11 @@ class BCF:
         feats_sc = np.concatenate(feats_sc, axis=1).transpose()
         print("feats_sc size:{}".format(len(feats_sc)))
         print("Running KMeans...")
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         self.kmeans = sklearn.cluster.KMeans(min(CLUSTERING_CENTERS, feats_sc.shape[0]), n_jobs=-1,
                                              algorithm='elkan').fit(feats_sc)
         print("Saving codebook...")
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         self._save_kmeans(self.kmeans)
         return self.kmeans
 
