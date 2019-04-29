@@ -1,4 +1,5 @@
 import os
+import sys
 
 from collections import defaultdict
 from functools import reduce
@@ -326,6 +327,7 @@ class BCF:
 
 
 if __name__ == "__main__":
+    sys.path.append("../")
     bcf = BCF()
     bcf.train_codebook()
     # bcf.train()
