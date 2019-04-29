@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "bcf.py", line 16, in <module>
-    import image_parser
-  File "/home/ubuntu/panlingwei/workplace/segmentation/bcf/image_parser.py", line 6, in <module>
-    import rec_helper as rh
-ModuleNotFoundError: No module named 'rec_helper'
