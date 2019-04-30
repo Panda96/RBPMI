@@ -21,8 +21,8 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/ele_type_data/"
-        self.CODEBOOK_FILE = "model/codebook_all.data"
+        self.DATA_DIR = "data/ele_data_50/"
+        self.CODEBOOK_FILE = "model/codebook_25.data"
         self.CLASSIFIER_FILE = "model/classifier"
         self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
@@ -43,9 +43,12 @@ class BCF:
     #             self.label_to_class_mapping = pickle.load(in_file)
     #     return self.label_to_class_mapping
 
-    def get_image_shape_feats(self, image_path):
+    def get_image_shape_feats(self, image):
         shapes_feature = []
-        input_img, _, contours = image_parser.get_layers_by_file_name(image_path)
+        if type(image) == str:
+            input_img, _, contours = image_parser.get_layers_by_file_name(image)
+        else:
+            input_img, _, contours = image_parser.get_layers_by_img(image)
         selected_contours_id = image_parser.filter_contours(input_img.shape, contours)
         sz = input_img.shape
         for contour_id in selected_contours_id:
@@ -81,7 +84,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images:
+            for image in images[0:min(len(images), 25)]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -291,14 +294,21 @@ class BCF:
         self.spp()
         self.svm_train()
 
-    def get_one_image_feature(self, image_path):
-        shape_feats = self.get_image_shape_feats(image_path)
+    def get_one_image_feature(self, image):
+        shape_feats = self.get_image_shape_feats(image)
         k_nn = 5
         kmeans = self.load_kmeans()
         encoded_shape_feats = self.encode_shape_feats(shape_feats, kmeans, k_nn)
         pyramid = np.array([1, 2, 4])
         spp_feature = self.spp_llc_code(pyramid, shape_feats, encoded_shape_feats)
         return spp_feature
+
+    def get_one_image_type(self, image):
+        clf = self.load_classifier()
+        spp_feature = self.get_one_image_feature(image)
+        testing_data = [spp_feature]
+        predictions = clf.predict(testing_data)
+        return predictions[0]
 
     def test(self):
         clf = self.load_classifier()

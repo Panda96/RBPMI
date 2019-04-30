@@ -1,9 +1,20 @@
 import cv2 as cv
 import numpy as np
 import os
-import helper.rec_helper as rh
 from collections import defaultdict
 from functools import cmp_to_key
+
+import helper.rec_helper as rh
+from bcf.bcf import BCF
+import xml.etree.ElementTree as eTree
+
+eTree.register_namespace("", "http://www.omg.org/spec/BPMN/20100524/MODEL")
+eTree.register_namespace("bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI")
+eTree.register_namespace("omgdc", "http://www.omg.org/spec/DD/20100524/DC")
+eTree.register_namespace("omgdi", "http://www.omg.org/spec/DD/20100524/DI")
+eTree.register_namespace("bpmn2", "http://www.omg.org/spec/BPMN/20100524/MODEL")
+eTree.register_namespace("dc", "http://www.omg.org/spec/DD/20100524/DC")
+eTree.register_namespace("di", "http://www.omg.org/spec/DD/20100524/DI")
 
 input_img = []
 
@@ -193,7 +204,7 @@ def draw_pools(pools_list):
         for i, lane in enumerate(pool_lanes):
             drawing = draw_one_rect(drawing, lane, COLOR_BLUE, CONTOUR_THICKNESS)
             # print(lane)
-            procs = sub_procs.get(i)
+            procs = sub_procs.get(i, None)
             if procs is not None:
                 for proc in procs:
                     drawing = draw_one_rect(drawing, proc, COLOR_GREEN, CONTOUR_THICKNESS)
@@ -210,6 +221,67 @@ def draw_pools(pools_list):
                     drawing = draw_one_rect(drawing, element, COLOR_BLUE, CONTOUR_THICKNESS)
 
     return drawing
+
+
+def create_model(pools, all_elements, all_elements_type, flows):
+    definitions = eTree.Element("definitions", attrib={"id": "definitions", "name": "model"})
+    collaboration = eTree.Element("collaboration", attrib={"id": "collaboration", "isClosed": "true"})
+    BPMNDiagram = eTree.Element("BPMNDiagram", attrib={"name": "process_diagram", "id": "bpmn_diagram"})
+    BPMNPlane = eTree.Element("BPMNPlane", attrib={"id": "bpmn_plane", "bpmnElement": "collaboration"})
+    BPMNDiagram.append(BPMNPlane)
+    participant_list = []
+    process_list = []
+
+    for pool_id, pool in enumerate(pools):
+        participant_id = "participant_{}".format(pool_id)
+        process_id = "process_{}".format(pool_id)
+
+        participant = eTree.Element("participant", attrib={"id": participant_id, "processRef": process_id})
+        collaboration.append(participant)
+        participant_shape = eTree.Element("BPMNShape", attrib={"id": participant_id+"_shape", "bpmnElement": participant_id, "isHorizontal": "true"})
+        pool_rect = pool["rect"]
+        participant_shape.append(create_bounds(pool_rect))
+        BPMNPlane.append(participant_shape)
+
+        process = eTree.Element("process",
+                                attrib={"id": process_id, "name": "process{}".format(pool_id), "processType": "None"})
+        lane_set = eTree.Element("laneSet", attrib={"id": process_id + "_lane_set"})
+
+        lanes = pool["lanes"]
+        elements = pool["elements"]
+        sub_procs = pool["sub_procs"]
+        for lane_id, lane in enumerate(lanes):
+            lane_ele_id = "lane_{}".format(lane_id)
+            lane_ele = eTree.Element("lane", attrib={"id": lane_ele_id, "name": ""})
+            lane_ele_shape = eTree.Element("BPMNShape", attrib={"id": lane_ele_id+"_shape", "bpmnElement": lane_ele_id})
+            BPMNPlane.append(lane_ele_shape)
+
+            procs = sub_procs.get(lane_id, None)
+            elements_in_lane = elements[lane_id]
+
+            for ele_id, ele_rec in enumerate(elements_in_lane):
+                e_id = get_element_id([pool_id, lane_id, ele_id, 0])
+                node_type = all_elements_type[e_id]
+                node_id = "{}_{}".format(node_type, e_id)
+                node_element = eTree.Element("")
+
+                if procs is not None:
+                    for proc_id, proc in enumerate(procs):
+                        pass
+                else:
+                    pass
+
+                # flow_node_ref = eTree.Element("flowNodeRef")
+                # flow_node_ref.text = element_id
+                # lane_ele.append(flow_node_ref)
+            lane_set.append(lane_ele)
+
+
+
+def create_bounds(rec):
+    bounds = eTree.Element("Bounds",
+                           attrib={"x": str(rec[0]), "y": str(rec[1]), "width": str(rec[2]), "height": str(rec[3])})
+    return bounds
 
 
 def draw_line_info(base, info, k, b, color, thickness):
@@ -327,7 +399,7 @@ def get_contours(image):
     morph = cv.morphologyEx(image, operation, element)
     # show(morph, "morph")
 
-    # 获取边框比较粗的元素的位置
+    # 获取粗边框的元素的位置
     erosion_element = get_structure_ele(morph_elem, 1)
     erosion = cv.erode(morph, erosion_element)
     # show(erosion, "erosion")
@@ -337,13 +409,14 @@ def get_contours(image):
     _, erosion_binary = cv.threshold(erosion_gray, 100, 255, cv.THRESH_BINARY)
     _, erosion_contours, erosion_hierarchy = cv.findContours(erosion_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
+    # 获取粗边框元素边界矩形
     partial_elements_rec = []
     for i, contour in enumerate(erosion_contours):
         contour_rec = get_one_contour_rec(i, erosion_contours)
         if contour_rec[2] > CONTOUR_AREA_THRESHOLD and erosion_hierarchy[0][i][3] == -1:
             partial_elements_rec.append(contour_rec[0])
 
-    # 获取所有元素轮廓
+    # 获取细边框元素轮廓
     morph.dtype = np.uint8
     morph_gray = cv.cvtColor(morph, cv.COLOR_BGR2GRAY)
     _, morph_binary = cv.threshold(morph_gray, 50, 255, cv.THRESH_BINARY)
@@ -552,27 +625,35 @@ def get_elements(pools_list, model_tag):
     layers_num = len(layers)
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
+    # 对后三层的轮廓进行遍历
     while k < upper_limit:
         layer = layers[k]
+        # 遍历单层轮廓
         for c_i in layer:
             bound = contours_rec[c_i]
             bound_rect = bound[0]
             pool_pivot = None
+            # 遍历泳池，确定该轮廓所属的泳池
             for pool in pools_list:
                 if is_in(pool["lanes_rect"], bound_rect):
                     pool_pivot = pool
                     break
+
             if pool_pivot is not None:
+                # 找到所属泳池
                 lanes = pool_pivot["lanes"]
                 elements = pool_pivot.get("elements")
                 if elements is None:
                     elements = defaultdict(list)
                     pool_pivot["elements"] = elements
+                # 遍历泳道，确定该轮廓所属的泳道
                 for i, lane in enumerate(lanes):
                     if is_in(lane, bound_rect):
                         elements_i = elements[i]
                         num = len(elements_i)
                         found = False
+                        # 找到所属泳道后判断是否与泳道中已有的元素重叠，
+                        # 若重叠选择边界矩形面积小于930的那个作为元素边界矩形
                         for j in range(num):
                             if is_in(elements_i[j], bound_rect):
                                 found = True
@@ -585,9 +666,12 @@ def get_elements(pools_list, model_tag):
                             if bound_rect[3] < lane[3] - 2 * BOUNDARY_OFFSET:
                                 sub_procs = pool_pivot["sub_procs"]
                                 if bound[2] < POOL_AREA_THRESHOLD:
+                                    # 如果不重叠，且面积不是太大，不是子进程，则加入泳道元素列表
                                     elements_i.append(bound_rect)
                                 else:
                                     # found subprocesses
+                                    # 若是子进程，则遍历层数加深，将子进程轮廓加入所属泳池
+                                    # 将子进程中的元素轮廓加入所属泳道
                                     upper_limit = layers_num
 
                                     sub_proc = sub_procs.get(i)
@@ -604,6 +688,7 @@ def get_elements(pools_list, model_tag):
                                             sub_proc.append(bound_rect)
         k += 1
 
+    # 将粗边框元素合并到泳池元素中
     for ele_rect in partial_elements:
         for pool_id, pool in enumerate(pools):
             pool_lanes_rect = pool["lanes_rect"]
@@ -614,6 +699,7 @@ def get_elements(pools_list, model_tag):
                     if is_overlap(lane, ele_rect):
                         elements_in_lane = elements.get(lane_id)
                         existed = False
+                        # 若与已检测出的元素冲突，选择重叠面积占比大的那一个
                         for ele_id, element in enumerate(elements_in_lane):
                             if is_overlap(element, ele_rect):
                                 existed = True
@@ -626,6 +712,7 @@ def get_elements(pools_list, model_tag):
                         break
                 break
 
+    # 筛选子进程，若元素横穿或者靠近子进程边界，则不是子进程
     for pool in pools_list:
         elements = pool["elements"]
         for i, elements_i in elements.items():
@@ -646,6 +733,7 @@ def get_elements(pools_list, model_tag):
                         sub_procs[lane_id] = lane_sub_procs
                         break
 
+                # 这里很奇怪，可能是针对特定情况的元素筛选
                 for m in range(j + 1, num):
                     if is_adjacent(elements_i[j], elements_i[m]):
                         # two elements adjacent
@@ -1021,6 +1109,7 @@ def extend_line(line, rect):
 
 def get_initial_lines(arrows, line_list):
     # 区分与arrow 直连和分离的线
+    # arrow_lines: {(k, b): info} info: [start_point, end_point, direction]
     arrow_lines = dict()
     discrete_lines = []
     for line in line_list:
@@ -1269,6 +1358,8 @@ def get_element_id(ele_path):
 
 def match_arrows_and_elements(arrow_lines, arrows):
     global all_elements
+    # 统计所有的元素
+    # [[pool_id, lane_id, element_id, is_sub_process]]
     all_elements = []
     for i, pool in enumerate(pools):
         lanes = pool["lanes"]
@@ -1286,6 +1377,7 @@ def match_arrows_and_elements(arrow_lines, arrows):
     # 匹配 arrow 与 element
     # 依据两者位置关系，删除一些线
     # 依据 arrow 确定一些未检出的元素
+    # arrwo_ele_map :{ arrow_id : [ele_path, arrow_direction]}
     arrow_ele_map = dict()
     possible_ele = dict()
     for arrow_id, arrow in enumerate(arrows):
@@ -1537,6 +1629,7 @@ def detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, me
 def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
     n = len(all_elements)
     graph = [[-1 for j in range(n)] for i in range(n)]
+    # flows: {arrow_id: [[end_ele_id, flow_points, start_ele_id]]}
     flows = defaultdict(list)
     merged_lines = []
     for arrow_id in range(len(arrows)):
@@ -1704,207 +1797,237 @@ def parse_img(f):
 
     flows_img = remove_elements(2)
     arrows = get_arrows(flows_img)
-    flows_img = remove_elements(4)
-    flows_only = remove_text(flows_img)
 
-    # flows_cp = np.copy(flows_only)
-    line_list = detect_lines(flows_only)
+    if len(arrows) > 0:
+        flows_img = remove_elements(4)
+        flows_only = remove_text(flows_img)
 
-    line_list = normalize_all_lines(line_list)
-    arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
+        # flows_cp = np.copy(flows_only)
+        line_list = detect_lines(flows_only)
 
-    arrow_lines, arrow_ele_map = match_arrows_and_elements(arrow_lines, arrows)
-    discrete_lines = normalize_all_lines(discrete_lines)
+        line_list = normalize_all_lines(line_list)
+        # 获取与箭头相连的直线
+        arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
 
-    for i, line in enumerate(discrete_lines):
-        for ele_path in all_elements:
-            if ele_path[3] == 0:
-                ele_rec = get_element_rec_by_path(ele_path)
-                if point_is_in(ele_rec, line.p1) and point_is_in(ele_rec, line.p2):
+        # 将箭头与元素匹配，并获取一些之前未检测出的元素
+        arrow_lines, arrow_ele_map = match_arrows_and_elements(arrow_lines, arrows)
+        discrete_lines = normalize_all_lines(discrete_lines)
+
+        # 去除一端在元素里一端在元素外的离散线段
+        for i, line in enumerate(discrete_lines):
+            for ele_path in all_elements:
+                if ele_path[3] == 0:
+                    ele_rec = get_element_rec_by_path(ele_path)
+                    if point_is_in(ele_rec, line.p1) and point_is_in(ele_rec, line.p2):
+                        discrete_lines[i] = None
+        discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
+
+        for line in discrete_lines:
+            cv.line(flows_only, line.p1, line.p2, COLOR_RED, CONTOUR_THICKNESS, cv.LINE_AA)
+        draw_lines(flows_only, arrow_lines, COLOR_GREEN, CONTOUR_THICKNESS)
+        for arrow in arrows:
+            flows_only = draw_one_rect(flows_only, arrow, COLOR_GREEN, CONTOUR_THICKNESS)
+
+        # 依据顺序流的末端，递归回溯，找到起点
+        flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
+
+        for i, line in enumerate(discrete_lines):
+            p1_is_begin = is_begin_point(line.p1, line, -1)
+            p2_is_begin = is_begin_point(line.p2, line, -1)
+
+            if p1_is_begin[0] and p2_is_begin[0]:
+                if p1_is_begin[1] == p2_is_begin[1]:
                     discrete_lines[i] = None
-    discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
-    for line in discrete_lines:
-        cv.line(flows_only, line.p1, line.p2, COLOR_RED, CONTOUR_THICKNESS, cv.LINE_AA)
-    draw_lines(flows_only, arrow_lines, COLOR_GREEN, CONTOUR_THICKNESS)
-    for arrow in arrows:
-        flows_only = draw_one_rect(flows_only, arrow, COLOR_GREEN, CONTOUR_THICKNESS)
-
-    # 需要判断一下是否有箭头或连线
-    flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
-
-    for i, line in enumerate(discrete_lines):
-        p1_is_begin = is_begin_point(line.p1, line, -1)
-        p2_is_begin = is_begin_point(line.p2, line, -1)
-
-        if p1_is_begin[0] and p2_is_begin[0]:
-            if p1_is_begin[1] == p2_is_begin[1]:
                 discrete_lines[i] = None
-            discrete_lines[i] = None
-            continue
-        elif p1_is_begin[0]:
-            begin_points = [line.p2, line.p1]
-            begin_ele_id = p1_is_begin[1]
-        elif p2_is_begin[0]:
-            begin_points = [line.p1, line.p2]
-            begin_ele_id = p2_is_begin[1]
-        else:
-            discrete_lines[i] = None
-            continue
+                continue
+            elif p1_is_begin[0]:
+                begin_points = [line.p2, line.p1]
+                begin_ele_id = p1_is_begin[1]
+            elif p2_is_begin[0]:
+                begin_points = [line.p1, line.p2]
+                begin_ele_id = p2_is_begin[1]
+            else:
+                discrete_lines[i] = None
+                continue
+
+            for arrow_id in range(len(arrows)):
+                arrow_flows = flows[arrow_id]
+                for flow in arrow_flows:
+                    if flow[2] is None:
+                        flow_points = flow[1]
+                        p1 = flow_points[-1]
+                        p2 = flow_points[-2]
+                        end_line = Line([p1[0], p1[1], p2[0], p2[1]])
+
+                        intersection = get_point_of_intersection(line, end_line)
+                        if intersection is not None:
+                            d1 = get_points_dist(intersection, begin_points[0])
+                            d2 = get_points_dist(intersection, begin_points[1])
+                            if d2 <= d1:
+                                continue
+                            else:
+                                d3 = get_points_dist(intersection, p1)
+                                if (d3 <= 5 and d1 < 100) or (d1 <= 5 and d3 < 100):
+                                    flow_points[-1] = intersection
+                                    flow_points.append(begin_points[-1])
+                                    flow[2] = begin_ele_id
+                                    discrete_lines[i] = None
+        # discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
+
+        for arrow_id_i in range(len(arrows)):
+            arrow_flows_i = flows[arrow_id_i]
+            for flow_id_i, flow_i in enumerate(arrow_flows_i):
+                if flow_i[2] is None:
+                    to_next = False
+                    flow_i_points = flow_i[1]
+                    p1 = flow_i_points[-1]
+                    p2 = flow_i_points[-2]
+                    end_line = points_to_line(p1, p2)
+                    for arrow_id_j in range(len(arrows)):
+                        arrow_flows_j = flows[arrow_id_j]
+                        for flow_id_j, flow_j in enumerate(arrow_flows_j):
+                            if arrow_id_i != arrow_id_j or flow_id_i != flow_id_j:
+                                flow_j = arrow_flows_j[flow_id_j]
+                                flow_j_points = flow_j[1]
+                                for i in range(1, len(flow_j_points)):
+                                    p3 = flow_j_points[i - 1]
+                                    p4 = flow_j_points[i]
+                                    flow_seg = points_to_line(p3, p4)
+                                    intersection = get_point_of_intersection(end_line, flow_seg)
+                                    if intersection is not None:
+                                        d1 = get_points_dist(intersection, p1)
+                                        d2 = get_points_dist(intersection, p2)
+                                        v1 = Vector(intersection, p3)
+                                        v2 = Vector(intersection, p4)
+                                        if d1 < 5 and is_opposite(v1, v2) and d1 < d2:
+                                            to_next = True
+                                            flow_i_points[-1] = intersection
+                                            extend_flow = flow_j_points[i:]
+                                            flow_i_points.extend(extend_flow)
+                                            if flow_j[2] is not None:
+                                                flow_i[2] = flow_j[2]
+                                            break
+                            if to_next:
+                                break
+                        if to_next:
+                            break
 
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
-            for flow in arrow_flows:
+            for flow_id, flow in enumerate(arrow_flows):
                 if flow[2] is None:
                     flow_points = flow[1]
-                    p1 = flow_points[-1]
-                    p2 = flow_points[-2]
-                    end_line = Line([p1[0], p1[1], p2[0], p2[1]])
+                    begin_ele_id = get_begin_ele_id(flow_points[-1], flow_points[-2])
+                    complete_flow_points = complete_flow(begin_ele_id, flow_points)
+                    flow[1] = complete_flow_points
+                    flow[2] = begin_ele_id
 
-                    intersection = get_point_of_intersection(line, end_line)
-                    if intersection is not None:
-                        d1 = get_points_dist(intersection, begin_points[0])
-                        d2 = get_points_dist(intersection, begin_points[1])
-                        if d2 <= d1:
-                            continue
-                        else:
-                            d3 = get_points_dist(intersection, p1)
-                            if (d3 <= 5 and d1 < 100) or (d1 <= 5 and d3 < 100):
-                                flow_points[-1] = intersection
-                                flow_points.append(begin_points[-1])
-                                flow[2] = begin_ele_id
-                                discrete_lines[i] = None
-    # discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
+        pools_img = draw_pools(pools)
+        show(pools_img, "pools_img_no_lines")
 
-    for arrow_id_i in range(len(arrows)):
-        arrow_flows_i = flows[arrow_id_i]
-        for flow_id_i, flow_i in enumerate(arrow_flows_i):
-            if flow_i[2] is None:
-                to_next = False
-                flow_i_points = flow_i[1]
-                p1 = flow_i_points[-1]
-                p2 = flow_i_points[-2]
-                end_line = points_to_line(p1, p2)
-                for arrow_id_j in range(len(arrows)):
-                    arrow_flows_j = flows[arrow_id_j]
-                    for flow_id_j, flow_j in enumerate(arrow_flows_j):
-                        if arrow_id_i != arrow_id_j or flow_id_i != flow_id_j:
-                            flow_j = arrow_flows_j[flow_id_j]
-                            flow_j_points = flow_j[1]
-                            for i in range(1, len(flow_j_points)):
-                                p3 = flow_j_points[i - 1]
-                                p4 = flow_j_points[i]
-                                flow_seg = points_to_line(p3, p4)
-                                intersection = get_point_of_intersection(end_line, flow_seg)
-                                if intersection is not None:
-                                    d1 = get_points_dist(intersection, p1)
-                                    d2 = get_points_dist(intersection, p2)
-                                    v1 = Vector(intersection, p3)
-                                    v2 = Vector(intersection, p4)
-                                    if d1 < 5 and is_opposite(v1, v2) and d1 < d2:
-                                        to_next = True
-                                        flow_i_points[-1] = intersection
-                                        extend_flow = flow_j_points[i:]
-                                        flow_i_points.extend(extend_flow)
-                                        if flow_j[2] is not None:
-                                            flow_i[2] = flow_j[2]
-                                        break
-                        if to_next:
-                            break
-                    if to_next:
-                        break
-
-    for arrow_id in range(len(arrows)):
-        arrow_flows = flows[arrow_id]
-        for flow_id, flow in enumerate(arrow_flows):
-            if flow[2] is None:
-                flow_points = flow[1]
-                begin_ele_id = get_begin_ele_id(flow_points[-1], flow_points[-2])
-                complete_flow_points = complete_flow(begin_ele_id, flow_points)
-                flow[1] = complete_flow_points
-                flow[2] = begin_ele_id
-
-    pools_img = draw_pools(pools)
-    show(pools_img, "pools_img_no_lines")
-
-    for arrow_id in range(len(arrows)):
-        arrow_flows = flows[arrow_id]
-        arrow_ele = arrow_ele_map.get(arrow_id)
-        if len(arrow_flows) == 0:
-            arrow = arrows[arrow_id]
-            # dilated_arrow = dilate(arrow, 5)
-            ele_path = arrow_ele[0]
-            end_ele_id = get_element_id(ele_path)
-            ele_rec = get_element_rec_by_path(ele_path)
-            rec_center = get_rec_center(ele_rec)
-            arrow_center = get_rec_center(arrow)
-
-            if rec_center[0] == arrow_center[0] or rec_center[1] == arrow_center[1]:
-                virtual_flow_points = [arrow_center, rec_center]
-            else:
-                if arrow_ele[1] == 1 or arrow_ele[1] == 3:
-                    virtual_flow_points = [(arrow_center[0], rec_center[1]), arrow_center]
-                else:
-                    virtual_flow_points = [(rec_center[0], arrow_center[1]), arrow_center]
-
-            p1 = virtual_flow_points[-1]
-            p2 = virtual_flow_points[-2]
-            begin_ele_id = get_begin_ele_id(p1, p2)
-            points = complete_flow(begin_ele_id, virtual_flow_points)
-            if is_same(points[1], arrow_center):
-                points.pop(0)
-            else:
-                points[0] = arrow_center
-            flows[arrow_id] = [[end_ele_id, points, begin_ele_id]]
+        for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
-        for flow in arrow_flows:
-            flow_points = flow[1]
-            final_flow_points = get_ele_edge_point(flow[2], flow_points)
-            flow[1] = final_flow_points
+            arrow_ele = arrow_ele_map.get(arrow_id)
+            if len(arrow_flows) == 0:
+                arrow = arrows[arrow_id]
+                # dilated_arrow = dilate(arrow, 5)
+                ele_path = arrow_ele[0]
+                end_ele_id = get_element_id(ele_path)
+                ele_rec = get_element_rec_by_path(ele_path)
+                rec_center = get_rec_center(ele_rec)
+                arrow_center = get_rec_center(arrow)
 
-    for arrow_id in range(len(arrows)):
-        arrow_flows = flows.get(arrow_id)
-        arrow_ele = arrow_ele_map.get(arrow_id)
-        if (arrow_flows is None or len(arrow_flows) == 0) and (arrow_ele is None or len(arrow_ele) == 0):
-            draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
-        elif arrow_flows is None or len(arrow_flows) == 0:
-            draw_one_rect(pools_img, arrows[arrow_id], COLOR_BLUE, CONTOUR_THICKNESS)
-        elif arrow_ele is None or len(arrow_ele) == 0:
-            draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
-        else:
-            color = COLOR_GREEN
-            if arrow_ele[0][3] == 1:
-                print("connect sub_process")
-                color = COLOR_BLUE
-            draw_one_rect(pools_img, arrows[arrow_id], color, CONTOUR_THICKNESS)
-            for flow in arrow_flows:
-                show_points = False
-                if flow[2] is None:
-                    show_points = True
-                    color = COLOR_RED
+                if rec_center[0] == arrow_center[0] or rec_center[1] == arrow_center[1]:
+                    virtual_flow_points = [arrow_center, rec_center]
                 else:
-                    if all_elements[flow[2]][3] == 1:
-                        color = COLOR_BLUE
+                    if arrow_ele[1] == 1 or arrow_ele[1] == 3:
+                        virtual_flow_points = [(arrow_center[0], rec_center[1]), arrow_center]
                     else:
-                        color = COLOR_GREEN
-                flow_points = flow[1]
+                        virtual_flow_points = [(rec_center[0], arrow_center[1]), arrow_center]
 
-                if len(flow_points) >= 2:
-                    if show_points:
-                        print(flow_points)
-                    for i in range(1, len(flow_points)):
-                        cv.line(pools_img, flow_points[i - 1], flow_points[i], color, CONTOUR_THICKNESS)
+                p1 = virtual_flow_points[-1]
+                p2 = virtual_flow_points[-2]
+                begin_ele_id = get_begin_ele_id(p1, p2)
+                points = complete_flow(begin_ele_id, virtual_flow_points)
+                if is_same(points[1], arrow_center):
+                    points.pop(0)
+                else:
+                    points[0] = arrow_center
+                flows[arrow_id] = [[end_ele_id, points, begin_ele_id]]
+                arrow_flows = flows[arrow_id]
+            for flow in arrow_flows:
+                flow_points = flow[1]
+                final_flow_points = get_ele_edge_point(flow[2], flow_points)
+                flow[1] = final_flow_points
+
+        # 画顺序流
+        for arrow_id in range(len(arrows)):
+            arrow_flows = flows.get(arrow_id)
+            arrow_ele = arrow_ele_map.get(arrow_id)
+            if (arrow_flows is None or len(arrow_flows) == 0) and (arrow_ele is None or len(arrow_ele) == 0):
+                draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
+            elif arrow_flows is None or len(arrow_flows) == 0:
+                draw_one_rect(pools_img, arrows[arrow_id], COLOR_BLUE, CONTOUR_THICKNESS)
+            elif arrow_ele is None or len(arrow_ele) == 0:
+                draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
+            else:
+                color = COLOR_GREEN
+                if arrow_ele[0][3] == 1:
+                    print("connect sub_process")
+                    color = COLOR_BLUE
+                draw_one_rect(pools_img, arrows[arrow_id], color, CONTOUR_THICKNESS)
+                for flow in arrow_flows:
+                    show_points = False
+                    if flow[2] is None:
+                        show_points = True
+                        color = COLOR_RED
+                    else:
+                        if all_elements[flow[2]][3] == 1:
+                            color = COLOR_BLUE
+                        else:
+                            color = COLOR_GREEN
+                    flow_points = flow[1]
+
+                    if len(flow_points) >= 2:
+                        if show_points:
+                            print(flow_points)
+                        for i in range(1, len(flow_points)):
+                            cv.line(pools_img, flow_points[i - 1], flow_points[i], color, CONTOUR_THICKNESS)
 
     show(pools_img, name="pools_img")
-    cv.waitKey(0)
+    # cv.waitKey(0)
+
+    bcf = BCF()
+    all_elements_type = []
+    for ele_path in all_elements:
+        if ele_path[3] == 0:
+            all_elements_type.append("subProcess_expanded")
+        else:
+            ele_rec = get_element_rec_by_path(ele_path)
+            ele_img = rh.truncate(input_img, ele_rec)
+            ele_type = bcf.get_one_image_type(ele_img)
+            all_elements_type.append(ele_type)
+
+    return pools, all_elements, all_elements_type, flows
 
 
 def show(img_matrix, name="img"):
-    cv.namedWindow(name)
-    cv.imshow(name, img_matrix)
+    pass
+    # cv.namedWindow(name)
+    # cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
     # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
 
+def get_element_name(type_label):
+    if type_label == "busiRuleTask":
+        return "businessRuleTask"
+    elif type_label == "dataObject":
+        return "dataObjectReference"
+    elif type_label == "dataStore":
+        return "dataStoreReference"
+    else:
+        return None
 
 if __name__ == '__main__':
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/task/"
