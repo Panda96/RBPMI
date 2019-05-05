@@ -121,6 +121,4 @@ dmypy.json
 
 bcf/data
 bcf/model
-bcf/codebook_50_log.txt
-bcf/codebook_25_log.txt
-bcf/codebook_all_log.txt
+bcf/codebook_*.txt
