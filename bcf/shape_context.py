@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # Ported from original BCF implementation in MATLAB
 def shape_context(cont, n_ref=5, n_dist=5, n_theta=12, b_tangent=1):
     n_pt = cont.shape[0]
@@ -17,7 +18,7 @@ def shape_context(cont, n_ref=5, n_dist=5, n_theta=12, b_tangent=1):
     Ys = np.tile(Y, (1, n_ref))
     vys = np.tile(vy, (n_pt, 1))
     dYs = Ys - vys
-    dis_mat = np.sqrt(dXs**2 + dYs**2)
+    dis_mat = np.sqrt(dXs ** 2 + dYs ** 2)
     ang_mat = np.arctan2(dYs, dXs)
 
     # Normalize shape context with the tangent orientation
@@ -40,6 +41,7 @@ def shape_context(cont, n_ref=5, n_dist=5, n_theta=12, b_tangent=1):
     # Compute shape context
     sc = shape_context_core(dis_mat, ang_mat, n_dist, n_theta)
     return sc, V, dis_mat, ang_mat
+
 
 def shape_context_core(dists, angles, n_dist=10, n_theta=16):
     n_pts = dists.shape[1]
@@ -71,17 +73,18 @@ def shape_context_core(dists, angles, n_dist=10, n_theta=16):
     sc_hist /= dists.shape[0]
     return sc_hist
 
+
 if __name__ == "__main__":
     cont = np.array([
-   [ 6.0000,    5.8000],
-   [15.2614,    6.8000],
-   [26.5275,    6.8000],
-   [35.3747,    8.8000],
-   [43.8640,    7.9360],
-   [54.6595,   10.8000],
-   [63.3583,   13.1583],
-   [71.9397,   11.8000],
-   [82.5597,   15.3597],
-   [91.1588,   17.9588]
-   ])
+        [6.0000, 5.8000],
+        [15.2614, 6.8000],
+        [26.5275, 6.8000],
+        [35.3747, 8.8000],
+        [43.8640, 7.9360],
+        [54.6595, 10.8000],
+        [63.3583, 13.1583],
+        [71.9397, 11.8000],
+        [82.5597, 15.3597],
+        [91.1588, 17.9588]
+    ])
     print(shape_context(cont))

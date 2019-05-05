@@ -118,8 +118,11 @@ def judge_one_overlapped(file):
 
 def count_one_bpmn(file):
     shapes_label = []
+    shapes_id = []
     flows_label = []
+    flows_id = []
     texts_label = []
+    text_map = []
 
     file_name = file.split("/")[-1]
     file_id = "_".join(file_name.split("_")[0:2])
