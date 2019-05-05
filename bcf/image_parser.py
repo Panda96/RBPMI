@@ -96,12 +96,19 @@ def get_layers_by_file_name(file_name):
 
 
 def get_layers_by_img(input_img):
+    input_img = 255 - input_img
     _, input_binary = cv.threshold(input_img, 50, 255, cv.THRESH_BINARY)
     # cv.imshow("input_binary", rh.dilate_drawing(input_binary))
     # input_binary = cv.Canny(input_img, 50, 200)
     # cv.imshow("input_binary", rh.dilate_drawing(input_binary))
     # input_binary = cv.Canny(input_binary, 50, 200)
     # cv.imshow("input_binary_3", rh.dilate_drawing(input_binary))
+    # cv.imshow(input)
+    # cv.imshow("input", rh.dilate_drawing(input_binary))
+    # cv.waitKey(0)
+    input_binary.dtype = np.uint8
+    input_binary = cv.cvtColor(input_binary, cv.COLOR_BGR2GRAY)
+
     _, contours, hierarchy = cv.findContours(input_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     layers = divide_layers(input_img.shape, hierarchy, contours)

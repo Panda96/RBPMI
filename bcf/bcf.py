@@ -1,7 +1,7 @@
 import os
-import sys
+# import sys
 
-sys.path.append("..")
+# sys.path.append("..")
 
 from collections import defaultdict
 from functools import reduce
@@ -23,7 +23,7 @@ class BCF:
     def __init__(self):
         self.DATA_DIR = "data/ele_enough_data/"
         self.CODEBOOK_FILE = "model/codebook_15.data"
-        self.CLASSIFIER_FILE = "model/classifier_base_15_50"
+        self.CLASSIFIER_FILE = "model/classifier_base_15_50_no_data_object"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -316,6 +316,7 @@ class BCF:
         # label_to_cls = self.load_label_to_class_mapping()
         testing_data = []
         labels = []
+        predictions_2 = []
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
@@ -324,17 +325,19 @@ class BCF:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
+                predictions_2.append(self.get_one_image_type(image_path))
                 testing_data.append(self.get_one_image_feature(image_path))
                 labels.append(type_dir)
 
         predictions = clf.predict(testing_data)
+
         correct = 0
         for (i, label) in enumerate(labels):
             if predictions[i] == label:
                 correct += 1
-                print("took %s for %s" % (label, predictions[i]))
+                print("took %s for %s, predictions_2:%s" % (label, predictions[i], predictions_2[i]))
             else:
-                print("Mistook %s for %s" % (label, predictions[i]))
+                print("Mistook %s for %s, predictions_2:%s" % (label, predictions[i], predictions_2[i]))
         print(
             "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
 
@@ -348,3 +351,4 @@ if __name__ == "__main__":
     # bcf.train_codebook()
     bcf.train()
     bcf.test()
+    # print(os.getcwd())

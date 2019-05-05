@@ -8,11 +8,8 @@ import helper.rec_helper as rh
 from bcf.bcf import BCF
 import xml.etree.ElementTree as eTree
 
-eTree.register_namespace("", "http://www.omg.org/spec/BPMN/20100524/MODEL")
 eTree.register_namespace("bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI")
-eTree.register_namespace("omgdc", "http://www.omg.org/spec/DD/20100524/DC")
-eTree.register_namespace("omgdi", "http://www.omg.org/spec/DD/20100524/DI")
-eTree.register_namespace("bpmn2", "http://www.omg.org/spec/BPMN/20100524/MODEL")
+eTree.register_namespace("bpmn", "http://www.omg.org/spec/BPMN/20100524/MODEL")
 eTree.register_namespace("dc", "http://www.omg.org/spec/DD/20100524/DC")
 eTree.register_namespace("di", "http://www.omg.org/spec/DD/20100524/DI")
 
@@ -37,7 +34,7 @@ COLOR_BLACK = (0, 0, 0)
 BLACK_BORDER_THICKNESS = 5
 CONTOUR_THICKNESS = 1
 
-POOL_AREA_THRESHOLD = 50000
+POOL_AREA_THRESHOLD = 20000
 
 POOL_HEADER_H_W_RATIO_CEILING = 100
 POOL_HEADER_H_W_RATIO_FLOOR = 4
@@ -136,12 +133,15 @@ def get_layers_img(f, show):
         img = rh.dilate_drawing(input_img)
 
         if show:
+            # show_im(img, "input")
+            # show_im(contours_drawing, "contour")
+            # show_im(rec_drawing, "rect")
             cv.imshow("input", img)
             cv.imshow("contour", contours_drawing)
             cv.imshow("rect", rec_drawing)
             cv.waitKey(0)
         else:
-            output_dir = "samples/layers/" + f[:-4]
+            output_dir = "samples/layers/" + f.split("/")[-1][:-4]
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             contour_file = output_dir + "/" + "layer_{}_contour.png".format(i)
@@ -223,87 +223,207 @@ def draw_pools(pools_list):
     return drawing
 
 
-def create_model(pools, all_elements, all_elements_type, all_seq_flows):
-    definitions = eTree.Element("definitions", attrib={"id": "definitions", "name": "model"})
-    collaboration = eTree.Element("collaboration", attrib={"id": "collaboration", "isClosed": "true"})
-    BPMNDiagram = eTree.Element("BPMNDiagram", attrib={"name": "process_diagram", "id": "bpmn_diagram"})
-    BPMNPlane = eTree.Element("BPMNPlane", attrib={"id": "bpmn_plane", "bpmnElement": "collaboration"})
-    BPMNDiagram.append(BPMNPlane)
-    participant_list = []
-    process_list = []
+def create_bounds(rec):
+    bounds = eTree.Element("{http://www.omg.org/spec/DD/20100524/DC}Bounds",
+                           attrib={"x": str(rec[0]), "y": str(rec[1]), "width": str(rec[2]), "height": str(rec[3])})
+    return bounds
 
+
+def create_bpmn_shape(ele_id, ele_rec, other_attrib=None):
+    shape_attrib = {"id": ele_id + "_shape", "bpmnElement": ele_id}
+    if other_attrib is not None:
+        for k, v in other_attrib.items():
+            shape_attrib[k] = v
+    bpmn_shape = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNShape", attrib=shape_attrib)
+    bounds = create_bounds(ele_rec)
+    bpmn_shape.append(bounds)
+    return bpmn_shape
+
+
+def create_bpmn_edge(flow_id, points):
+    bpmn_edge = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNEdge",
+                              attrib={"id": flow_id + "_edge", "bpmnElement": flow_id})
+    for point in points:
+        way_point = eTree.Element("{http://www.omg.org/spec/DD/20100524/DI}waypoint",
+                                  attrib={"x": str(point[0]), "y": str(point[1])})
+        bpmn_edge.append(way_point)
+    return bpmn_edge
+
+
+def create_model(pools, all_elements, all_elements_type, all_seq_flows):
+    definitions = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions",
+                                attrib={"id": "definitions", "name": "model"})
+    collaboration = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}collaboration",
+                                  attrib={"id": "collaboration", "isClosed": "true"})
+    BPMNDiagram = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNDiagram",
+                                attrib={"name": "process_diagram", "id": "bpmn_diagram"})
+    BPMNPlane = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNPlane",
+                              attrib={"id": "bpmn_plane", "bpmnElement": "collaboration"})
+    BPMNDiagram.append(BPMNPlane)
+
+    definitions.append(collaboration)
+    # participant_list = []
+    # process_list = []
+
+    flows = []
     for pool_id, pool in enumerate(pools):
         participant_id = "participant_{}".format(pool_id)
         process_id = "process_{}".format(pool_id)
 
         # participant
-        participant = eTree.Element("participant", attrib={"id": participant_id, "processRef": process_id})
+        participant = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}participant",
+                                    attrib={"id": participant_id, "processRef": process_id})
         collaboration.append(participant)
-        participant_shape = eTree.Element("BPMNShape",
-                                          attrib={"id": participant_id + "_shape", "bpmnElement": participant_id,
-                                                  "isHorizontal": "true"})
+        # participant_shape = eTree.Element("BPMNShape",
+        #                                   attrib={"id": participant_id + "_shape", "bpmnElement": participant_id,
+        #                                           "isHorizontal": "true"})
+
         pool_rect = pool["rect"]
-        participant_shape.append(create_bounds(pool_rect))
+        participant_shape = create_bpmn_shape(participant_id, pool_rect, {"isHorizontal": "true"})
+        # participant_shape.append(create_bounds(pool_rect))
         BPMNPlane.append(participant_shape)
 
         # participant ----------------
 
         # process
-        process = eTree.Element("process",
+        process = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}process",
                                 attrib={"id": process_id, "name": "process{}".format(pool_id), "processType": "None"})
-        lane_set = eTree.Element("laneSet", attrib={"id": process_id + "_lane_set"})
+        lane_set = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}laneSet",
+                                 attrib={"id": process_id + "_lane_set"})
+
+        process.append(lane_set)
 
         lanes = pool["lanes"]
         elements = pool["elements"]
         sub_procs = pool["sub_procs"]
+
+        flows_id = set()
+
         for lane_id, lane in enumerate(lanes):
             # lane
             lane_ele_id = "lane_{}".format(lane_id)
-            lane_ele = eTree.Element("lane", attrib={"id": lane_ele_id, "name": ""})
-            lane_ele_shape = eTree.Element("BPMNShape",
-                                           attrib={"id": lane_ele_id + "_shape", "bpmnElement": lane_ele_id})
+            lane_ele = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}lane",
+                                     attrib={"id": lane_ele_id, "name": ""})
+
+            lane_set.append(lane_ele)
+
+            lane_ele_shape = create_bpmn_shape(lane_ele_id, lane)
             BPMNPlane.append(lane_ele_shape)
             # lane --------
 
-            procs = sub_procs.get(lane_id, None)
+            procs = sub_procs.get(lane_id, [])
             elements_in_lane = elements[lane_id]
+
+            sub_proc_nodes = []
+            # subprocess flowNodeRef
+            for proc_id, proc in enumerate(procs):
+                e_id = get_element_id([pool_id, lane_id, proc_id, 1])
+                sub_proc_id = "subProcess_{}".format(lane_id, e_id)
+                sub_proc_node = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}subProcess",
+                                              attrib={"id": sub_proc_id})
+                sub_proc_nodes.append(sub_proc_node)
+
+                flow_node_ref = eTree.Element("flowNodeRef")
+                flow_node_ref.text = sub_proc_id
+                lane_ele.append(flow_node_ref)
+
+                sub_proc_shape = create_bpmn_shape(sub_proc_id, proc, {"isExpanded": "true"})
+                BPMNPlane.append(sub_proc_shape)
 
             for ele_id, ele_rec in enumerate(elements_in_lane):
                 e_id = get_element_id([pool_id, lane_id, ele_id, 0])
                 node_type = all_elements_type[e_id]
                 node_id = "{}_{}".format(node_type, e_id)
 
+                node_shape = create_bpmn_shape(node_id, ele_rec)
+                BPMNPlane.append(node_shape)
+
                 node_tag = node_type.split("_")[0]
-                node_element = eTree.Element(node_tag, attrib={"id": node_id})
+                node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + node_tag,
+                                             attrib={"id": node_id})
 
                 for flow_id, seq_flow in enumerate(all_seq_flows):
                     if seq_flow[0] == e_id:
-                        incoming = eTree.Element("incoming")
+                        incoming = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}incoming")
                         flow_element_id = "sequenceFlow_{}".format(flow_id)
                         incoming.text = flow_element_id
                         node_element.append(incoming)
+                        flows_id.add(flow_id)
                     elif seq_flow[-1] == e_id:
-                        outgoing = eTree.Element("incoming")
+                        outgoing = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}outgoing")
                         flow_element_id = "sequenceFlow_{}".format(flow_id)
                         outgoing.text = flow_element_id
                         node_element.append(outgoing)
+                        flows_id.add(flow_id)
 
-                if procs is not None:
-                    for proc_id, proc in enumerate(procs):
-                        pass
-                else:
-                    pass
+                node_in_sub_proc = False
+                for proc_id, proc in enumerate(procs):
+                    if rh.is_in(proc, ele_rec):
+                        node_in_sub_proc = True
+                        sub_proc_nodes[proc_id].append(node_element)
+                        break
 
-                # flow_node_ref = eTree.Element("flowNodeRef")
-                # flow_node_ref.text = element_id
-                # lane_ele.append(flow_node_ref)
-            lane_set.append(lane_ele)
+                if not node_in_sub_proc:
+                    flow_node_ref = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}flowNodeRef")
+                    flow_node_ref.text = node_id
+                    lane_ele.append(flow_node_ref)
+                    process.append(node_element)
+
+        flows_id = list(flows_id)
+        for flow_id in list(flows_id):
+            seq_flow_id = "sequenceFlow_{}".format(flow_id)
+            seq_flow = all_seq_flows[flow_id]
+
+            source_id = seq_flow[-1]
+            target_id = seq_flow[0]
+            source_ref = "{}_{}".format(all_elements_type[source_id], source_id)
+            target_ref = "{}_{}".format(all_elements_type[target_id], target_id)
+
+            seq_flow_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}sequenceFlow",
+                                             attrib={"id": seq_flow_id, "sourceRef": source_ref,
+                                                     "targetRef": target_ref})
+            process.append(seq_flow_element)
+        flows.extend(flows_id)
+        definitions.append(process)
+
+    for flow_id in flows:
+        seq_flow_id = "sequenceFlow_{}".format(flow_id)
+        seq_flow = all_seq_flows[flow_id]
+        seq_flow[1].reverse()
+        bpmn_edge = create_bpmn_edge(seq_flow_id, seq_flow[1])
+        BPMNPlane.append(bpmn_edge)
+    definitions.append(BPMNDiagram)
+
+    return definitions
 
 
-def create_bounds(rec):
-    bounds = eTree.Element("Bounds",
-                           attrib={"x": str(rec[0]), "y": str(rec[1]), "width": str(rec[2]), "height": str(rec[3])})
-    return bounds
+def indent(elem, level=0):
+    i = "\n" + level * "\t"
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "\t"
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+
+def export_xml(definitions, file_name):
+    indent(definitions)
+    tree = eTree.ElementTree(definitions)
+    #
+    # rawText = eTree.tostring(definitions)
+    # document = dom.parseString(rawText)
+    #
+    # with open("output/{}.xml".format(file_name), "w", encoding="utf-8") as fh:
+    #     document.writexml(fh, newl="\n", encoding="utf-8")
+    # # tree = eTree.ElementTree(definitions)
+    tree.write("output/{}.xml".format(file_name[0:-4]), encoding="utf-8", xml_declaration=True)
 
 
 def draw_line_info(base, info, k, b, color, thickness):
@@ -1814,7 +1934,7 @@ def parse_img(f):
     pre_process(f)
     pools, type_tag = get_pools()
     pools_img = draw_pools(pools)
-    show(pools_img, "pools_img_no_elements")
+    show_im(pools_img, "pools_img_no_elements")
     pools = get_elements(pools, type_tag)
 
     flows_img = remove_elements(2)
@@ -1945,7 +2065,7 @@ def parse_img(f):
                     flow[2] = begin_ele_id
 
         pools_img = draw_pools(pools)
-        show(pools_img, "pools_img_no_lines")
+        show_im(pools_img, "pools_img_no_lines")
 
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
@@ -2016,16 +2136,16 @@ def parse_img(f):
                         for i in range(1, len(flow_points)):
                             cv.line(pools_img, flow_points[i - 1], flow_points[i], color, CONTOUR_THICKNESS)
 
-    show(pools_img, name="pools_img")
+    show_im(pools_img, name="pools_img")
     # cv.waitKey(0)
 
-    bcf = BCF()
     all_elements_type = []
     for ele_path in all_elements:
-        if ele_path[3] == 0:
+        if ele_path[3] == 1:
             all_elements_type.append("subProcess_expanded")
         else:
             ele_rec = get_element_rec_by_path(ele_path)
+            ele_rec = rh.dilate(ele_rec, 5)
             ele_img = rh.truncate(input_img, ele_rec)
             ele_type = bcf.get_one_image_type(ele_img)
             all_elements_type.append(ele_type)
@@ -2033,16 +2153,16 @@ def parse_img(f):
     all_seq_flows = []
     for arrow_id in range(len(arrows)):
         arrow_flows = flows.get(arrow_id)
-        print(arrow_id)
+        # print(arrow_id)
         for flow in arrow_flows:
             all_seq_flows.append(flow)
 
-    # print(all_elements_type)
+    print(all_elements_type)
 
-    return pools, all_elements, all_elements_type, all_seq_flows
+    return all_elements_type, all_seq_flows
 
 
-def show(img_matrix, name="img"):
+def show_im(img_matrix, name="img"):
     pass
     # cv.namedWindow(name)
     # cv.imshow(name, img_matrix)
@@ -2051,19 +2171,7 @@ def show(img_matrix, name="img"):
     # cv.waitKey(0)
 
 
-#
-# def get_element_name(type_label):
-#     if type_label == "busiRuleTask":
-#         return "businessRuleTask"
-#     elif type_label == "dataObject":
-#         return "dataObjectReference"
-#     elif type_label == "dataStore":
-#         return "dataStoreReference"
-#     else:
-#         return None
-
-
-if __name__ == '__main__':
+def run():
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/task/"
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/boundEvent_cancel/"
     sample_dir = "samples/imgs/"
@@ -2072,8 +2180,41 @@ if __name__ == '__main__':
 
     for im in images:
         file_path = sample_dir + im
+        print(im)
         # get_shape_layers_img(file_path)
         # get_layers_img(file_path, True)
         if os.path.isfile(file_path):
-            parse_img(file_path)
-        # break
+            all_elements_type, all_seq_flows = parse_img(file_path)
+            definitions = create_model(pools, all_elements, all_elements_type, all_seq_flows)
+            export_xml(definitions, im)
+        break
+
+
+def show_layers():
+    sample_dir = "samples/imgs/"
+    images = os.listdir(sample_dir)
+    # 5, -1, -4
+
+    error_list = []
+    for image_id, im in enumerate(images):
+        file_path = sample_dir + im
+        print([image_id, im])
+        if os.path.isfile(file_path[:100]):
+            # get_layers_img(file_path, False)
+            # break
+            try:
+                all_elements_type, all_seq_flows = parse_img(file_path)
+                definitions = create_model(pools, all_elements, all_elements_type, all_seq_flows)
+                export_xml(definitions, im)
+            except Exception:
+                error_list.append([image_id, im])
+
+
+if __name__ == '__main__':
+    bcf = BCF()
+    bcf.CODEBOOK_FILE = "../bcf/model/codebook_15.data"
+    bcf.CLASSIFIER_FILE = "../bcf/model/classifier_base_15_50"
+    bcf.load_kmeans()
+    bcf.load_classifier()
+    run()
+    show_layers()

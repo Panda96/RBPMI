@@ -389,6 +389,16 @@ def statistic():
         type_dir_name = "{}:{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
         type_dirs.append(shape_type)
+
+    participants = shape_type_dict["participant"]
+    min_area = float("inf")
+    for participant in participants:
+        label = all_shapes_label[participant]
+        area = label[2][2] * label[2][3]
+        if area < min_area:
+            min_area = area
+
+    print("min_area:{}".format(area))
     return type_dirs
     # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
     # for shape_type in sorted_shape_type_list:
