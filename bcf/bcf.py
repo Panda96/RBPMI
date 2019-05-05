@@ -21,10 +21,10 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/ele_data_50/"
-        self.CODEBOOK_FILE = "model/codebook_50.data"
-        self.CLASSIFIER_FILE = "model/classifier"
-        self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
+        self.DATA_DIR = "data/ele_enough_data/"
+        self.CODEBOOK_FILE = "model/codebook_15.data"
+        self.CLASSIFIER_FILE = "model/classifier_base_15_50"
+        # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
         self.counter = defaultdict(int)
@@ -84,7 +84,8 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images:
+            upper = min(int(0.5 * len(images)), 50)
+            for image in images[:upper]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -318,7 +319,8 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            for image in images[-1:]:
+            begin = max(len(images) - 50, int(0.5 * len(images) + 1))
+            for image in images[begin:]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -343,6 +345,6 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     bcf = BCF()
-    bcf.train_codebook()
-    # bcf.train()
-    # bcf.test()
+    # bcf.train_codebook()
+    bcf.train()
+    bcf.test()

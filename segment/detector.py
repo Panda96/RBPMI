@@ -223,7 +223,7 @@ def draw_pools(pools_list):
     return drawing
 
 
-def create_model(pools, all_elements, all_elements_type, flows):
+def create_model(pools, all_elements, all_elements_type, all_seq_flows):
     definitions = eTree.Element("definitions", attrib={"id": "definitions", "name": "model"})
     collaboration = eTree.Element("collaboration", attrib={"id": "collaboration", "isClosed": "true"})
     BPMNDiagram = eTree.Element("BPMNDiagram", attrib={"name": "process_diagram", "id": "bpmn_diagram"})
@@ -236,13 +236,19 @@ def create_model(pools, all_elements, all_elements_type, flows):
         participant_id = "participant_{}".format(pool_id)
         process_id = "process_{}".format(pool_id)
 
+        # participant
         participant = eTree.Element("participant", attrib={"id": participant_id, "processRef": process_id})
         collaboration.append(participant)
-        participant_shape = eTree.Element("BPMNShape", attrib={"id": participant_id+"_shape", "bpmnElement": participant_id, "isHorizontal": "true"})
+        participant_shape = eTree.Element("BPMNShape",
+                                          attrib={"id": participant_id + "_shape", "bpmnElement": participant_id,
+                                                  "isHorizontal": "true"})
         pool_rect = pool["rect"]
         participant_shape.append(create_bounds(pool_rect))
         BPMNPlane.append(participant_shape)
 
+        # participant ----------------
+
+        # process
         process = eTree.Element("process",
                                 attrib={"id": process_id, "name": "process{}".format(pool_id), "processType": "None"})
         lane_set = eTree.Element("laneSet", attrib={"id": process_id + "_lane_set"})
@@ -251,10 +257,13 @@ def create_model(pools, all_elements, all_elements_type, flows):
         elements = pool["elements"]
         sub_procs = pool["sub_procs"]
         for lane_id, lane in enumerate(lanes):
+            # lane
             lane_ele_id = "lane_{}".format(lane_id)
             lane_ele = eTree.Element("lane", attrib={"id": lane_ele_id, "name": ""})
-            lane_ele_shape = eTree.Element("BPMNShape", attrib={"id": lane_ele_id+"_shape", "bpmnElement": lane_ele_id})
+            lane_ele_shape = eTree.Element("BPMNShape",
+                                           attrib={"id": lane_ele_id + "_shape", "bpmnElement": lane_ele_id})
             BPMNPlane.append(lane_ele_shape)
+            # lane --------
 
             procs = sub_procs.get(lane_id, None)
             elements_in_lane = elements[lane_id]
@@ -263,7 +272,21 @@ def create_model(pools, all_elements, all_elements_type, flows):
                 e_id = get_element_id([pool_id, lane_id, ele_id, 0])
                 node_type = all_elements_type[e_id]
                 node_id = "{}_{}".format(node_type, e_id)
-                node_element = eTree.Element("")
+
+                node_tag = node_type.split("_")[0]
+                node_element = eTree.Element(node_tag, attrib={"id": node_id})
+
+                for flow_id, seq_flow in enumerate(all_seq_flows):
+                    if seq_flow[0] == e_id:
+                        incoming = eTree.Element("incoming")
+                        flow_element_id = "sequenceFlow_{}".format(flow_id)
+                        incoming.text = flow_element_id
+                        node_element.append(incoming)
+                    elif seq_flow[-1] == e_id:
+                        outgoing = eTree.Element("incoming")
+                        flow_element_id = "sequenceFlow_{}".format(flow_id)
+                        outgoing.text = flow_element_id
+                        node_element.append(outgoing)
 
                 if procs is not None:
                     for proc_id, proc in enumerate(procs):
@@ -275,7 +298,6 @@ def create_model(pools, all_elements, all_elements_type, flows):
                 # flow_node_ref.text = element_id
                 # lane_ele.append(flow_node_ref)
             lane_set.append(lane_ele)
-
 
 
 def create_bounds(rec):
@@ -2008,7 +2030,16 @@ def parse_img(f):
             ele_type = bcf.get_one_image_type(ele_img)
             all_elements_type.append(ele_type)
 
-    return pools, all_elements, all_elements_type, flows
+    all_seq_flows = []
+    for arrow_id in range(len(arrows)):
+        arrow_flows = flows.get(arrow_id)
+        print(arrow_id)
+        for flow in arrow_flows:
+            all_seq_flows.append(flow)
+
+    # print(all_elements_type)
+
+    return pools, all_elements, all_elements_type, all_seq_flows
 
 
 def show(img_matrix, name="img"):
@@ -2019,15 +2050,18 @@ def show(img_matrix, name="img"):
     # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
 
-def get_element_name(type_label):
-    if type_label == "busiRuleTask":
-        return "businessRuleTask"
-    elif type_label == "dataObject":
-        return "dataObjectReference"
-    elif type_label == "dataStore":
-        return "dataStoreReference"
-    else:
-        return None
+
+#
+# def get_element_name(type_label):
+#     if type_label == "busiRuleTask":
+#         return "businessRuleTask"
+#     elif type_label == "dataObject":
+#         return "dataObjectReference"
+#     elif type_label == "dataStore":
+#         return "dataStoreReference"
+#     else:
+#         return None
+
 
 if __name__ == '__main__':
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/task/"
@@ -2042,3 +2076,4 @@ if __name__ == '__main__':
         # get_layers_img(file_path, True)
         if os.path.isfile(file_path):
             parse_img(file_path)
+        # break

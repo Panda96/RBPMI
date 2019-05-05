@@ -3,25 +3,11 @@ import os
 import xml.etree.ElementTree as eTree
 import shutil
 from collections import defaultdict
+from helper import rec_helper as rh
 
 
 def get_tag_type(tag):
     return tag.split("}")[1]
-
-
-def is_overlap(rec1, rec2):
-    return rec1[1] + rec1[3] > rec2[1] and rec1[1] < rec2[1] + rec2[3] \
-           and rec1[0] + rec1[2] > rec2[0] and rec1[0] < rec2[0] + rec2[2]
-
-
-# rec2 is in rec1
-def is_in(rec1, rec2):
-    return rec1[0] <= rec2[0] and rec1[1] <= rec2[1] \
-           and rec1[0] + rec1[2] >= rec2[0] + rec2[2] and rec1[1] + rec1[3] >= rec2[1] + rec2[3]
-
-
-def point_is_in(rec, point):
-    return is_in(rec, [point[0], point[1], 0, 0])
 
 
 def judge_flow_cross_pools(file):
@@ -68,17 +54,11 @@ def judge_flow_cross_pools(file):
                 # print(points_label)
                 # print("=" * 100)
                 for participant in participants:
-                    if point_is_in(participant, points_label[0]) and not point_is_in(participant, points_label[-1]):
+                    if rh.point_is_in(participant, points_label[0]) and \
+                            not rh.point_is_in(participant, points_label[-1]):
                         print(file_id, "crossed")
                         return True
     return False
-
-
-# def get_element_type(node, file_id, definitions):
-#     element_id = node.attrib.get("bpmnElement", "")
-#     elements = definitions.findall(".//*[@id='{}']".format(element_id))
-#     element = elements[0]
-#     element_type = get_tag_type(element.tag)
 
 
 def judge_one_overlapped(file):
@@ -109,7 +89,7 @@ def judge_one_overlapped(file):
             shape_bound = [int(float(x)) for x in shape_bound]
 
             for bound in participants:
-                if is_overlap(bound, shape_bound):
+                if rh.is_overlap(bound, shape_bound):
                     print(file_id)
                     return True
             participants.append(shape_bound)
@@ -118,12 +98,8 @@ def judge_one_overlapped(file):
 
 def count_one_bpmn(file):
     shapes_label = []
-    shapes_id = []
     flows_label = []
-    flows_id = []
     texts_label = []
-    text_map = []
-
     file_name = file.split("/")[-1]
     file_id = "_".join(file_name.split("_")[0:2])
     # print(file_id)
@@ -153,7 +129,7 @@ def count_one_bpmn(file):
         main_type = get_tag_type(element.tag)
 
         if main_type == "boundaryEvent":
-            # 为筛选过的数据需要做异常处理
+            # 未筛选过的数据需要做异常处理
             task_id = element.attrib.get("attachedToRef", "")
             node_type = get_tag_type(node.tag)
             if node_type == "BPMNShape":
@@ -173,11 +149,11 @@ def count_one_bpmn(file):
 
         main_type = get_tag_type(element.tag)
 
-        main_type = main_type.replace("intermediate", "inter")
-        main_type = main_type.replace("boundary", "bound")
-        main_type = main_type.replace("Reference", "")
-        main_type = main_type.replace("business", "busi")
-        main_type = main_type.replace("SubProcess", "Sub")
+        # main_type = main_type.replace("intermediate", "inter")
+        # main_type = main_type.replace("boundary", "bound")
+        # main_type = main_type.replace("Reference", "")
+        # main_type = main_type.replace("business", "busi")
+        # main_type = main_type.replace("SubProcess", "Sub")
         type_info = [main_type]
 
         for sub_node in element:
@@ -186,26 +162,23 @@ def count_one_bpmn(file):
                 if element_type_info.endswith("Definition"):
                     info = element_type_info.replace("EventDefinition", "")
                     type_info.append(info)
-                if main_type == "boundEvent":
-                    type_info[0] = "interCatchEvent"
-            else:
-                if element_type_info.endswith("Characteristics"):
-                    if sub_node.attrib.get("isSequential", "") == "true":
-                        element_type_info = element_type_info + "_seq"
-                    info = element_type_info.replace("multiInstance", "mulIns")
-                    info = info.replace("standard", "std")
-                    info = info.replace("oopCharacteristics", "")
-                    type_info.append(info)
+                if main_type == "boundaryEvent":
+                    type_info[0] = "intermediateCatchEvent"
+            # else:
+            #     if element_type_info.endswith("Characteristics"):
+            #         if sub_node.attrib.get("isSequential", "") == "true":
+            #             element_type_info = element_type_info + "_seq"
+            #         # info = element_type_info.replace("multiInstance", "mulIns")
+            #         # info = info.replace("standard", "std")
+            #         # info = info.replace("oopCharacteristics", "")
+            #         type_info.append(element_type_info)
 
         if element_id in list(bound_dic.keys()):
             type_info.append("withBound")
 
-        if main_type in ["adHocSub", "subProcess", "transaction"]:
+        if main_type in ["adHocSubProcess", "subProcess", "transaction"]:
             for sub_node in element:
                 element_type_info = get_tag_type(sub_node.tag)
-                # normal_tags = ["incoming", "outgoing", "dataOutputAssociation", "ioSpecification", "documentation",
-                #                "dataInputAssociation", "textAnnotation"]
-                # if element_type_info not in normal_tags and not element_type_info.endswith("Characteristics"):
                 lower_str = element_type_info.lower()
                 if lower_str.endswith("task") or lower_str.endswith("event") or lower_str.endswith("gateway"):
                     # print(file_id)
@@ -225,6 +198,15 @@ def count_one_bpmn(file):
             shape_bound = [bounds.attrib["x"], bounds.attrib["y"], bounds.attrib["width"], bounds.attrib["height"]]
             shape_bound = [int(float(x)) for x in shape_bound]
 
+            # task中的文字
+            name = element.attrib.get("name", "")
+            labels = node.findall("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNLabel")
+            process_type_list = ["participant", "lane"]
+            if name != "" and len(labels) == 0 and main_type not in process_type_list:
+                # 0 表示是shape的文字
+                text_label = [file_id, [shape_bound[0], shape_bound[1], shape_bound[2], shape_bound[3]], element_id, 0]
+                texts_label.append(text_label)
+
             if element_id in list(bound_dic.keys()):
                 bound_recs = bound_dic[element_id]
                 bound_recs.append(shape_bound)
@@ -240,16 +222,12 @@ def count_one_bpmn(file):
 
                 shape_bound = [x_min, y_min, x_max - x_min, y_max - y_min]
 
-            # if main_type in ["adHocSub", "subProcess", "transaction"]:
-            #     if shape_bound[2] * shape_bound[3] > 30000:
-            #         element_type += "_expanded"
-
             if shape_bound[0] < min_x:
                 min_x = shape_bound[0]
             if shape_bound[1] < min_y:
                 min_y = shape_bound[1]
 
-            shape_label = [file_id, element_type, shape_bound]
+            shape_label = [file_id, element_type, shape_bound, element_id]
             shapes_label.append(shape_label)
 
         elif node_type == "BPMNEdge":
@@ -264,7 +242,16 @@ def count_one_bpmn(file):
                 if point_label[1] < min_y:
                     min_y = point_label[1]
 
-            flow_label = [file_id, element_type, points_label]
+            if main_type != "dataInputAssociation" and main_type != "dataOutputAssociation":
+                source_ref = element.attrib.get("sourceRef", "")
+                target_ref = element.attrib.get("targetRef", "")
+                if source_ref != "" and target_ref != "":
+                    flow_label = [file_id, main_type, points_label, element_id, source_ref, target_ref]
+                else:
+                    print(main_type + " " + element_id)
+                    continue
+            else:
+                flow_label = [file_id, main_type, points_label, element_id, "", ""]
             flows_label.append(flow_label)
 
         name = element.attrib.get("name", "")
@@ -281,12 +268,19 @@ def count_one_bpmn(file):
                     min_x = label_bound[0]
                 if label_bound[1] < min_y:
                     min_y = label_bound[1]
-
-                text_label = [file_id, label_bound]
+                if node_type == "BPMNEdge":
+                    text_label = [file_id, label_bound, element_id, 1]
+                else:
+                    text_label = [file_id, label_bound, element_id, 0]
                 texts_label.append(text_label)
 
     offset_x = 6 - min_x
     offset_y = 6 - min_y
+
+    # print(min_x)
+    # print(min_y)
+    # print(offset_x)
+    # print(offset_y)
 
     for shape_label in shapes_label:
         shape_label[2][0] += offset_x
@@ -307,21 +301,26 @@ def count_one_bpmn(file):
 
 
 def output():
-    with open("shapes.txt", "w") as shape:
+    # print("-"*100)
+    with open("labels/shapes.txt", "w") as shape:
         for shape_label in all_shapes_label:
-            shape_record = "{};{};{}".format(shape_label[0], shape_label[1], " ".join([str(x) for x in shape_label[2]]))
+            # print(shape_label)
+            shape_record = "{};{};{};{}".format(shape_label[0], shape_label[1],
+                                                " ".join([str(x) for x in shape_label[2]]), shape_label[3])
             shape.write(shape_record + "\n")
 
-    with open("flows.txt", "w") as flow:
+    with open("labels/flows.txt", "w") as flow:
         for flow_label in all_flows_label:
             points = flow_label[2]
             points_label = " ".join([",".join([str(x) for x in point]) for point in points])
-            flow_record = "{};{};{}".format(flow_label[0], flow_label[1], points_label)
+            flow_record = "{};{};{};{};{}".format(flow_label[0], flow_label[1], points_label,
+                                                  flow_label[3], flow_label[4], flow_label[5])
             flow.write(flow_record + "\n")
 
-    with open("text.txt", "w") as texts:
+    with open("labels/text.txt", "w") as texts:
         for text_label in all_texts_label:
-            text_record = "{};{}".format(text_label[0], " ".join([str(x) for x in text_label[1]]))
+            text_record = "{};{};{};{}".format(text_label[0], " ".join([str(x) for x in text_label[1]]),
+                                               text_label[2], text_label[3])
             texts.write(text_record + "\n")
 
 
@@ -387,7 +386,7 @@ def statistic():
     # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
     type_dirs = []
     for shape_type in shape_type_list:
-        type_dir_name = "{}_{}".format(shape_type, len(shape_type_dict[shape_type]))
+        type_dir_name = "{}:{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
         type_dirs.append(shape_type)
     return type_dirs

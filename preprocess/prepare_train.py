@@ -8,6 +8,7 @@ import helper.rec_helper as rh
 
 
 def filter_enough_data():
+    print("filter enough data ...")
     train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
     enough_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data/"
     little_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_little_data/"
@@ -21,18 +22,21 @@ def filter_enough_data():
     type_dirs = os.listdir(train_data)
     for dir_name in type_dirs:
         file_num = len(os.listdir(train_data + dir_name))
-        if file_num >= 50:
+        if file_num >= 40:
             print(dir_name)
             shutil.copytree(train_data + dir_name, enough_data + dir_name)
         else:
             print(dir_name)
             shutil.copytree(train_data + dir_name, little_data + dir_name)
 
+    print("filter enough data finished!")
+
 
 def move_complex_type():
+    print("Moving Complex Type...")
     complex_ele_list = ["adHocSub_expanded", "group", "lane", "participant", "subProcess_expanded",
                         "subProcess_mulInsL_expanded", "subProcess_stdL_expanded", "subProcess_withBound_expanded",
-                        "transaction_withBound_expanded", "textAnnotation"]
+                        "transaction_withBound_expanded", "textAnnotation", "adHocSubProcess_expanded", ]
     train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
     complex_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_complex_data/"
 
@@ -46,6 +50,7 @@ def move_complex_type():
             print(dir_name)
             shutil.copytree(train_data + dir_name, complex_data + dir_name)
             shutil.rmtree(train_data + dir_name)
+    print("Moving Complex Type Finished!")
 
 
 def make_type_dirs(ele_type_list):
@@ -71,6 +76,10 @@ def distribute_shape_data():
     data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
     files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
     imgs_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/images/"
+
+    # if not os.path.exists(data_dir):
+    #     os.mkdir(data_dir)
+
     print("Start Counting ...")
     count.count(files_dir)
     print("Counting finished!")
@@ -112,6 +121,6 @@ def distribute_shape_data():
 
 
 if __name__ == '__main__':
-    # distribute_shape_data()
-    # move_complex_type()
+    distribute_shape_data()
+    move_complex_type()
     filter_enough_data()
