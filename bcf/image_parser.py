@@ -107,7 +107,7 @@ def get_layers_by_img(input_img):
     # cv.imshow("input", rh.dilate_drawing(input_binary))
     # cv.waitKey(0)
     input_binary.dtype = np.uint8
-    input_binary = cv.cvtColor(input_binary, cv.COLOR_BGR2GRAY)
+    # input_binary = cv.cvtColor(input_binary, cv.COLOR_BGR2GRAY)
 
     _, contours, hierarchy = cv.findContours(input_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
