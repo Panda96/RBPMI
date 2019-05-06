@@ -2172,42 +2172,18 @@ def show_im(img_matrix, name="img"):
 
 
 def run():
-    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/task/"
-    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/boundEvent_cancel/"
-    sample_dir = "samples/imgs/"
+    sample_dir = "samples/imgs/sample_1/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
 
     for im in images:
         file_path = sample_dir + im
         print(im)
-        # get_shape_layers_img(file_path)
-        # get_layers_img(file_path, True)
         if os.path.isfile(file_path):
             all_elements_type, all_seq_flows = parse_img(file_path)
             definitions = create_model(pools, all_elements, all_elements_type, all_seq_flows)
             export_xml(definitions, im)
         break
-
-
-def show_layers():
-    sample_dir = "samples/imgs/"
-    images = os.listdir(sample_dir)
-    # 5, -1, -4
-
-    error_list = []
-    for image_id, im in enumerate(images):
-        file_path = sample_dir + im
-        print([image_id, im])
-        if os.path.isfile(file_path[:100]):
-            # get_layers_img(file_path, False)
-            # break
-            try:
-                all_elements_type, all_seq_flows = parse_img(file_path)
-                definitions = create_model(pools, all_elements, all_elements_type, all_seq_flows)
-                export_xml(definitions, im)
-            except Exception:
-                error_list.append([image_id, im])
 
 
 if __name__ == '__main__':
@@ -2217,4 +2193,4 @@ if __name__ == '__main__':
     bcf.load_kmeans()
     bcf.load_classifier()
     run()
-    show_layers()
+    # show_layers()
