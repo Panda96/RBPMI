@@ -397,6 +397,8 @@ def statistic():
         print(type_dir_name)
         type_dirs.append(shape_type)
 
+    print(len(type_dirs))
+
     # participants = shape_type_dict["participant"]
     # min_area = float("inf")
     # for participant in participants:
