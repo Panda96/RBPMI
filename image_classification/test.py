@@ -64,8 +64,8 @@ out = layers.Dense(512, activation='relu')(out)
 out = layers.Dropout(0.3)(out)
 out = layers.Dense(classes, activation='softmax')(out)
 tuneModel = Model(inputs=base_model.input, outputs=out)
-# for layer in tuneModel.layers[:19]:  # freeze the base model only use it as feature extractors
-#     layer.trainable = False
+for layer in tuneModel.layers[:19]:  # freeze the base model only use it as feature extractors
+    layer.trainable = False
 tuneModel.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
                   metrics=['acc'])
 
