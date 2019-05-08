@@ -3,10 +3,117 @@ import os
 import shutil
 import numpy as np
 
+import cv2 as cv
+
 shape_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data/"
 data_set = "E:/diagrams/bpmn-io/bpmn2image/data0423/data_set/"
 train_data = data_set + "train/"
 test_data = data_set + "test/"
+
+
+def png_to_jpg():
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data/"
+    jpg_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data_jpg/"
+    type_list = os.listdir(all_data)
+
+    # for each_type in type_list:
+    #     os.makedirs(jpg_data + each_type + "/")
+
+    for each_type in type_list:
+        print(each_type)
+        type_dir = all_data + each_type + "/"
+        for name in os.listdir(type_dir):
+            image = cv.imread(type_dir + name)
+            jpg_path = jpg_data + each_type + "/" + name.replace(".png", ".jpg")
+            cv.imwrite(jpg_path, image)
+            # print(jpg_path)
+        # break
+
+
+def divide_120_data():
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data_jpg/"
+    data_120 = "E:/diagrams/bpmn-io/bpmn2image/data0423/120data/"
+    data_120_train = data_120 + "train/"
+    data_120_val = data_120 + "val/"
+    data_120_test = data_120 + "test/"
+
+    type_list = os.listdir(all_data)
+
+    for each_type in type_list:
+        os.makedirs(data_120_train + each_type)
+        os.makedirs(data_120_val + each_type)
+        os.makedirs(data_120_test + each_type)
+
+    for each_type in type_list:
+        print(each_type)
+        type_dir = all_data + each_type + "/"
+        type_images = os.listdir(type_dir)
+        size = len(type_images)
+        index = np.arange(size)
+        np.random.shuffle(index)
+
+        if size > 120:
+            index = index[:120]
+            size = 120
+
+        for i in index[0:int(0.6 * size)]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_120_train + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
+
+        for i in index[int(0.6 * size): int(0.8 * size)]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_120_val + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
+
+        for i in index[int(0.8 * size):]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_120_test + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
+
+
+def divide_6_2_2_data():
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data_jpg/"
+    data_622 = "E:/diagrams/bpmn-io/bpmn2image/data0423/622data/"
+    data_622_train = data_622 + "train/"
+    data_622_val = data_622 + "val/"
+    data_622_test = data_622 + "test/"
+
+    type_list = os.listdir(all_data)
+
+    # for each_type in type_list:
+    #     os.makedirs(data_622_train+each_type)
+    #     os.makedirs(data_622_val+each_type)
+    #     os.makedirs(data_622_test+each_type)
+
+    for each_type in type_list:
+        print(each_type)
+        type_dir = all_data + each_type + "/"
+        type_images = os.listdir(type_dir)
+        size = len(type_images)
+        index = np.arange(size)
+        np.random.shuffle(index)
+
+        for i in index[0:int(0.6 * size)]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_622_train + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
+
+        for i in index[int(0.6 * size): int(0.8 * size)]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_622_val + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
+
+        for i in index[int(0.8 * size):]:
+            image_name = type_images[i]
+            image_path = type_dir + image_name
+            target_path = data_622_test + each_type + "/" + image_name
+            shutil.copy(image_path, target_path)
 
 
 def divide_50_data():
@@ -15,7 +122,7 @@ def divide_50_data():
     type_dirs = os.listdir(all_data)
     for type_dir in type_dirs:
         print(type_dir)
-        type_path = data_50+type_dir
+        type_path = data_50 + type_dir
         if not os.path.exists(type_path):
             os.mkdir(type_path)
 
@@ -85,4 +192,7 @@ if __name__ == '__main__':
     # prepare()
     # divide_data()
     # prepare_test()
-    divide_50_data()
+    # divide_50_data()
+    # png_to_jpg()
+    # divide_6_2_2_data()
+    divide_120_data()

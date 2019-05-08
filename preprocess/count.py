@@ -3,7 +3,7 @@ import os
 import xml.etree.ElementTree as eTree
 import shutil
 from collections import defaultdict
-from helper import rec_helper as rh
+from helper import detector_helper as rh
 
 
 def get_tag_type(tag):
@@ -73,7 +73,9 @@ def judge_one_overlapped(file):
 
     participants = []
 
+
     for node in plane:
+        not_blank = True
         element_id = node.attrib.get("bpmnElement", "")
         elements = definitions.findall(".//*[@id='{}']".format(element_id))
         element = elements[0]
@@ -121,7 +123,9 @@ def count_one_bpmn(file):
 
     bound_dic = defaultdict(list)
 
+    blank = True
     for node in plane:
+        blank = False
         # 如果是未筛选过的数据需要做一些异常处理
         element_id = node.attrib.get("bpmnElement", "")
         elements = definitions.findall(".//*[@id='{}']".format(element_id))
@@ -137,6 +141,10 @@ def count_one_bpmn(file):
                 shape_bound = [bounds.attrib["x"], bounds.attrib["y"], bounds.attrib["width"], bounds.attrib["height"]]
                 shape_bound = [int(float(x)) for x in shape_bound]
                 bound_dic[task_id].append(shape_bound)
+
+    if blank:
+        print(file_id, "blank")
+        return
 
     min_x = float("inf")
     min_y = float("inf")
@@ -426,5 +434,5 @@ if __name__ == '__main__':
     #
     # for shape_label in all_shapes_label:
     #     print(shape_label)
-    statistic()
+    # statistic()
     # output()

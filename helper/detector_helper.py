@@ -3,6 +3,21 @@ import cv2 as cv
 import numpy as np
 
 
+def get_structure_ele(morph_elem, morph_size):
+    return cv.getStructuringElement(morph_elem, (2 * morph_size + 1, 2 * morph_size + 1), (morph_size, morph_size))
+
+
+def get_one_contour_rec(contour_index, contours_list):
+    contour_poly = cv.approxPolyDP(contours_list[contour_index], 3, True)
+    bound_rect = cv.boundingRect(contour_poly)
+    contour_area = cv.contourArea(contours_list[contour_index])
+    rec_area = bound_rect[2] * bound_rect[3]
+    # bound_rect (x, y, width, height)(x,y) is the coordinate of the left-top point
+    # bound_rect = [int(x) for x in bound_rect]
+    bound = (bound_rect, contour_area, rec_area)
+    return bound
+
+
 def draw_one_rect(draw_img, bound_rect, color, thickness):
     cv.rectangle(draw_img, (int(bound_rect[0]), int(bound_rect[1])),
                  (int(bound_rect[0] + bound_rect[2]), int(bound_rect[1] + bound_rect[3])), color,

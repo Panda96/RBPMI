@@ -122,3 +122,5 @@ dmypy.json
 bcf/data
 bcf/model
 bcf/codebook_*.txt
+
+segment/output

@@ -4,7 +4,7 @@ import shutil
 import cv2 as cv
 
 import count
-import helper.rec_helper as rh
+import helper.detector_helper as rh
 
 
 def filter_enough_data():

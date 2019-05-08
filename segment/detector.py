@@ -4,53 +4,17 @@ import os
 from collections import defaultdict
 from functools import cmp_to_key
 
-import helper.rec_helper as rh
+import helper.detector_helper as helper
 from bcf.bcf import BCF
-import xml.etree.ElementTree as eTree
-
-eTree.register_namespace("bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI")
-eTree.register_namespace("bpmn", "http://www.omg.org/spec/BPMN/20100524/MODEL")
-eTree.register_namespace("dc", "http://www.omg.org/spec/DD/20100524/DC")
-eTree.register_namespace("di", "http://www.omg.org/spec/DD/20100524/DI")
+import cfg
+from img_preprocess import pre_process
+import pools_detector
+import model_exporter
 
 input_img = []
 
-layers = {}
-contours = []
-contours_rec = []
 pools = []
-partial_elements = []
 all_elements = []
-
-# CONTOUR_AREA_THRESHOLD = 0
-CONTOUR_AREA_THRESHOLD = 500
-
-COLOR_WHITE = (255, 255, 255)
-COLOR_BLUE = (255, 0, 0)
-COLOR_GREEN = (0, 255, 0)
-COLOR_RED = (0, 0, 255)
-COLOR_BLACK = (0, 0, 0)
-
-BLACK_BORDER_THICKNESS = 5
-CONTOUR_THICKNESS = 1
-
-POOL_AREA_THRESHOLD = 20000
-
-POOL_HEADER_H_W_RATIO_CEILING = 100
-POOL_HEADER_H_W_RATIO_FLOOR = 4
-DEFAULT_POOL_HEADER_WIDTH = 30
-
-BOUNDARY_OFFSET = 3
-RECT_DILATION_VALUE = 5
-LANES_RECT_DILATION_VALUE = 10
-
-ERODE_KERNEL_SIZE = 2
-
-SEQ_FLOW_THRESHOLD = 20
-SEQ_MIN_LENGTH = 10
-SEQ_MAX_GAP = 3
-
-LINE_AREA_THRESHOLD = 10
 
 
 class Line:
@@ -121,93 +85,28 @@ def get_points_dist(p1, p2):
     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
 
-def get_layers_img(f, show):
-    pre_process(f)
-
-    for i in range(len(layers)):
-        layer = layers[i].keys()
-        contours_drawing = draw_contours(layer)
-        rec_drawing = draw_contours_rec(layer)
-        contours_drawing = rh.dilate_drawing(contours_drawing)
-        rec_drawing = rh.dilate_drawing(rec_drawing)
-        img = rh.dilate_drawing(input_img)
-
-        if show:
-            # show_im(img, "input")
-            # show_im(contours_drawing, "contour")
-            # show_im(rec_drawing, "rect")
-            cv.imshow("input", img)
-            cv.imshow("contour", contours_drawing)
-            cv.imshow("rect", rec_drawing)
-            cv.waitKey(0)
-        else:
-            output_dir = "samples/layers/" + f.split("/")[-1][:-4]
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            contour_file = output_dir + "/" + "layer_{}_contour.png".format(i)
-            rec_file = output_dir + "/" + "layer_{}_rec.png".format(i)
-            cv.imwrite(contour_file, contours_drawing)
-            cv.imwrite(rec_file, rec_drawing)
-    cv.destroyAllWindows()
-
-
-def draw_one_rect(draw_img, bound_rect, color, thickness):
-    cv.rectangle(draw_img, (int(bound_rect[0]), int(bound_rect[1])),
-                 (int(bound_rect[0] + bound_rect[2]), int(bound_rect[1] + bound_rect[3])), color,
-                 thickness)
-
-    return draw_img
-
-
-def draw_contours_rec(contors):
-    drawing = np.zeros_like(input_img, dtype=np.uint8)
-    for i in contors:
-        bound = contours_rec[i]
-        bound_rect = bound[0]
-        drawing = draw_one_rect(drawing, bound_rect, COLOR_WHITE, CONTOUR_THICKNESS)
-
-        # contour index:contour area，area of bounding box， height-to-width-ratio
-        text = "{}:{},{},{}".format(i, int(bound[1]), int(bound[2]), "%.2f" % (bound_rect[3] / bound_rect[2]))
-        text_size = cv.getTextSize(text, cv.QT_FONT_NORMAL, 0.3, 1)
-        # put the text in the middle of a rectangle and not beyond the border of the image
-        org_x = bound_rect[0] + (bound_rect[2] - text_size[0][0]) // 2
-        org_x = max(org_x, 2)
-        org_x = min(org_x, drawing.shape[1] - text_size[0][0] - 5)
-        cv.putText(drawing, text, (org_x, bound_rect[1] + (bound_rect[3] + text_size[0][1]) // 2),
-                   cv.QT_FONT_BLACK, 0.3, COLOR_WHITE)
-    return drawing
-
-
-def draw_contours(contors):
-    drawing = np.zeros_like(input_img, dtype=np.uint8)
-    for i in contors:
-        cv.drawContours(drawing, contours, i, COLOR_WHITE, CONTOUR_THICKNESS, cv.LINE_8)
-
-    return drawing
-
-
 def draw_pools(pools_list):
     drawing = np.zeros_like(input_img, dtype=np.uint8)
     for pool in pools_list:
         pool_rect = pool["rect"]
-        header = (pool_rect[0], pool_rect[1], DEFAULT_POOL_HEADER_WIDTH, pool_rect[3])
+        header = (pool_rect[0], pool_rect[1], cfg.DEFAULT_POOL_HEADER_WIDTH, pool_rect[3])
         pool_lanes = pool["lanes"]
-        drawing = draw_one_rect(drawing, pool_rect, COLOR_GREEN, CONTOUR_THICKNESS)
+        drawing = helper.draw_one_rect(drawing, pool_rect, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         # cv.namedWindow("pool", 0)
         # cv.imshow("pool", drawing)
         # cv.waitKey(0)
-        drawing = draw_one_rect(drawing, header, COLOR_GREEN, CONTOUR_THICKNESS)
+        drawing = helper.draw_one_rect(drawing, header, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
         # cv.imshow("pool", drawing)
         # cv.waitKey(0)
 
-        sub_procs = pool["sub_procs"]
+        sub_procs = pool.get("sub_procs", {})
         for i, lane in enumerate(pool_lanes):
-            drawing = draw_one_rect(drawing, lane, COLOR_BLUE, CONTOUR_THICKNESS)
+            drawing = helper.draw_one_rect(drawing, lane, cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS)
             # print(lane)
             procs = sub_procs.get(i, None)
             if procs is not None:
                 for proc in procs:
-                    drawing = draw_one_rect(drawing, proc, COLOR_GREEN, CONTOUR_THICKNESS)
+                    drawing = helper.draw_one_rect(drawing, proc, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
             # cv.imshow("pool", drawing)
             # cv.waitKey(0)
 
@@ -218,212 +117,9 @@ def draw_pools(pools_list):
             for key in keys:
                 elements_in_lane = elements[key]
                 for element in elements_in_lane:
-                    drawing = draw_one_rect(drawing, element, COLOR_BLUE, CONTOUR_THICKNESS)
+                    drawing = helper.draw_one_rect(drawing, element, cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS)
 
     return drawing
-
-
-def create_bounds(rec):
-    bounds = eTree.Element("{http://www.omg.org/spec/DD/20100524/DC}Bounds",
-                           attrib={"x": str(rec[0]), "y": str(rec[1]), "width": str(rec[2]), "height": str(rec[3])})
-    return bounds
-
-
-def create_bpmn_shape(ele_id, ele_rec, other_attrib=None):
-    shape_attrib = {"id": ele_id + "_shape", "bpmnElement": ele_id}
-    if other_attrib is not None:
-        for k, v in other_attrib.items():
-            shape_attrib[k] = v
-    bpmn_shape = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNShape", attrib=shape_attrib)
-    bounds = create_bounds(ele_rec)
-    bpmn_shape.append(bounds)
-    return bpmn_shape
-
-
-def create_bpmn_edge(flow_id, points):
-    bpmn_edge = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNEdge",
-                              attrib={"id": flow_id + "_edge", "bpmnElement": flow_id})
-    for point in points:
-        way_point = eTree.Element("{http://www.omg.org/spec/DD/20100524/DI}waypoint",
-                                  attrib={"x": str(point[0]), "y": str(point[1])})
-        bpmn_edge.append(way_point)
-    return bpmn_edge
-
-
-def create_model(pools, all_elements, all_elements_type, all_seq_flows):
-    definitions = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions",
-                                attrib={"id": "definitions", "name": "model"})
-    collaboration = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}collaboration",
-                                  attrib={"id": "collaboration", "isClosed": "true"})
-    BPMNDiagram = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNDiagram",
-                                attrib={"name": "process_diagram", "id": "bpmn_diagram"})
-    BPMNPlane = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNPlane",
-                              attrib={"id": "bpmn_plane", "bpmnElement": "collaboration"})
-    BPMNDiagram.append(BPMNPlane)
-
-    definitions.append(collaboration)
-    # participant_list = []
-    # process_list = []
-
-    flows = []
-    for pool_id, pool in enumerate(pools):
-        participant_id = "participant_{}".format(pool_id)
-        process_id = "process_{}".format(pool_id)
-
-        # participant
-        participant = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}participant",
-                                    attrib={"id": participant_id, "processRef": process_id})
-        collaboration.append(participant)
-        # participant_shape = eTree.Element("BPMNShape",
-        #                                   attrib={"id": participant_id + "_shape", "bpmnElement": participant_id,
-        #                                           "isHorizontal": "true"})
-
-        pool_rect = pool["rect"]
-        participant_shape = create_bpmn_shape(participant_id, pool_rect, {"isHorizontal": "true"})
-        # participant_shape.append(create_bounds(pool_rect))
-        BPMNPlane.append(participant_shape)
-
-        # participant ----------------
-
-        # process
-        process = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}process",
-                                attrib={"id": process_id, "name": "process{}".format(pool_id), "processType": "None"})
-        lane_set = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}laneSet",
-                                 attrib={"id": process_id + "_lane_set"})
-
-        process.append(lane_set)
-
-        lanes = pool["lanes"]
-        elements = pool["elements"]
-        sub_procs = pool["sub_procs"]
-
-        flows_id = set()
-
-        for lane_id, lane in enumerate(lanes):
-            # lane
-            lane_ele_id = "lane_{}".format(lane_id)
-            lane_ele = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}lane",
-                                     attrib={"id": lane_ele_id, "name": ""})
-
-            lane_set.append(lane_ele)
-
-            lane_ele_shape = create_bpmn_shape(lane_ele_id, lane)
-            BPMNPlane.append(lane_ele_shape)
-            # lane --------
-
-            procs = sub_procs.get(lane_id, [])
-            elements_in_lane = elements[lane_id]
-
-            sub_proc_nodes = []
-            # subprocess flowNodeRef
-            for proc_id, proc in enumerate(procs):
-                e_id = get_element_id([pool_id, lane_id, proc_id, 1])
-                sub_proc_id = "subProcess_{}".format(lane_id, e_id)
-                sub_proc_node = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}subProcess",
-                                              attrib={"id": sub_proc_id})
-                sub_proc_nodes.append(sub_proc_node)
-
-                flow_node_ref = eTree.Element("flowNodeRef")
-                flow_node_ref.text = sub_proc_id
-                lane_ele.append(flow_node_ref)
-
-                sub_proc_shape = create_bpmn_shape(sub_proc_id, proc, {"isExpanded": "true"})
-                BPMNPlane.append(sub_proc_shape)
-
-            for ele_id, ele_rec in enumerate(elements_in_lane):
-                e_id = get_element_id([pool_id, lane_id, ele_id, 0])
-                node_type = all_elements_type[e_id]
-                node_id = "{}_{}".format(node_type, e_id)
-
-                node_shape = create_bpmn_shape(node_id, ele_rec)
-                BPMNPlane.append(node_shape)
-
-                node_tag = node_type.split("_")[0]
-                node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + node_tag,
-                                             attrib={"id": node_id})
-
-                for flow_id, seq_flow in enumerate(all_seq_flows):
-                    if seq_flow[0] == e_id:
-                        incoming = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}incoming")
-                        flow_element_id = "sequenceFlow_{}".format(flow_id)
-                        incoming.text = flow_element_id
-                        node_element.append(incoming)
-                        flows_id.add(flow_id)
-                    elif seq_flow[-1] == e_id:
-                        outgoing = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}outgoing")
-                        flow_element_id = "sequenceFlow_{}".format(flow_id)
-                        outgoing.text = flow_element_id
-                        node_element.append(outgoing)
-                        flows_id.add(flow_id)
-
-                node_in_sub_proc = False
-                for proc_id, proc in enumerate(procs):
-                    if rh.is_in(proc, ele_rec):
-                        node_in_sub_proc = True
-                        sub_proc_nodes[proc_id].append(node_element)
-                        break
-
-                if not node_in_sub_proc:
-                    flow_node_ref = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}flowNodeRef")
-                    flow_node_ref.text = node_id
-                    lane_ele.append(flow_node_ref)
-                    process.append(node_element)
-
-        flows_id = list(flows_id)
-        for flow_id in list(flows_id):
-            seq_flow_id = "sequenceFlow_{}".format(flow_id)
-            seq_flow = all_seq_flows[flow_id]
-
-            source_id = seq_flow[-1]
-            target_id = seq_flow[0]
-            source_ref = "{}_{}".format(all_elements_type[source_id], source_id)
-            target_ref = "{}_{}".format(all_elements_type[target_id], target_id)
-
-            seq_flow_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}sequenceFlow",
-                                             attrib={"id": seq_flow_id, "sourceRef": source_ref,
-                                                     "targetRef": target_ref})
-            process.append(seq_flow_element)
-        flows.extend(flows_id)
-        definitions.append(process)
-
-    for flow_id in flows:
-        seq_flow_id = "sequenceFlow_{}".format(flow_id)
-        seq_flow = all_seq_flows[flow_id]
-        seq_flow[1].reverse()
-        bpmn_edge = create_bpmn_edge(seq_flow_id, seq_flow[1])
-        BPMNPlane.append(bpmn_edge)
-    definitions.append(BPMNDiagram)
-
-    return definitions
-
-
-def indent(elem, level=0):
-    i = "\n" + level * "\t"
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "\t"
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:
-            indent(elem, level + 1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
-
-
-def export_xml(definitions, file_name):
-    indent(definitions)
-    tree = eTree.ElementTree(definitions)
-    #
-    # rawText = eTree.tostring(definitions)
-    # document = dom.parseString(rawText)
-    #
-    # with open("output/{}.xml".format(file_name), "w", encoding="utf-8") as fh:
-    #     document.writexml(fh, newl="\n", encoding="utf-8")
-    # # tree = eTree.ElementTree(definitions)
-    tree.write("output/{}.xml".format(file_name[0:-4]), encoding="utf-8", xml_declaration=True)
 
 
 def draw_line_info(base, info, k, b, color, thickness):
@@ -440,474 +136,6 @@ def draw_lines(base, arrow_lines, color, thickness):
     return base
 
 
-def get_one_contour_rec(contour_index, contours_list):
-    contour_poly = cv.approxPolyDP(contours_list[contour_index], 3, True)
-    bound_rect = cv.boundingRect(contour_poly)
-    contour_area = cv.contourArea(contours_list[contour_index])
-    rec_area = bound_rect[2] * bound_rect[3]
-    # bound_rect (x, y, width, height)(x,y) is the coordinate of the left-top point
-    bound = (bound_rect, contour_area, rec_area)
-    return bound
-
-
-def get_contours_rec():
-    global contours_rec
-    contours_rec = [None] * len(contours)
-    layers_num = len(layers)
-    for i in range(layers_num):
-        layer = layers[i].keys()
-        for c_i in layer:
-            contours_rec[c_i] = get_one_contour_rec(c_i, contours)
-    return contours_rec
-
-
-def dilate(rect, dilation_value):
-    # may be I need to consider whether if the rect will beyond the border of the image after dilation
-    x = max(0, rect[0] - dilation_value)
-    y = max(0, rect[1] - dilation_value)
-    width = rect[2] + 2 * dilation_value
-    height = rect[3] + 2 * dilation_value
-    rect = (x, y, width, height)
-    return rect
-
-
-def shrink(rect, shrink_value):
-    x = rect[0] + shrink_value
-    y = rect[1] + shrink_value
-    width = rect[2] - 2 * shrink_value
-    height = rect[3] - 2 * shrink_value
-    rect = (x, y, width, height)
-    return rect
-
-
-def is_adjacent(rect1, rect2):
-    rect1_dilation = dilate(rect1, RECT_DILATION_VALUE)
-    return (not is_overlap(rect1, rect2)) and is_overlap(rect1_dilation, rect2)
-
-
-def is_overlap(rec1, rec2):
-    return rec1[1] + rec1[3] > rec2[1] and rec1[1] < rec2[1] + rec2[3] \
-           and rec1[0] + rec1[2] > rec2[0] and rec1[0] < rec2[0] + rec2[2]
-
-
-def get_overlap_area(rec1, rec2):
-    if is_overlap(rec1, rec2):
-        p1_x = max(rec1[0], rec2[0])
-        p1_y = max(rec1[1], rec2[1])
-        # p2 bottom down point of overlap area-
-        p2_x = min(rec1[0] + rec1[2], rec2[0] + rec2[2])
-        p2_y = min(rec1[1] + rec1[3], rec2[1] + rec2[3])
-
-        overlap_area = (p2_x - p1_x) * (p2_y - p1_y)
-        return overlap_area
-    else:
-        return -1
-
-
-# rec2 is in rec1
-def is_in(rec1, rec2):
-    return rec1[0] <= rec2[0] and rec1[1] <= rec2[1] \
-           and rec1[0] + rec1[2] >= rec2[0] + rec2[2] and rec1[1] + rec1[3] >= rec2[1] + rec2[3]
-
-
-def point_is_in(rec, point):
-    return is_in(rec, [point[0], point[1], 0, 0])
-
-
-def pre_process(file_name):
-    global input_img
-    global layers
-    global contours
-    global partial_elements
-    input_img = cv.imread(file_name)
-    # input_img = cv.imread(file_name, cv.COLOR_BGR2GRAY)
-    # show(input_img, name="input")
-    contours, hierarchy, partial_elements = get_contours(input_img)
-    layers = divide_layers(hierarchy)
-    get_contours_rec()
-
-
-def get_structure_ele(morph_elem, morph_size):
-    return cv.getStructuringElement(morph_elem, (2 * morph_size + 1, 2 * morph_size + 1), (morph_size, morph_size))
-
-
-def get_contours(image):
-    # 形态学变化，将图中箭头连接处断开
-    morph_size = 2
-    morph_elem = cv.MORPH_RECT
-    operation = cv.MORPH_BLACKHAT
-
-    element = get_structure_ele(morph_elem, morph_size)
-    morph = cv.morphologyEx(image, operation, element)
-    # show(morph, "morph")
-
-    # 获取粗边框的元素的位置
-    erosion_element = get_structure_ele(morph_elem, 1)
-    erosion = cv.erode(morph, erosion_element)
-    # show(erosion, "erosion")
-
-    erosion.dtype = np.uint8
-    erosion_gray = cv.cvtColor(erosion, cv.COLOR_BGR2GRAY)
-    _, erosion_binary = cv.threshold(erosion_gray, 100, 255, cv.THRESH_BINARY)
-    _, erosion_contours, erosion_hierarchy = cv.findContours(erosion_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
-    # 获取粗边框元素边界矩形
-    partial_elements_rec = []
-    for i, contour in enumerate(erosion_contours):
-        contour_rec = get_one_contour_rec(i, erosion_contours)
-        if contour_rec[2] > CONTOUR_AREA_THRESHOLD and erosion_hierarchy[0][i][3] == -1:
-            partial_elements_rec.append(contour_rec[0])
-
-    # 获取细边框元素轮廓
-    morph.dtype = np.uint8
-    morph_gray = cv.cvtColor(morph, cv.COLOR_BGR2GRAY)
-    _, morph_binary = cv.threshold(morph_gray, 50, 255, cv.THRESH_BINARY)
-    _, morph_contours, morph_hierarchy = cv.findContours(morph_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    return morph_contours, morph_hierarchy, partial_elements_rec
-
-
-# remove the contours with small area
-def get_contours_bt(contours, area_threshold, contour_list):
-    return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
-
-
-def divide_layers(hierarchy):
-    res = np.where(hierarchy[0, :, 3] == -1)
-    layer = list(res[0])
-    layer = get_contours_bt(contours, CONTOUR_AREA_THRESHOLD, layer)
-
-    layer_dic = {}
-    layer_count = -1
-    while len(layer) > 0:
-        layer_count += 1
-        # get the contours in the next layer
-        next_layer = []
-        curr_layer = {}
-        for c in layer:
-            res = np.where(hierarchy[0, :, 3] == c)
-            c_children = list(res[0])
-            curr_layer[c] = c_children
-            next_layer.extend(c_children)
-
-        next_layer = get_contours_bt(contours, CONTOUR_AREA_THRESHOLD, next_layer)
-
-        layer_dic[layer_count] = curr_layer
-        layer = next_layer
-    # {layer_num:{c_i:c_children}}
-    return layer_dic
-
-
-def get_pools():
-    tag = -1
-    potential_pools = []
-    layer_0 = layers[0].keys()
-    for c_i in layer_0:
-        bound_i = contours_rec[c_i]
-        if is_pool(bound_i):
-            potential_pools.append(bound_i[0])
-
-    pools_num = len(potential_pools)
-
-    pools_object = []
-    if pools_num == 0:
-        # no lanes and no pools, just one process
-        print("no pools")
-        default_pool = create_default_pool(layer_0)
-        pools_object.append(default_pool)
-        tag = 0
-    else:
-        headers = []
-        layer_1 = layers[1].keys()
-        for c_i in layer_1:
-            bound_i = contours_rec[c_i]
-            if is_pool_header(bound_i):
-                # a rect with appropriate height-to-width ratio is very likely to be a header bounding box
-                header_rect = bound_i[0]
-                for p_i in range(pools_num):
-                    pool = potential_pools[p_i]
-                    if is_in(pool, header_rect) \
-                            and pool[0] - BOUNDARY_OFFSET <= header_rect[0] <= pool[0] + BOUNDARY_OFFSET:
-                        # header is in pool and with about the same height
-                        headers.append((header_rect, pool[2]))
-                        break
-
-        if len(headers) == 0:
-            # no pools but has several lanes, just one process
-            print("no pools but lanes")
-            default_pool = create_default_pool(layer_0, layer1=layer_1)
-            pools_object.append(default_pool)
-            tag = 1
-        else:
-            print("has pools")
-            for h in headers:
-                pool = dict()
-                header_rect = h[0]
-
-                pool_rect = (header_rect[0], header_rect[1], h[1], header_rect[3])
-                pool["rect"] = pool_rect
-
-                lane_width = h[1] - header_rect[2]
-                pool_lanes_rect = (header_rect[0] + header_rect[2], header_rect[1], lane_width, header_rect[3])
-                pool["lanes_rect"] = pool_lanes_rect
-
-                potential_lanes = dict()
-                for c_i in layer_1:
-                    rect = contours_rec[c_i][0]
-                    if is_in(pool_lanes_rect, rect):
-                        temp = potential_lanes.get(rect[1])
-                        if temp is None:
-                            potential_lanes[rect[1]] = [rect, rect[2]]
-                        else:
-                            # merge lane segments which are split by sequence flow
-                            if temp[0][0] > rect[0]:
-                                # potential_lanes[rect[1]][0] and temp are the same pointer,
-                                # we need to change the potential_lanes[rect[1]][1] first
-                                potential_lanes[rect[1]][1] = temp[0][0] + temp[0][2] - rect[0]
-                                potential_lanes[rect[1]][0] = rect
-                            else:
-                                new_width = rect[0] + rect[2] - temp[0][0]
-                                if new_width > potential_lanes[rect[1]][1]:
-                                    potential_lanes[rect[1]][1] = new_width
-
-                lane_keys = list(potential_lanes.keys())
-                lane_keys.sort()
-                pool_lanes = []
-                for key in lane_keys:
-                    potential_lane = potential_lanes[key]
-                    if is_adjacent(header_rect, potential_lane[0]):
-                        lane = (potential_lane[0][0], potential_lane[0][1], potential_lane[1], potential_lane[0][3])
-                        pool_lanes.append(lane)
-
-                pool["lanes"] = pool_lanes
-                pool["sub_procs"] = {}
-                pools_object.append(pool)
-                tag = 1
-    return pools_object, tag
-
-
-def is_pool(bound):
-    return bound[1] > POOL_AREA_THRESHOLD
-
-
-def is_pool_header(bound):
-    bound_rect = bound[0]
-    ratio = bound_rect[3] / bound_rect[2]
-    return POOL_HEADER_H_W_RATIO_FLOOR < ratio < POOL_HEADER_H_W_RATIO_CEILING
-
-
-def choose_header(header1, header2):
-    if header1[0] < header2[0]:
-        return header1
-    elif header1[0] > header2[0]:
-        return header2
-    else:
-        ratio1 = header1[3] / header1[2]
-        ratio2 = header2[3] / header2[2]
-        if ratio1 < ratio2:
-            return header2
-        else:
-            return header1
-
-
-def create_default_pool(layer0, layer1=None):
-    all_left_top_x = map(lambda c: contours_rec[c][0][0], layer0)
-    all_left_top_y = map(lambda c: contours_rec[c][0][1], layer0)
-    all_right_bottom_x = map(lambda c: contours_rec[c][0][0] + contours_rec[c][0][2], layer0)
-    all_right_bottom_y = map(lambda c: contours_rec[c][0][1] + contours_rec[c][0][3], layer0)
-
-    left_top_x = min(all_left_top_x) - LANES_RECT_DILATION_VALUE
-    left_top_y = min(all_left_top_y) - LANES_RECT_DILATION_VALUE
-    right_bottom_x = max(all_right_bottom_x) + LANES_RECT_DILATION_VALUE
-    right_bottom_y = max(all_right_bottom_y) + LANES_RECT_DILATION_VALUE
-
-    x = left_top_x - DEFAULT_POOL_HEADER_WIDTH
-    width = right_bottom_x - x
-    height = right_bottom_y - left_top_y
-    pool_rect = (x, left_top_y, width, height)
-    lane_width = right_bottom_x - left_top_x
-    pool_lanes_rect = (left_top_x, left_top_y, lane_width, height)
-
-    pool_lanes = []
-    if layer1 is None:
-        pool_lanes = [(left_top_x, left_top_y, lane_width, height)]
-    else:
-        potential_lanes = dict()
-        for c_i in layer1:
-            bound_i = contours_rec[c_i]
-            if bound_i[2] > POOL_AREA_THRESHOLD - 5000:
-                rect = bound_i[0]
-                temp = potential_lanes.get(rect[1])
-                if temp is None:
-                    potential_lanes[rect[1]] = [rect, rect[2]]
-                else:
-                    # merge lane segments which are split by sequence flow
-                    if temp[0][0] > rect[0]:
-                        # potential_lanes[rect[1]][0] and temp are the same pointer,
-                        # we need to change the potential_lanes[rect[1]][1] first
-                        potential_lanes[rect[1]][1] = temp[0][0] + temp[0][2] - rect[0]
-                        potential_lanes[rect[1]][0] = rect
-                    else:
-                        new_width = rect[0] + rect[2] - temp[0][0]
-                        if new_width > potential_lanes[rect[1]][1]:
-                            potential_lanes[rect[1]][1] = new_width
-
-        lane_keys = list(potential_lanes.keys())
-        lane_keys.sort()
-
-        for key in lane_keys:
-            potential_lane = potential_lanes[key]
-            lane = (potential_lane[0][0], potential_lane[0][1], potential_lane[1], potential_lane[0][3])
-            pool_lanes.append(lane)
-
-    pool = {"rect": pool_rect, "lanes_rect": pool_lanes_rect, "lanes": pool_lanes, "sub_procs": {}}
-    return pool
-
-
-def get_elements(pools_list, model_tag):
-    layers_num = len(layers)
-    upper_limit = min(model_tag + 3, layers_num)
-    k = model_tag
-    # 对后三层的轮廓进行遍历
-    while k < upper_limit:
-        layer = layers[k]
-        # 遍历单层轮廓
-        for c_i in layer:
-            bound = contours_rec[c_i]
-            bound_rect = bound[0]
-            pool_pivot = None
-            # 遍历泳池，确定该轮廓所属的泳池
-            for pool in pools_list:
-                if is_in(pool["lanes_rect"], bound_rect):
-                    pool_pivot = pool
-                    break
-
-            if pool_pivot is not None:
-                # 找到所属泳池
-                lanes = pool_pivot["lanes"]
-                elements = pool_pivot.get("elements")
-                if elements is None:
-                    elements = defaultdict(list)
-                    pool_pivot["elements"] = elements
-                # 遍历泳道，确定该轮廓所属的泳道
-                for i, lane in enumerate(lanes):
-                    if is_in(lane, bound_rect):
-                        elements_i = elements[i]
-                        num = len(elements_i)
-                        found = False
-                        # 找到所属泳道后判断是否与泳道中已有的元素重叠，
-                        # 若重叠选择边界矩形面积小于930的那个作为元素边界矩形
-                        for j in range(num):
-                            if is_in(elements_i[j], bound_rect):
-                                found = True
-                                if bound[2] < 930:
-                                    bound_rect = dilate(bound_rect, RECT_DILATION_VALUE)
-                                elements_i[j] = bound_rect
-                                break
-                        if not found:
-                            # filter the blank rectangle formed by element border and lane border
-                            if bound_rect[3] < lane[3] - 2 * BOUNDARY_OFFSET:
-                                sub_procs = pool_pivot["sub_procs"]
-                                if bound[2] < POOL_AREA_THRESHOLD:
-                                    # 如果不重叠，且面积不是太大，不是子进程，则加入泳道元素列表
-                                    elements_i.append(bound_rect)
-                                else:
-                                    # found subprocesses
-                                    # 若是子进程，则遍历层数加深，将子进程轮廓加入所属泳池
-                                    # 将子进程中的元素轮廓加入所属泳道
-                                    upper_limit = layers_num
-
-                                    sub_proc = sub_procs.get(i)
-                                    if sub_proc is None:
-                                        sub_procs[i] = [bound_rect]
-                                    else:
-                                        existed = False
-                                        for proc_id, proc in enumerate(sub_proc):
-                                            if is_in(proc, bound_rect):
-                                                sub_proc[proc_id] = bound_rect
-                                                existed = True
-                                                break
-                                        if not existed:
-                                            sub_proc.append(bound_rect)
-        k += 1
-
-    # 将粗边框元素合并到泳池元素中
-    for ele_rect in partial_elements:
-        for pool_id, pool in enumerate(pools):
-            pool_lanes_rect = pool["lanes_rect"]
-            if is_overlap(pool_lanes_rect, ele_rect):
-                elements = pool["elements"]
-                lanes = pool["lanes"]
-                for lane_id, lane in enumerate(lanes):
-                    if is_overlap(lane, ele_rect):
-                        elements_in_lane = elements.get(lane_id)
-                        existed = False
-                        # 若与已检测出的元素冲突，选择重叠面积占比大的那一个
-                        for ele_id, element in enumerate(elements_in_lane):
-                            if is_overlap(element, ele_rect):
-                                existed = True
-                                area1 = element[2] * element[3]
-                                area2 = ele_rect[2] * ele_rect[3]
-                                if area2 < area1:
-                                    elements_in_lane[ele_id] = ele_rect
-                        if not existed:
-                            elements_in_lane.append(ele_rect)
-                        break
-                break
-
-    # 筛选子进程，若元素横穿或者靠近子进程边界，则不是子进程
-    for pool in pools_list:
-        elements = pool["elements"]
-        for i, elements_i in elements.items():
-            num = len(elements_i)
-            remove_set = set()
-            for j in range(num):
-                sub_procs = pool["sub_procs"]
-                for lane_id, lane_sub_procs in sub_procs.items():
-                    for proc_id, one_proc in enumerate(lane_sub_procs):
-                        shrink_proc = shrink(one_proc, RECT_DILATION_VALUE)
-                        if not is_in(shrink_proc, elements_i[j]) and is_overlap(shrink_proc, elements_i[j]):
-                            lane_sub_procs[proc_id] = None
-                    lane_sub_procs = list(filter(lambda x: x is not None, lane_sub_procs))
-                    if len(lane_sub_procs) == 0:
-                        sub_procs.pop(lane_id)
-                        break
-                    else:
-                        sub_procs[lane_id] = lane_sub_procs
-                        break
-
-                # 这里很奇怪，可能是针对特定情况的元素筛选
-                for m in range(j + 1, num):
-                    if is_adjacent(elements_i[j], elements_i[m]):
-                        # two elements adjacent
-                        remove_set.add(m)
-                        remove_set.add(j)
-                    else:
-                        # two elements intersect
-                        overlap_area = get_overlap_area(elements_i[j], elements_i[m])
-                        if overlap_area > 0:
-                            area_j = elements_i[j][2] * elements_i[j][3]
-                            area_m = elements_i[m][2] * elements_i[m][3]
-                            if area_m < 1200 or area_j < 1200:
-                                if area_m < area_j:
-                                    remove_set.add(m)
-                                else:
-                                    remove_set.add(j)
-                            else:
-                                ratio_j = overlap_area / area_j
-                                ratio_m = overlap_area / area_m
-                                if ratio_j > ratio_m:
-                                    remove_set.add(m)
-                                else:
-                                    remove_set.add(j)
-
-            for j in remove_set:
-                elements_i[j] = None
-            elements_i = list(filter(lambda x: x is not None, elements_i))
-            elements[i] = elements_i
-
-    return pools_list
-
-
 def remove_elements(element_border):
     # remove elements
     drawing = np.zeros_like(input_img, dtype=np.uint8)
@@ -917,21 +145,21 @@ def remove_elements(element_border):
     for pool in pools:
         pool_rect = pool["rect"]
         drawing = truncate(drawing, reverse, pool_rect)
-        drawing = draw_one_rect(drawing, pool_rect, COLOR_BLACK, BOUNDARY_OFFSET)
+        drawing = helper.draw_one_rect(drawing, pool_rect, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
         lanes = pool["lanes"]
         elements = pool["elements"]
-        sub_procs = pool["sub_procs"]
+        sub_procs = pool.get("sub_procs", {})
 
         for i, lane in enumerate(lanes):
-            drawing = draw_one_rect(drawing, lane, COLOR_BLACK, BOUNDARY_OFFSET)
+            drawing = helper.draw_one_rect(drawing, lane, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
             elements_i = elements[i]
             for element in elements_i:
-                e_rect = dilate(element, element_border)
+                e_rect = helper.dilate(element, element_border)
                 drawing = truncate(drawing, mask, e_rect)
-            lane_sub_procs = sub_procs.get(i)
+            lane_sub_procs = sub_procs.get(i, None)
             if lane_sub_procs is not None:
                 for sub_proc in lane_sub_procs:
-                    drawing = draw_one_rect(drawing, sub_proc, COLOR_BLACK, BOUNDARY_OFFSET)
+                    drawing = helper.draw_one_rect(drawing, sub_proc, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
     return drawing
 
 
@@ -943,7 +171,7 @@ def truncate(base, target, roi_rect):
 
 def get_arrows(flows_img):
     arrows = []
-    erode_element = get_structure_ele(cv.MORPH_RECT, 2)
+    erode_element = helper.get_structure_ele(cv.MORPH_RECT, 2)
     erode = cv.erode(flows_img, erode_element)
     _, erode = cv.threshold(erode, 50, 255, cv.THRESH_BINARY)
 
@@ -951,12 +179,12 @@ def get_arrows(flows_img):
     _, arrow_contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     for i, arrow_contour in enumerate(arrow_contours):
-        bound = get_one_contour_rec(i, arrow_contours)
+        bound = helper.get_one_contour_rec(i, arrow_contours)
         ratio = bound[0][3] / bound[0][2]
         # print("area:{}, ratio:{}".format(bound[2], "%.3f" % ratio))
         # TODO How to detect an arrow
         if 5 < bound[2] < 200 and 0.39 < ratio < 4.9:
-            bound_rec = dilate(bound[0], BOUNDARY_OFFSET)
+            bound_rec = helper.dilate(bound[0], cfg.BOUNDARY_OFFSET)
             arrows.append(bound_rec)
     # cv.imshow("remove_elements", flows_img)
     # cv.imshow("arrow_erode", erode)
@@ -966,9 +194,9 @@ def get_arrows(flows_img):
 def remove_text(flows_only):
     # remove text
     mask = np.zeros_like(input_img, dtype=np.uint8)
-    element1 = get_structure_ele(cv.MORPH_RECT, 2)
+    element1 = helper.get_structure_ele(cv.MORPH_RECT, 2)
     morph = cv.morphologyEx(flows_only, cv.MORPH_BLACKHAT, element1)
-    element2 = get_structure_ele(cv.MORPH_RECT, 3)
+    element2 = helper.get_structure_ele(cv.MORPH_RECT, 3)
     morph = cv.morphologyEx(morph, cv.MORPH_CLOSE, element2)
 
     morph.dtype = np.uint8
@@ -976,8 +204,8 @@ def remove_text(flows_only):
     _, del_contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     for i in range(len(del_contours)):
-        bound = get_one_contour_rec(i, del_contours)
-        bound_rec = dilate(bound[0], 2)
+        bound = helper.get_one_contour_rec(i, del_contours)
+        bound_rec = helper.dilate(bound[0], 2)
         if bound[1] > 2:
             flows_only = truncate(flows_only, mask, bound_rec)
     _, flows_only = cv.threshold(flows_only, 200, 255, cv.THRESH_BINARY)
@@ -986,7 +214,8 @@ def remove_text(flows_only):
 
 def detect_lines(flows_copy):
     flows_only = cv.cvtColor(flows_copy, cv.COLOR_BGR2GRAY)
-    detected_lines = cv.HoughLinesP(flows_only, 1, np.pi / 180, SEQ_FLOW_THRESHOLD, None, SEQ_MIN_LENGTH, SEQ_MAX_GAP)
+    detected_lines = cv.HoughLinesP(flows_only, 1, np.pi / 180, cfg.SEQ_FLOW_THRESHOLD, None, cfg.SEQ_MIN_LENGTH,
+                                    cfg.SEQ_MAX_GAP)
     line_list = []
     for detect_line in detected_lines:
         one_line = detect_line[0]
@@ -995,14 +224,14 @@ def detect_lines(flows_copy):
 
 
 def create_line(one_line):
-    if abs(one_line[0] - one_line[2]) < RECT_DILATION_VALUE:
+    if abs(one_line[0] - one_line[2]) < cfg.RECT_DILATION_VALUE:
         # 竖直线
         mean_x = (one_line[0] + one_line[2]) // 2
-        one_line = (mean_x, one_line[1], mean_x, one_line[3])
-    if abs(one_line[1] - one_line[3]) < RECT_DILATION_VALUE:
+        one_line = (int(mean_x), int(one_line[1]), int(mean_x), int(one_line[3]))
+    if abs(one_line[1] - one_line[3]) < cfg.RECT_DILATION_VALUE:
         # 水平线
         mean_y = (one_line[1] + one_line[3]) // 2
-        one_line = (one_line[0], mean_y, one_line[2], mean_y)
+        one_line = (int(one_line[0]), int(mean_y), int(one_line[2]), int(mean_y))
     return Line(one_line)
 
 
@@ -1179,7 +408,7 @@ def get_rect_vertices(rec):
 
 
 def line_is_intersect_rec(line, rec):
-    if is_in(rec, (line[0], line[1], 0, 0)) or is_in(rec, (line[2], line[3], 0, 0)):
+    if helper.is_in(rec, (line[0], line[1], 0, 0)) or helper.is_in(rec, (line[2], line[3], 0, 0)):
         return True
 
     points = get_rect_vertices(rec)
@@ -1258,8 +487,8 @@ def get_initial_lines(arrows, line_list):
         to_next = False
         intersected_arrows = list()
         for i, arrow in enumerate(arrows):
-            p1_in = is_in(arrow, (line.li[0], line.li[1], 0, 0))
-            p2_in = is_in(arrow, (line.li[2], line.li[3], 0, 0))
+            p1_in = helper.is_in(arrow, (line.li[0], line.li[1], 0, 0))
+            p2_in = helper.is_in(arrow, (line.li[2], line.li[3], 0, 0))
             info = get_line_info(line, p1_in, p2_in)
             if info is not None:  # 线段有一端在箭头中
                 # cv.line(flows_cp, line.p1, line.p2, COLOR_GREEN, CONTOUR_THICKNESS)
@@ -1314,8 +543,8 @@ def get_initial_lines(arrows, line_list):
                     begin = (discrete_line.li[seg_dist[1] * 2], discrete_line.li[seg_dist[1] * 2 + 1])
                     end = get_rec_center(arrows[i])
                     new_line = create_line((begin[0], begin[1], end[0], end[1]))
-                    p1_in = is_in(arrows[i], (new_line.li[0], new_line.li[1], 0, 0))
-                    p2_in = is_in(arrows[i], (new_line.li[2], new_line.li[3], 0, 0))
+                    p1_in = helper.is_in(arrows[i], (new_line.li[0], new_line.li[1], 0, 0))
+                    p2_in = helper.is_in(arrows[i], (new_line.li[2], new_line.li[3], 0, 0))
                     info = get_line_info(new_line, p1_in, p2_in)
                     arrow_lines[i] = {(new_line.k, new_line.b): info}
         else:
@@ -1327,8 +556,8 @@ def get_initial_lines(arrows, line_list):
             arrow_line = {}
             arrow = arrows[i]
             for normalized_line in normalized_arrow_line:
-                p1_in = is_in(arrow, (normalized_line.li[0], normalized_line.li[1], 0, 0))
-                p2_in = is_in(arrow, (normalized_line.li[2], normalized_line.li[3], 0, 0))
+                p1_in = helper.is_in(arrow, (normalized_line.li[0], normalized_line.li[1], 0, 0))
+                p2_in = helper.is_in(arrow, (normalized_line.li[2], normalized_line.li[3], 0, 0))
                 info = get_line_info(normalized_line, p1_in, p2_in)
                 if info is None:
                     normalized_line = extend_line(normalized_line, arrow)
@@ -1341,7 +570,8 @@ def get_initial_lines(arrows, line_list):
 
 def get_arrow_ele_direct(arrow, ele):
     arrow_center = get_rec_center(arrow)
-    ele_shrink = shrink(ele, LANES_RECT_DILATION_VALUE)
+    ele_shrink = helper.shrink(ele, 10)
+    # ele_shrink = helper.shrink(ele, cfg.)
     p1 = (ele_shrink[0], ele_shrink[1])
     p2 = (ele_shrink[0] + ele_shrink[2], ele_shrink[1])
 
@@ -1438,14 +668,14 @@ def add_one_element_to_pool(ele_rect):
     global all_elements
     for pool_id, pool in enumerate(pools):
         pool_lanes_rect = pool["lanes_rect"]
-        if is_overlap(pool_lanes_rect, ele_rect):
+        if helper.is_overlap(pool_lanes_rect, ele_rect):
             elements = pool["elements"]
             lanes = pool["lanes"]
             for lane_id, lane in enumerate(lanes):
-                if is_overlap(lane, ele_rect):
+                if helper.is_overlap(lane, ele_rect):
                     elements_in_lane = elements.get(lane_id)
                     for ele_id, element in enumerate(elements_in_lane):
-                        if is_overlap(element, ele_rect):
+                        if helper.is_overlap(element, ele_rect):
                             ele_path = (pool_id, lane_id, ele_id, 0)
                             return ele_path
                     ele_id = len(elements_in_lane)
@@ -1506,13 +736,13 @@ def match_arrows_and_elements(arrow_lines, arrows):
     for i, pool in enumerate(pools):
         lanes = pool["lanes"]
         elements = pool["elements"]
-        sub_procs = pool["sub_procs"]
+        sub_procs = pool.get("sub_procs", {})
         for j in range(len(lanes)):
             elements_in_lane = elements.get(j)
             if elements_in_lane is not None:
                 for k in range(len(elements_in_lane)):
                     all_elements.append((i, j, k, 0))
-            sub_procs_in_lane = sub_procs.get(j)
+            sub_procs_in_lane = sub_procs.get(j, None)
             if sub_procs_in_lane is not None:
                 for k in range(len(sub_procs_in_lane)):
                     all_elements.append((i, j, k, 1))
@@ -1526,19 +756,19 @@ def match_arrows_and_elements(arrow_lines, arrows):
         found = False
         for pool_id, pool in enumerate(pools):
             pool_lanes_rect = pool["lanes_rect"]
-            if is_in(pool_lanes_rect, arrow):
+            if helper.is_in(pool_lanes_rect, arrow):
                 elements = pool["elements"]
                 lanes = pool["lanes"]
-                sub_procs = pool["sub_procs"]
+                sub_procs = pool.get("sub_procs",{})
                 for lane_id, lane in enumerate(lanes):
-                    if is_in(lane, arrow):
-                        sub_procs_in_lane = sub_procs.get(lane_id)
+                    if helper.is_in(lane, arrow):
+                        sub_procs_in_lane = sub_procs.get(lane_id, None)
                         elements_in_lane = elements.get(lane_id)
-                        dilate_arrow = dilate(arrow, RECT_DILATION_VALUE)
+                        dilate_arrow = helper.dilate(arrow, cfg.RECT_DILATION_VALUE)
 
                         if elements_in_lane is not None:
                             for ele_id, ele in enumerate(elements_in_lane):
-                                if is_overlap(dilate_arrow, ele):
+                                if helper.is_overlap(dilate_arrow, ele):
                                     found = True
                                     arrow_direct = get_arrow_ele_direct(arrow, ele)
                                     arrow_line = arrow_lines.get(arrow_id)
@@ -1549,7 +779,8 @@ def match_arrows_and_elements(arrow_lines, arrows):
 
                         if not found and sub_procs_in_lane is not None:
                             for sub_proc_id, sub_proc in enumerate(sub_procs_in_lane):
-                                if not is_in(sub_proc, dilate_arrow) and is_overlap(dilate_arrow, sub_proc):
+                                if not helper.is_in(sub_proc, dilate_arrow) and helper.is_overlap(dilate_arrow,
+                                                                                                  sub_proc):
                                     found = True
                                     arrow_direct = get_arrow_ele_direct(arrow, sub_proc)
                                     arrow_line = arrow_lines.get(arrow_id)
@@ -1581,7 +812,7 @@ def match_arrows_and_elements(arrow_lines, arrows):
             ele_rec = possible_ele[one_arrow_id]
             adjacent_arrows = [one_arrow_id]
             for i, key in enumerate(keys):
-                if is_overlap(ele_rec, possible_ele[key]):
+                if helper.is_overlap(ele_rec, possible_ele[key]):
                     adjacent_arrows.append(key)
                     keys[i] = None
             keys = list(filter(lambda x: x is not None, keys))
@@ -1609,8 +840,8 @@ def is_parallel(line1, line2):
 
 
 def line_is_in_rec(line, rec):
-    p1_in = is_in(rec, (line.li[0], line.li[1], 0, 0))
-    p2_in = is_in(rec, (line.li[2], line.li[3], 0, 0))
+    p1_in = helper.is_in(rec, (line.li[0], line.li[1], 0, 0))
+    p2_in = helper.is_in(rec, (line.li[2], line.li[3], 0, 0))
     if p1_in and p2_in:
         return True, -1
     elif p1_in:
@@ -1643,15 +874,15 @@ def get_point_of_intersection(line1, line2):
 
 
 def is_begin_point(point, line, end_ele_id):
-    point_rec = dilate((point[0], point[1], 0, 0), 10)
+    point_rec = helper.dilate((point[0], point[1], 0, 0), 10)
     overlapped_ele = {}
     for i in range(len(all_elements)):
         ele_rec = get_element_rec_by_id(i)
         if all_elements[i][3] == 0:
-            if is_overlap(ele_rec, point_rec) and i != end_ele_id:
+            if helper.is_overlap(ele_rec, point_rec) and i != end_ele_id:
                 overlapped_ele[i] = ele_rec
         else:
-            if not is_in(ele_rec, point_rec) and is_overlap(ele_rec, point_rec) and i != end_ele_id:
+            if not helper.is_in(ele_rec, point_rec) and helper.is_overlap(ele_rec, point_rec) and i != end_ele_id:
                 return True, i
 
     if len(overlapped_ele) == 0:
@@ -1694,14 +925,14 @@ def detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, me
 
     line_range = None
     if curr_begin[0] < last_begin[0]:
-        line_range = [[curr_begin[0] - LINE_AREA_THRESHOLD, last_begin[0]], 0]
+        line_range = [[curr_begin[0] - cfg.LINE_AREA_THRESHOLD, last_begin[0]], 0]
     elif curr_begin[0] > last_begin[0]:
-        line_range = [[last_begin[0], curr_begin[0] + LINE_AREA_THRESHOLD], 0]
+        line_range = [[last_begin[0], curr_begin[0] + cfg.LINE_AREA_THRESHOLD], 0]
     else:
         if curr_begin[1] < last_begin[1]:
-            line_range = [[curr_begin[1] - LINE_AREA_THRESHOLD, last_begin[1]], 1]
+            line_range = [[curr_begin[1] - cfg.LINE_AREA_THRESHOLD, last_begin[1]], 1]
         elif curr_begin[1] > last_begin[1]:
-            line_range = [[last_begin[1], curr_begin[1] + LINE_AREA_THRESHOLD], 1]
+            line_range = [[last_begin[1], curr_begin[1] + cfg.LINE_AREA_THRESHOLD], 1]
 
     is_begin = is_begin_point(curr_begin, curr_line, end_ele_id)
     if is_begin[0]:
@@ -1769,8 +1000,8 @@ def detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, me
 
 
 def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
-    n = len(all_elements)
-    graph = [[-1 for j in range(n)] for i in range(n)]
+    # n = len(all_elements)
+    # graph = [[-1 for j in range(n)] for i in range(n)]
     # flows: {arrow_id: [[end_ele_id, flow_points, start_ele_id]]}
     flows = defaultdict(list)
     merged_lines = []
@@ -1871,7 +1102,7 @@ def complete_flow(begin_ele_id, flow_points):
             end_point = (ele_center[0], int(end_line.k * ele_center[0] + end_line.b))
         flow_points[-1] = end_point
     else:
-        point_rec = dilate((p1[0], p1[1], 0, 0), 5)
+        point_rec = helper.dilate((p1[0], p1[1], 0, 0), 5)
         direct = get_arrow_ele_direct(point_rec, ele_rec)
         if direct == 1 or direct == 3:
             end_point = (p1[0], ele_center[1])
@@ -1929,13 +1160,16 @@ def is_same(p1, p2):
     return p1[0] == p2[0] and p1[1] == p2[1]
 
 
-def parse_img(f):
+def parse_img(file_path):
     global pools
-    pre_process(f)
-    pools, type_tag = get_pools()
+    global input_img
+
+    input_img, layers, contours, contours_rec, partial_elements = pre_process(file_path)
+    pools, type_tag = pools_detector.get_pools(layers, contours_rec)
     pools_img = draw_pools(pools)
+
     show_im(pools_img, "pools_img_no_elements")
-    pools = get_elements(pools, type_tag)
+    pools = pools_detector.get_elements(layers, contours_rec, partial_elements, pools, type_tag)
 
     flows_img = remove_elements(2)
     arrows = get_arrows(flows_img)
@@ -1960,15 +1194,15 @@ def parse_img(f):
             for ele_path in all_elements:
                 if ele_path[3] == 0:
                     ele_rec = get_element_rec_by_path(ele_path)
-                    if point_is_in(ele_rec, line.p1) and point_is_in(ele_rec, line.p2):
+                    if helper.point_is_in(ele_rec, line.p1) and helper.point_is_in(ele_rec, line.p2):
                         discrete_lines[i] = None
         discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
 
         for line in discrete_lines:
-            cv.line(flows_only, line.p1, line.p2, COLOR_RED, CONTOUR_THICKNESS, cv.LINE_AA)
-        draw_lines(flows_only, arrow_lines, COLOR_GREEN, CONTOUR_THICKNESS)
+            cv.line(flows_only, line.p1, line.p2, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS, cv.LINE_AA)
+        draw_lines(flows_only, arrow_lines, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
         for arrow in arrows:
-            flows_only = draw_one_rect(flows_only, arrow, COLOR_GREEN, CONTOUR_THICKNESS)
+            flows_only = helper.draw_one_rect(flows_only, arrow, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
 
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
@@ -2107,48 +1341,42 @@ def parse_img(f):
             arrow_flows = flows.get(arrow_id)
             arrow_ele = arrow_ele_map.get(arrow_id)
             if (arrow_flows is None or len(arrow_flows) == 0) and (arrow_ele is None or len(arrow_ele) == 0):
-                draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
             elif arrow_flows is None or len(arrow_flows) == 0:
-                draw_one_rect(pools_img, arrows[arrow_id], COLOR_BLUE, CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS)
             elif arrow_ele is None or len(arrow_ele) == 0:
-                draw_one_rect(pools_img, arrows[arrow_id], COLOR_RED, CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
             else:
-                color = COLOR_GREEN
+                color = cfg.COLOR_GREEN
                 if arrow_ele[0][3] == 1:
                     print("connect sub_process")
-                    color = COLOR_BLUE
-                draw_one_rect(pools_img, arrows[arrow_id], color, CONTOUR_THICKNESS)
+                    color = cfg.COLOR_BLUE
+                helper.draw_one_rect(pools_img, arrows[arrow_id], color, cfg.CONTOUR_THICKNESS)
                 for flow in arrow_flows:
                     show_points = False
                     if flow[2] is None:
                         show_points = True
-                        color = COLOR_RED
+                        color = cfg.COLOR_RED
                     else:
                         if all_elements[flow[2]][3] == 1:
-                            color = COLOR_BLUE
+                            color = cfg.COLOR_BLUE
                         else:
-                            color = COLOR_GREEN
+                            color = cfg.COLOR_GREEN
                     flow_points = flow[1]
 
                     if len(flow_points) >= 2:
                         if show_points:
                             print(flow_points)
                         for i in range(1, len(flow_points)):
-                            cv.line(pools_img, flow_points[i - 1], flow_points[i], color, CONTOUR_THICKNESS)
+                            # try:
+                            p1 = (int(flow_points[i-1][0]), int(flow_points[i-1][1]))
+                            p2 = (int(flow_points[i][0]), int(flow_points[i][1]))
+                            cv.line(pools_img, p1, p2, color, cfg.CONTOUR_THICKNESS)
+                            # except TypeError:
+                            #     print(flow_points[i - 1], flow_points[i])
 
     show_im(pools_img, name="pools_img")
     # cv.waitKey(0)
-
-    all_elements_type = []
-    for ele_path in all_elements:
-        if ele_path[3] == 1:
-            all_elements_type.append("subProcess_expanded")
-        else:
-            ele_rec = get_element_rec_by_path(ele_path)
-            ele_rec = rh.dilate(ele_rec, 5)
-            ele_img = rh.truncate(input_img, ele_rec)
-            ele_type = bcf.get_one_image_type(ele_img)
-            all_elements_type.append(ele_type)
 
     all_seq_flows = []
     for arrow_id in range(len(arrows)):
@@ -2157,40 +1385,53 @@ def parse_img(f):
         for flow in arrow_flows:
             all_seq_flows.append(flow)
 
-    print(all_elements_type)
+    all_elements_type = []
+    # for ele_path in all_elements:
+    #     if ele_path[3] == 1:
+    #         all_elements_type.append("subProcess_expanded")
+    #     else:
+    #         ele_rec = get_element_rec_by_path(ele_path)
+    #         ele_rec = helper.dilate(ele_rec, 5)
+    #         ele_img = helper.truncate(input_img, ele_rec)
+    #         ele_type = bcf.get_one_image_type(ele_img)
+    #         all_elements_type.append(ele_type)
+    # print(all_elements_type)
 
     return all_elements_type, all_seq_flows
 
 
 def show_im(img_matrix, name="img"):
-    pass
-    # cv.namedWindow(name)
-    # cv.imshow(name, img_matrix)
+    # pass
+    cv.namedWindow(name)
+    cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
     # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
 
 
 def run():
+    # sample_dir = "imgs/admission/"
     sample_dir = "samples/imgs/sample_1/"
+    # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
-
-    for im in images:
+    selected = images
+    for im in selected:
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
             all_elements_type, all_seq_flows = parse_img(file_path)
-            definitions = create_model(pools, all_elements, all_elements_type, all_seq_flows)
-            export_xml(definitions, im)
-        break
+            # definitions = model_exporter.create_model(pools, all_elements, all_elements_type, all_seq_flows)
+            # model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
+            cv.waitKey(0)
+        # break
 
 
 if __name__ == '__main__':
-    bcf = BCF()
-    bcf.CODEBOOK_FILE = "../bcf/model/codebook_15.data"
-    bcf.CLASSIFIER_FILE = "../bcf/model/classifier_base_15_50"
-    bcf.load_kmeans()
-    bcf.load_classifier()
+    # bcf = BCF()
+    # bcf.CODEBOOK_FILE = "../bcf/model/codebook_15.data"
+    # bcf.CLASSIFIER_FILE = "../bcf/model/classifier_base_15_50"
+    # bcf.load_kmeans()
+    # bcf.load_classifier()
     run()
     # show_layers()

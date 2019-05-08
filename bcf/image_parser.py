@@ -3,7 +3,7 @@ import os
 import cv2 as cv
 import numpy as np
 
-import helper.rec_helper as rh
+import helper.detector_helper as helper
 
 
 CONTOUR_AREA_THRESHOLD = 150
@@ -33,8 +33,8 @@ def filter_contours(image_shape, contours, area_threshold=CONTOUR_AREA_THRESHOLD
         if bound[1] > area_threshold:
             contours_id.append(i)
         else:
-            if rh.is_overlap(bound[0], rec1) or (rh.is_overlap(bound[0], rec2)
-                                                 and (bound[0][2] > 8 or bound[0][3] > 8)):
+            if helper.is_overlap(bound[0], rec1) or (helper.is_overlap(bound[0], rec2)
+                                                     and (bound[0][2] > 8 or bound[0][3] > 8)):
                 contours_id.append(i)
 
     return contours_id
@@ -70,8 +70,8 @@ def show_layers(input_img, layers, contours):
     for i in range(len(layers)):
         layer = layers[i].keys()
         contours_drawing = draw_contours(input_img, contours, layer)
-        contours_drawing = rh.dilate_drawing(contours_drawing)
-        img = rh.dilate_drawing(input_img)
+        contours_drawing = helper.dilate_drawing(contours_drawing)
+        img = helper.dilate_drawing(input_img)
 
         cv.imshow("input", img)
         cv.imshow("contour", contours_drawing)
@@ -91,20 +91,20 @@ def draw_contours(input_img, contours, contors):
 
 
 def get_layers_by_file_name(file_name):
-    input_img = 255 - cv.imread(file_name)
+    input_img = cv.imread(file_name)
     return get_layers_by_img(input_img)
 
 
 def get_layers_by_img(input_img):
     input_img = 255 - input_img
     _, input_binary = cv.threshold(input_img, 50, 255, cv.THRESH_BINARY)
-    # cv.imshow("input_binary", rh.dilate_drawing(input_binary))
+    # cv.imshow("input_binary", helper.dilate_drawing(input_binary))
     # input_binary = cv.Canny(input_img, 50, 200)
-    # cv.imshow("input_binary", rh.dilate_drawing(input_binary))
+    # cv.imshow("input_binary", helper.dilate_drawing(input_binary))
     # input_binary = cv.Canny(input_binary, 50, 200)
-    # cv.imshow("input_binary_3", rh.dilate_drawing(input_binary))
+    # cv.imshow("input_binary_3", helper.dilate_drawing(input_binary))
     # cv.imshow(input)
-    # cv.imshow("input", rh.dilate_drawing(input_binary))
+    # cv.imshow("input", helper.dilate_drawing(input_binary))
     # cv.waitKey(0)
     input_binary.dtype = np.uint8
     input_binary = cv.cvtColor(input_binary, cv.COLOR_BGR2GRAY)
@@ -140,5 +140,5 @@ def get_layers_by_img(input_img):
 #     input_img, layers, contours = get_layers(file_path)
 #     show_layers(input_img, layers, contours)
 
-    # a = rh.shrink((0, 0, 100, 100), 5)
+    # a = helper.shrink((0, 0, 100, 100), 5)
     # print(a)
