@@ -36,7 +36,8 @@ def move_complex_type():
     print("Moving Complex Type...")
     complex_ele_list = ["adHocSub_expanded", "group", "lane", "participant", "subProcess_expanded",
                         "subProcess_mulInsL_expanded", "subProcess_stdL_expanded", "subProcess_withBound_expanded",
-                        "transaction_withBound_expanded", "textAnnotation", "adHocSubProcess_expanded", ]
+                        "transaction_withBound_expanded", "textAnnotation", "adHocSubProcess_expanded",
+                        "transaction_expanded", "subProcess_triggeredByEvent_expanded"]
     train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
     complex_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_complex_data/"
 
@@ -123,4 +124,4 @@ def distribute_shape_data():
 if __name__ == '__main__':
     distribute_shape_data()
     move_complex_type()
-    filter_enough_data()
+    # filter_enough_data()

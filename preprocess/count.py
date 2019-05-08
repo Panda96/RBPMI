@@ -169,6 +169,7 @@ def count_one_bpmn(file):
                 if element_type_info.endswith("Definition"):
                     info = element_type_info.replace("EventDefinition", "")
                     type_info.append(info)
+
                 # if main_type == "boundaryEvent":
                 #     type_info[0] = "intermediateCatchEvent"
             # else:
@@ -182,6 +183,14 @@ def count_one_bpmn(file):
 
         # if element_id in list(bound_dic.keys()):
         #     type_info.append("withBound")
+        if main_type == "subProcess" and element.attrib.get("triggeredByEvent", "") == "true":
+            type_info.append("triggeredByEvent")
+
+        if main_type == "boundaryEvent" and element.attrib.get("cancelActivity", "") == "false":
+            type_info.append("cancelActivity")
+
+        if main_type == "startEvent" and element.attrib.get("isInterrupting", "") == "false":
+            type_info.append("isInterrupting")
 
         if main_type in ["adHocSubProcess", "subProcess", "transaction"]:
             for sub_node in element:
@@ -395,9 +404,11 @@ def statistic():
     for shape_type in shape_type_list:
         type_dir_name = "{}:{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
-        type_dirs.append(shape_type)
+        type_dirs.append([shape_type, len(shape_type_dict[shape_type])])
 
-    print(len(type_dirs))
+    type_dirs.sort(key=lambda x: x[1])
+    print(type_dirs)
+    # print(len(type_dirs))
 
     # participants = shape_type_dict["participant"]
     # min_area = float("inf")

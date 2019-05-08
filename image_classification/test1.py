@@ -25,7 +25,8 @@ data_val = data_dir + "val/"
 labels = os.listdir(data_train)
 classes = len(labels)
 
-img_shape = (256, 256)
+img_size = 150
+img_shape = (img_size, img_size)
 # image generator
 
 data_gen = ImageDataGenerator(
@@ -48,7 +49,7 @@ val_iter = val_gen.flow_from_directory(data_val, class_mode='categorical',
                                        target_size=img_shape, batch_size=16)
 
 model = Sequential()
-model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(256, 256, 3)))
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(img_size, img_size, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
