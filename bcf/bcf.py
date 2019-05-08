@@ -311,6 +311,32 @@ class BCF:
         predictions = clf.predict(testing_data)
         return predictions[0]
 
+    def test_dir(self, test_data):
+        clf = self.load_classifier()
+        testing_data = []
+        test_labels = []
+        type_dirs = os.listdir(test_data)
+        test_res = {}
+        for each_type in type_dirs:
+            test_res[each_type] = [0, 0, 0]
+            images = os.listdir(test_data + each_type)
+            for image in images:
+                image_path = test_data + each_type + "/" + image
+                testing_data.append(self.get_one_image_feature(image_path))
+                test_labels.append([each_type, ])
+
+        predictions = clf.predict(testing_data)
+
+        # for (i, label) in enumerate(test_labels):
+        #     test_res[label][0] += 1
+        #     if predictions[i] == label:
+        #         correct += 1
+        #         print("took %s for %s" % (label, predictions[i]))
+        #     else:
+        #         print("Mistook %s for %s" % (label, predictions[i]))
+        # print(
+        #     "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
+
     def test(self):
         clf = self.load_classifier()
         # label_to_cls = self.load_label_to_class_mapping()

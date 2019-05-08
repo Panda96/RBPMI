@@ -73,7 +73,6 @@ def judge_one_overlapped(file):
 
     participants = []
 
-
     for node in plane:
         not_blank = True
         element_id = node.attrib.get("bpmnElement", "")
@@ -123,28 +122,28 @@ def count_one_bpmn(file):
 
     bound_dic = defaultdict(list)
 
-    blank = True
-    for node in plane:
-        blank = False
-        # 如果是未筛选过的数据需要做一些异常处理
-        element_id = node.attrib.get("bpmnElement", "")
-        elements = definitions.findall(".//*[@id='{}']".format(element_id))
-        element = elements[0]
-        main_type = get_tag_type(element.tag)
+    # blank = True
+    # for node in plane:
+    #     blank = False
+    #     # 如果是未筛选过的数据需要做一些异常处理
+    #     element_id = node.attrib.get("bpmnElement", "")
+    #     elements = definitions.findall(".//*[@id='{}']".format(element_id))
+    #     element = elements[0]
+    #     main_type = get_tag_type(element.tag)
+    #
+    #     if main_type == "boundaryEvent":
+    #         # 未筛选过的数据需要做异常处理
+    #         task_id = element.attrib.get("attachedToRef", "")
+    #         node_type = get_tag_type(node.tag)
+    #         if node_type == "BPMNShape":
+    #             bounds = node.find("{http://www.omg.org/spec/DD/20100524/DC}Bounds")
+    #             shape_bound = [bounds.attrib["x"], bounds.attrib["y"], bounds.attrib["width"], bounds.attrib["height"]]
+    #             shape_bound = [int(float(x)) for x in shape_bound]
+    #             bound_dic[task_id].append(shape_bound)
 
-        if main_type == "boundaryEvent":
-            # 未筛选过的数据需要做异常处理
-            task_id = element.attrib.get("attachedToRef", "")
-            node_type = get_tag_type(node.tag)
-            if node_type == "BPMNShape":
-                bounds = node.find("{http://www.omg.org/spec/DD/20100524/DC}Bounds")
-                shape_bound = [bounds.attrib["x"], bounds.attrib["y"], bounds.attrib["width"], bounds.attrib["height"]]
-                shape_bound = [int(float(x)) for x in shape_bound]
-                bound_dic[task_id].append(shape_bound)
-
-    if blank:
-        print(file_id, "blank")
-        return
+    # if blank:
+    #     print(file_id, "blank")
+    #     return
 
     min_x = float("inf")
     min_y = float("inf")
@@ -170,8 +169,8 @@ def count_one_bpmn(file):
                 if element_type_info.endswith("Definition"):
                     info = element_type_info.replace("EventDefinition", "")
                     type_info.append(info)
-                if main_type == "boundaryEvent":
-                    type_info[0] = "intermediateCatchEvent"
+                # if main_type == "boundaryEvent":
+                #     type_info[0] = "intermediateCatchEvent"
             # else:
             #     if element_type_info.endswith("Characteristics"):
             #         if sub_node.attrib.get("isSequential", "") == "true":
@@ -181,8 +180,8 @@ def count_one_bpmn(file):
             #         # info = info.replace("oopCharacteristics", "")
             #         type_info.append(element_type_info)
 
-        if element_id in list(bound_dic.keys()):
-            type_info.append("withBound")
+        # if element_id in list(bound_dic.keys()):
+        #     type_info.append("withBound")
 
         if main_type in ["adHocSubProcess", "subProcess", "transaction"]:
             for sub_node in element:
@@ -398,15 +397,15 @@ def statistic():
         print(type_dir_name)
         type_dirs.append(shape_type)
 
-    participants = shape_type_dict["participant"]
-    min_area = float("inf")
-    for participant in participants:
-        label = all_shapes_label[participant]
-        area = label[2][2] * label[2][3]
-        if area < min_area:
-            min_area = area
-
-    print("min_area:{}".format(area))
+    # participants = shape_type_dict["participant"]
+    # min_area = float("inf")
+    # for participant in participants:
+    #     label = all_shapes_label[participant]
+    #     area = label[2][2] * label[2][3]
+    #     if area < min_area:
+    #         min_area = area
+    #
+    # print("min_area:{}".format(area))
     return type_dirs
     # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
     # for shape_type in sorted_shape_type_list:
@@ -434,5 +433,5 @@ if __name__ == '__main__':
     #
     # for shape_label in all_shapes_label:
     #     print(shape_label)
-    # statistic()
+    statistic()
     # output()
