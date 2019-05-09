@@ -338,8 +338,8 @@ class BCF:
                 image_path = test_data + each_type + "/" + image
                 testing_data.append(self.get_one_image_feature(image_path))
                 test_labels.append([each_type, image])
-                type_predictions = clf.predict(testing_data)
-                predictions.append(type_predictions)
+            type_predictions = clf.predict(testing_data)
+            predictions.extend(type_predictions)
 
         # predictions = clf.predict(testing_data)
 
