@@ -84,7 +84,12 @@ for (i, test_label) in enumerate(test_labels):
         test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
 
 
+all_total = 0
+all_correct = 0
 for label in labels:
     total = test_res[label][0][0]
     correct_num = test_res[label][0][1]
-    print("{}\ttotal:{}\tcorrect:{}\t acc:{}".format(label, total, correct_num, correct_num/total))
+    all_total += total
+    all_correct += correct_num
+    print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
+print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))

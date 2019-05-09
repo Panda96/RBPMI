@@ -84,7 +84,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            upper = 15
+            upper = 300
             for image in images[:upper]:
                 image_key = (type_dir, image)
                 print(image_key)
@@ -343,6 +343,15 @@ class BCF:
             else:
                 test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
 
+        all_total = 0
+        all_correct = 0
+        for label in type_dirs:
+            total = test_res[label][0][0]
+            correct_num = test_res[label][0][1]
+            all_total += total
+            all_correct += correct_num
+            print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
+        print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
         return test_res
 
 
