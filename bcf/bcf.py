@@ -80,12 +80,16 @@ class BCF:
         shape_feats = [np.array(shapes_feature), sz]
         return shape_feats
 
-    def extract_cf(self):
+    def extract_cf(self, upper):
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            upper = 300
-            for image in images[:upper]:
+            size = len(images)
+            index = np.arange(size)
+            np.random.shuffle(index)
+            # upper = 300
+            for i in index[:upper]:
+                image = images[i]
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
@@ -290,12 +294,12 @@ class BCF:
         cf = cf[ii, :]
         return cf
 
-    def train_codebook(self):
-        self.extract_cf()
+    def train_code_book(self, code_book_num):
+        self.extract_cf(code_book_num)
         self.learn_codebook()
 
-    def train(self):
-        self.extract_cf()
+    def train(self, classifier_num):
+        self.extract_cf(classifier_num)
         # self._learn_codebook()
         self.encode_cf()
         self.spp()
@@ -319,20 +323,25 @@ class BCF:
 
     def test_dir(self, test_data):
         clf = self.load_classifier()
-        testing_data = []
+
         test_labels = []
+        predictions = []
         type_dirs = os.listdir(test_data)
         # {type:[[test_num, correct_num], ["mistook info"...]]}
         test_res = {}
         for each_type in type_dirs:
+            testing_data = []
+            print(each_type)
             test_res[each_type] = [[0, 0], []]
             images = os.listdir(test_data + each_type)
             for image in images:
                 image_path = test_data + each_type + "/" + image
                 testing_data.append(self.get_one_image_feature(image_path))
                 test_labels.append([each_type, image])
+                type_predictions = clf.predict(testing_data)
+                predictions.append(type_predictions)
 
-        predictions = clf.predict(testing_data)
+        # predictions = clf.predict(testing_data)
 
         for (i, test_label) in enumerate(test_labels):
             type_name = test_label[0]
@@ -351,6 +360,8 @@ class BCF:
             all_total += total
             all_correct += correct_num
             print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
+            for info in test_res[label][1]:
+                print(info)
         print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
         return test_res
 
@@ -362,6 +373,7 @@ class BCF:
         labels = []
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
+            print(type_dir)
             images = os.listdir(self.DATA_DIR + type_dir)
             begin = 100
             for image in images[begin:begin + 50]:
@@ -391,8 +403,7 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     bcf = BCF()
-    # bcf.train_codebook()
-    bcf.train()
-    bcf.test()
-    # bcf.test_dir("../622data/test")
+    # bcf.train_code_book(30)
+    # bcf.train(300)
+    bcf.test_dir("../622data/test/")
     # print(os.getcwd())

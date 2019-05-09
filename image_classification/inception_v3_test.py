@@ -37,10 +37,9 @@ out = layers.Dense(512, activation='relu')(out)
 out = layers.Dropout(0.3)(out)
 out = layers.Dense(classes, activation='softmax')(out)
 tuneModel = Model(inputs=base_model.input, outputs=out)
-tuneModel.load_weights(filepath="weights/Inception_v3_fc_model.h5")
+tuneModel.load_weights(filepath="weights/Inception_v3_fc_model_2.h5")
 
 
-testing_data = []
 test_labels = []
 type_dirs = os.listdir(data_test)
 predictions = []
