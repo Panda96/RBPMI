@@ -379,7 +379,7 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     bcf = BCF()
-    bcf.train_codebook()
+    # bcf.train_codebook()
     bcf.train()
     bcf.test()
     # bcf.test_dir("../622data/test")
