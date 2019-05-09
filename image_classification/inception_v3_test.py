@@ -25,7 +25,7 @@ img_size = 150
 img_shape = (img_size, img_size)
 
 
-base_model = InceptionV3(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
+base_model = InceptionV3(include_top=False, input_shape=(img_size, img_size, 3))
 # base_model.summary()
 
 out = base_model.layers[-1].output
