@@ -77,7 +77,7 @@ def get_pools(layers, contours_rec):
                                 lane_seg_rec = lane_seg_bound[0]
                                 # print(lane_seg_rec)
                                 if helper.is_in(pool_lanes_rect, lane_seg_rec) and \
-                                        lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5 and lane_seg_rec[2] > 40:
+                                        lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5 and lane_seg_rec[2] > 30:
                                     # one_lane_seg.append(c_id)
                                     # print(lane_seg_rec[1])
                                     seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]

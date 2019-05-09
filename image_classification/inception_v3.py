@@ -44,38 +44,40 @@ val_iter = val_gen.flow_from_directory(data_val, class_mode='categorical',
 base_model = InceptionV3(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
 base_model.summary()
 
-# out = base_model.layers[-1].output
-# out = layers.Flatten()(out)
-# out = layers.Dense(1024, activation='relu')(out)
-# # 因为前面输出的dense feature太多了，我们这里加入dropout layer来防止过拟合
-# out = layers.Dropout(0.5)(out)
-# out = layers.Dense(512, activation='relu')(out)
-# out = layers.Dropout(0.3)(out)
-# out = layers.Dense(classes, activation='softmax')(out)
-# tuneModel = Model(inputs=base_model.input, outputs=out)
-# tuneModel.summary()
-# # for layer in tuneModel.layers[:19]:  # freeze the base model only use it as feature extractors
-# #     layer.trainable = False
-# tuneModel.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
-#                   metrics=['acc'])
-#
-# history = tuneModel.fit_generator(
-#     generator=train_iter,
-#     steps_per_epoch=100,
-#     epochs=100,
-#     validation_data=val_iter,
-#     validation_steps=32
-# )
-# tuneModel.save_weights("VGG16_fc_model.h5")
+out = base_model.layers[-1].output
+out = layers.Flatten()(out)
+out = layers.Dense(1024, activation='relu')(out)
+# 因为前面输出的dense feature太多了，我们这里加入dropout layer来防止过拟合
+out = layers.Dropout(0.5)(out)
+out = layers.Dense(512, activation='relu')(out)
+out = layers.Dropout(0.3)(out)
+out = layers.Dense(classes, activation='softmax')(out)
+tuneModel = Model(inputs=base_model.input, outputs=out)
+tuneModel.summary()
+# for layer in tuneModel.layers[:19]:  # freeze the base model only use it as feature extractors
+#     layer.trainable = False
+tuneModel.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
+                  metrics=['acc'])
 
-# acc = history.history['acc']
-# print(acc.shape)
-# val_acc = history.history['val_acc']
-# print(val_acc.shape)
-# loss = history.history['loss']
-# print(loss.shape)
-# val_loss = history.history['val_loss']
-# print(val_loss.shape)
+history = tuneModel.fit_generator(
+    generator=train_iter,
+    steps_per_epoch=100,
+    epochs=100,
+    validation_data=val_iter,
+    validation_steps=32
+)
+tuneModel.save_weights("Inception_v3_fc_model.h5")
+
+acc = history.history['acc']
+# print(acc)
+val_acc = history.history['val_acc']
+# print(val_acc)
+loss = history.history['loss']
+# print(loss)
+val_loss = history.history['val_loss']
+# print(val_loss)
+for i in range(len(acc)):
+    print("epoch_{}: loss:{}, acc:{}, val_loss:{}, val_acc:{}".format(i+1, loss[i], acc[i], val_loss[i], val_acc[i]))
 
 # acc = history.history['acc']
 # val_acc = history.history['val_acc']
