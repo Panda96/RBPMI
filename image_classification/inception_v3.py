@@ -6,6 +6,7 @@ from keras import layers
 from keras.preprocessing.image import ImageDataGenerator
 from keras import optimizers
 from keras.applications.vgg16 import VGG16
+from keras.applications.inception_v3 import  InceptionV3
 
 
 def image_reverse(image):
@@ -40,7 +41,7 @@ train_iter = data_gen.flow_from_directory(data_train, class_mode='categorical',
 val_iter = val_gen.flow_from_directory(data_val, class_mode='categorical',
                                        target_size=img_shape, batch_size=16)
 
-base_model = VGG16(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
+base_model = InceptionV3(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
 base_model.summary()
 
 out = base_model.layers[-1].output
@@ -65,16 +66,18 @@ history = tuneModel.fit_generator(
     validation_data=val_iter,
     validation_steps=32
 )
-tuneModel.save_weights("VGG16_fc_model.h5")
+tuneModel.save_weights("Inception_v3_fc_model.h5")
 
-# acc = history.history['acc']
-# print(acc.shape)
-# val_acc = history.history['val_acc']
-# print(val_acc.shape)
-# loss = history.history['loss']
-# print(loss.shape)
-# val_loss = history.history['val_loss']
-# print(val_loss.shape)
+acc = history.history['acc']
+# print(acc)
+val_acc = history.history['val_acc']
+# print(val_acc)
+loss = history.history['loss']
+# print(loss)
+val_loss = history.history['val_loss']
+# print(val_loss)
+for i in range(len(acc)):
+    print("epoch_{}: loss:{}, acc:{}, val_loss:{}, val_acc:{}".format(i+1, loss[i], acc[i], val_loss[i], val_acc[i]))
 
 # acc = history.history['acc']
 # val_acc = history.history['val_acc']
