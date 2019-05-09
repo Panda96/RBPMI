@@ -76,7 +76,7 @@ def divide_120_data():
 
 
 def divide_6_2_2_data():
-    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_enough_data_jpg/"
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
     data_622 = "E:/diagrams/bpmn-io/bpmn2image/data0423/622data/"
     data_622_train = data_622 + "train/"
     data_622_val = data_622 + "val/"
@@ -84,10 +84,14 @@ def divide_6_2_2_data():
 
     type_list = os.listdir(all_data)
 
-    # for each_type in type_list:
-    #     os.makedirs(data_622_train+each_type)
-    #     os.makedirs(data_622_val+each_type)
-    #     os.makedirs(data_622_test+each_type)
+    for each_type in type_list:
+        if not os.path.exists(data_622_train+each_type):
+            os.makedirs(data_622_train+each_type)
+            os.makedirs(data_622_val+each_type)
+            os.makedirs(data_622_test+each_type)
+        else:
+            print("dirs exists")
+            return
 
     for each_type in type_list:
         print(each_type)
@@ -188,11 +192,33 @@ def divide_data():
             shutil.copy(shape_data + type_dir + "/" + file_name, test_data + type_dir + "/" + file_name)
 
 
+def get_data_500():
+    merge_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data/"
+    data_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
+
+    type_dirs = os.listdir(merge_data)
+    for each_type in type_dirs:
+        type_dir = merge_data + each_type + "/"
+        data_500_type_dir = data_500 + each_type + "/"
+        print(each_type)
+        images = os.listdir(type_dir)
+        size = len(images)
+        index = np.arange(size)
+        np.random.shuffle(index)
+
+        for i in index[0:500]:
+            image_name = images[i]
+            image_path = type_dir + image_name
+            target_path = data_500_type_dir + image_name
+            shutil.copy(image_path, target_path)
+
+
 if __name__ == '__main__':
     # prepare()
     # divide_data()
     # prepare_test()
     # divide_50_data()
     # png_to_jpg()
-    # divide_6_2_2_data()
-    divide_120_data()
+    divide_6_2_2_data()
+    # divide_120_data()
+    # get_data_500()

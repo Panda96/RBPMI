@@ -202,7 +202,17 @@ def count_one_bpmn(file):
                     type_info.append("expanded")
                     break
 
+        if len(type_info) == 2 and type_info[0] == "boundaryEvent" and type_info[1] in ["conditional", "message",
+                                                                                        "signal", "timer"]:
+            type_info[0] = "intermediateCatchEvent"
+
         element_type = "_".join(type_info)
+
+        if element_type == "intermediateThrowEvent_timer":
+            element_type = "intermediateCatchEvent_timer"
+
+        if element_type == "intermediateCatchEvent":
+            element_type = "intermediateThrowEvent"
 
         node_type = get_tag_type(node.tag)
         if node_type == "BPMNShape":
@@ -404,11 +414,12 @@ def statistic():
     for shape_type in shape_type_list:
         type_dir_name = "{}:{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
-        type_dirs.append([shape_type, len(shape_type_dict[shape_type])])
-
-    type_dirs.sort(key=lambda x: x[1])
-    print(type_dirs)
-    # print(len(type_dirs))
+        type_dirs.append(shape_type)
+    #     type_dirs.append([shape_type, len(shape_type_dict[shape_type])])
+    #
+    # type_dirs.sort(key=lambda x: x[1])
+    # print(type_dirs)
+    print(len(type_dirs))
 
     # participants = shape_type_dict["participant"]
     # min_area = float("inf")
