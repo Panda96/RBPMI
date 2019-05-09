@@ -25,7 +25,7 @@ img_size = 150
 img_shape = (img_size, img_size)
 
 base_model = VGG16(include_top=False, input_shape=(img_size, img_size, 3))
-base_model.summary()
+# base_model.summary()
 
 out = base_model.layers[-1].output
 out = layers.Flatten()(out)

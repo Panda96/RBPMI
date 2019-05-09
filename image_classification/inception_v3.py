@@ -42,7 +42,7 @@ val_iter = val_gen.flow_from_directory(data_val, class_mode='categorical',
                                        target_size=img_shape, batch_size=16)
 
 base_model = InceptionV3(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
-base_model.summary()
+# base_model.summary()
 
 out = base_model.layers[-1].output
 out = layers.Flatten()(out)
@@ -66,4 +66,4 @@ history = tuneModel.fit_generator(
     validation_data=val_iter,
     validation_steps=32
 )
-tuneModel.save_weights("Inception_v3_fc_model.h5")
+tuneModel.save_weights("Inception_v3_fc_model_2.h5")
