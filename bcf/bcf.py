@@ -21,9 +21,9 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self):
-        self.DATA_DIR = "data/ele_enough_data/"
-        self.CODEBOOK_FILE = "model/codebook_15.data"
-        self.CLASSIFIER_FILE = "model/classifier_base_15_50_no_data_object"
+        self.DATA_DIR = "../622data/train/"
+        self.CODEBOOK_FILE = "model/codebook_56_15.data"
+        self.CLASSIFIER_FILE = "model/classifier_56_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -84,7 +84,7 @@ class BCF:
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            upper = min(int(0.5 * len(images)), 50)
+            upper = 15
             for image in images[:upper]:
                 image_key = (type_dir, image)
                 print(image_key)
@@ -176,12 +176,16 @@ class BCF:
         return spp_feature
 
     def spp(self):
+        print("SPP Begin...")
+        self.print_time()
         pyramid = np.array([1, 2, 4])
         for image_key, image in self.data.items():
             feat = image['cfs']
             image['spp_descriptor'] = self.spp_llc_code(pyramid, image['cfs'], image["llc_coding"])
             # print(image_key)
             # print(image["spp_descriptor"].shape)
+        self.print_time()
+        print("SPP Finished!")
 
     def pyramid_pooling(self, pyramid, sz, xy, encoded_shape_descriptors):
         feas = np.zeros((encoded_shape_descriptors.shape[1], np.sum(pyramid ** 2)))
@@ -216,6 +220,8 @@ class BCF:
         return self.clf
 
     def svm_train(self):
+        # print("SVM Training...")
+        # self.print_time()
         # self.save_label_to_class_mapping()
         clf = sklearn.svm.LinearSVC(multi_class='crammer_singer')
         training_data = []
@@ -274,12 +280,12 @@ class BCF:
     def sample_contour(self, cf, nn):
         # Sample points from contour fragment
         _len = cf.shape[0]
-        try:
-            ii = np.round(np.arange(0, _len - 0.9999, float(_len - 1) / (nn - 1))).astype('int32')
-        except ZeroDivisionError:
-            print("_len:{}".format(_len))
-            print("nn-1:{}".format(nn - 1))
-            exit(0)
+        # try:
+        ii = np.round(np.arange(0, _len - 0.9999, float(_len - 1) / (nn - 1))).astype('int32')
+        # except ZeroDivisionError:
+        #     print("_len:{}".format(_len))
+        #     print("nn-1:{}".format(nn - 1))
+        #     exit(0)
 
         cf = cf[ii, :]
         return cf
@@ -342,16 +348,15 @@ class BCF:
         # label_to_cls = self.load_label_to_class_mapping()
         testing_data = []
         labels = []
-        predictions_2 = []
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
             images = os.listdir(self.DATA_DIR + type_dir)
-            begin = max(len(images) - 50, int(0.5 * len(images) + 1))
-            for image in images[begin:]:
+            begin = 100
+            for image in images[begin:begin + 50]:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
-                predictions_2.append(self.get_one_image_type(image_path))
+                # predictions_2.append(self.get_one_image_type(image_path))
                 testing_data.append(self.get_one_image_feature(image_path))
                 labels.append(type_dir)
 
@@ -361,9 +366,9 @@ class BCF:
         for (i, label) in enumerate(labels):
             if predictions[i] == label:
                 correct += 1
-                print("took %s for %s, predictions_2:%s" % (label, predictions[i], predictions_2[i]))
+                print("took %s for %s" % (label, predictions[i]))
             else:
-                print("Mistook %s for %s, predictions_2:%s" % (label, predictions[i], predictions_2[i]))
+                print("Mistook %s for %s" % (label, predictions[i]))
         print(
             "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
 
@@ -374,7 +379,8 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     bcf = BCF()
-    # bcf.train_codebook()
+    bcf.train_codebook()
     bcf.train()
     bcf.test()
+    # bcf.test_dir("../622data/test")
     # print(os.getcwd())

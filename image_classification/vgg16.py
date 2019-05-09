@@ -12,7 +12,7 @@ def image_reverse(image):
     return 255 - image
 
 
-data_dir = "120data/"
+data_dir = "../622data/"
 
 data_train = data_dir + "train/"
 data_test = data_dir + "test/"
@@ -27,12 +27,8 @@ img_shape = (img_size, img_size)
 
 data_gen = ImageDataGenerator(
     rescale=1. / 255,
-    preprocessing_function=image_reverse,
-    width_shift_range=0.1,
-    height_shift_range=0.1,
-    zoom_range=0.2,
-    fill_mode="constant",
-    cval=255.)
+    preprocessing_function=image_reverse
+)
 val_gen = ImageDataGenerator(
     rescale=1. / 255,
     preprocessing_function=image_reverse,
