@@ -5,7 +5,7 @@ import cv2 as cv
 import numpy as np
 from keras.models import Model
 from keras import layers
-from keras.applications.vgg16 import VGG16
+from keras.applications.inception_v3 import InceptionV3
 
 
 def image_reverse(image):
@@ -24,7 +24,8 @@ classes = len(labels)
 img_size = 150
 img_shape = (img_size, img_size)
 
-base_model = VGG16(include_top=False, input_shape=(img_size, img_size, 3))
+
+base_model = InceptionV3(include_top=False, input_shape=(img_size, img_size, 3))
 base_model.summary()
 
 out = base_model.layers[-1].output
@@ -36,7 +37,7 @@ out = layers.Dense(512, activation='relu')(out)
 out = layers.Dropout(0.3)(out)
 out = layers.Dense(classes, activation='softmax')(out)
 tuneModel = Model(inputs=base_model.input, outputs=out)
-tuneModel.load_weights(filepath="weights/VGG16_fc_model.h5")
+tuneModel.load_weights(filepath="weights/Inception_v3_fc_model.h5")
 
 
 testing_data = []

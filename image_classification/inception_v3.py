@@ -67,28 +67,3 @@ history = tuneModel.fit_generator(
     validation_steps=32
 )
 tuneModel.save_weights("Inception_v3_fc_model.h5")
-
-acc = history.history['acc']
-# print(acc)
-val_acc = history.history['val_acc']
-# print(val_acc)
-loss = history.history['loss']
-# print(loss)
-val_loss = history.history['val_loss']
-# print(val_loss)
-for i in range(len(acc)):
-    print("epoch_{}: loss:{}, acc:{}, val_loss:{}, val_acc:{}".format(i+1, loss[i], acc[i], val_loss[i], val_acc[i]))
-
-# acc = history.history['acc']
-# val_acc = history.history['val_acc']
-# loss = history.history['loss']
-# val_loss = history.history['val_loss']
-# epochs = range(1, 101)
-# plt.plot(epochs, acc, 'bo', label='Training acc')
-# plt.plot(epochs, val_acc, 'r', label='Validation acc')
-# plt.legend()
-# plt.figure()
-# plt.plot(epochs, loss, 'bo', label='Training loss')
-# plt.plot(epochs, val_loss, 'r', label='Validation loss')
-# plt.legend()
-# plt.show()
