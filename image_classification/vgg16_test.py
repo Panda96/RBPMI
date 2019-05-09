@@ -71,7 +71,7 @@ for each_type in type_dirs:
         try:
             predictions.append(labels[int(np.where(result == 1)[1])])
         except TypeError:
-            predictions.append("")
+            predictions.append("None")
 
 
 for (i, test_label) in enumerate(test_labels):
@@ -92,4 +92,7 @@ for label in labels:
     all_total += total
     all_correct += correct_num
     print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
+    # if correct_num < total:
+    for info in test_res[label][1]:
+        print(info)
 print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
