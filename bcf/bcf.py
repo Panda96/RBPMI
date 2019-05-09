@@ -322,26 +322,29 @@ class BCF:
         testing_data = []
         test_labels = []
         type_dirs = os.listdir(test_data)
+        # {type:[[test_num, correct_num], ["mistook info"...]]}
         test_res = {}
         for each_type in type_dirs:
-            test_res[each_type] = [0, 0, 0]
+            test_res[each_type] = [[0, 0], []]
             images = os.listdir(test_data + each_type)
             for image in images:
                 image_path = test_data + each_type + "/" + image
                 testing_data.append(self.get_one_image_feature(image_path))
-                test_labels.append([each_type, ])
+                test_labels.append([each_type, image])
 
         predictions = clf.predict(testing_data)
 
-        # for (i, label) in enumerate(test_labels):
-        #     test_res[label][0] += 1
-        #     if predictions[i] == label:
-        #         correct += 1
-        #         print("took %s for %s" % (label, predictions[i]))
-        #     else:
-        #         print("Mistook %s for %s" % (label, predictions[i]))
-        # print(
-        #     "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
+        for (i, test_label) in enumerate(test_labels):
+            type_name = test_label[0]
+            image_name = test_label[1]
+            test_res[type_name][0][0] += 1
+            if predictions[i] == type_name:
+                test_res[type_name][0][1] += 1
+            else:
+                test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
+
+        return test_res
+
 
     def test(self):
         clf = self.load_classifier()

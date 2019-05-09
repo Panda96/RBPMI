@@ -118,6 +118,7 @@ dmypy.json
 *.bpmn
 *.png
 *.jpg
+*.h5
 
 bcf/data
 bcf/model
