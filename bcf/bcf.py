@@ -20,10 +20,10 @@ import image_parser as image_parser
 
 
 class BCF:
-    def __init__(self):
+    def __init__(self, code_book_file, classifier_file):
         self.DATA_DIR = "../622data/train/"
-        self.CODEBOOK_FILE = "model/codebook_56_15.data"
-        self.CLASSIFIER_FILE = "model/classifier_56_50"
+        self.CODEBOOK_FILE = code_book_file
+        self.CLASSIFIER_FILE = classifier_file
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -402,8 +402,13 @@ if __name__ == "__main__":
     # sys.path.append("..")
     # sys.path.append("../bcf")
     # print(sys.path)
-    bcf = BCF()
-    # bcf.train_code_book(30)
-    # bcf.train(300)
+    code_book_train_num = 30
+    classifier_train_num = 100
+    code_book_name = "model/code_book_56_{}.data".format(code_book_train_num)
+    classifier_name = "model/classifier_56_{}".format(classifier_train_num)
+    bcf = BCF(code_book_train_num, classifier_train_num)
+
+    bcf.train_code_book(code_book_train_num)
+    bcf.train(classifier_train_num)
     bcf.test_dir("../622data/test/")
     # print(os.getcwd())
