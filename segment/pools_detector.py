@@ -38,7 +38,7 @@ def get_pools(layers, contours_rec):
         for c_i in potential_pools:
             pool_bound = contours_rec[c_i]
             # c_children = layers[0][c_i]
-            # sort the child contours by x-coordinate
+            # Sort the child contours by x-coordinate
             children_recs = [[child_id, contours_rec[child_id]] for child_id in layers[0][c_i]]
             children_recs.sort(key=lambda x: x[1][0][0])
             c_children = [child_rec[0] for child_rec in children_recs]
@@ -129,20 +129,6 @@ def is_pool_header(bound):
     bound_rect = bound[0]
     ratio = bound_rect[3] / bound_rect[2]
     return cfg.POOL_HEADER_H_W_RATIO_FLOOR < ratio < cfg.POOL_HEADER_H_W_RATIO_CEILING
-
-
-# def choose_header(header1, header2):
-#     if header1[0] < header2[0]:
-#         return header1
-#     elif header1[0] > header2[0]:
-#         return header2
-#     else:
-#         ratio1 = header1[3] / header1[2]
-#         ratio2 = header2[3] / header2[2]
-#         if ratio1 < ratio2:
-#             return header2
-#         else:
-#             return header1
 
 
 def create_default_pool(layer0, contours_rec, pool_dilate_value, layer1=None):
