@@ -24,7 +24,7 @@ img_shape = (img_size, img_size)
 
 tune_model = modeler.get_inception_v3_fc(img_size, classes)
 tune_model.summary()
-tune_model.load_weights(filepath="weights/Inception_v3_fc_model.h5")
+tune_model.load_weights(filepath="weights/Inception_v3_fc_model_2.h5")
 
 test_labels = []
 type_dirs = os.listdir(data_test)
@@ -49,28 +49,28 @@ for each_type in type_dirs:
             predictions.append(labels[int(np.where(result == 1)[1])])
         except TypeError:
             predictions.append("None")
-        break
-    break
+    #     break
+    # break
 
-# for (i, test_label) in enumerate(test_labels):
-#     type_name = test_label[0]
-#     image_name = test_label[1]
-#     test_res[type_name][0][0] += 1
-#     if predictions[i] == type_name:
-#         test_res[type_name][0][1] += 1
-#     else:
-#         test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
-#
-#
-# all_total = 0
-# all_correct = 0
-# for label in labels:
-#     total = test_res[label][0][0]
-#     correct_num = test_res[label][0][1]
-#     all_total += total
-#     all_correct += correct_num
-#     print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
-#     # if correct_num < total:
-#     for info in test_res[label][1]:
-#         print(info)
-# print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
+for (i, test_label) in enumerate(test_labels):
+    type_name = test_label[0]
+    image_name = test_label[1]
+    test_res[type_name][0][0] += 1
+    if predictions[i] == type_name:
+        test_res[type_name][0][1] += 1
+    else:
+        test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
+
+
+all_total = 0
+all_correct = 0
+for label in labels:
+    total = test_res[label][0][0]
+    correct_num = test_res[label][0][1]
+    all_total += total
+    all_correct += correct_num
+    print("{}\t{},{},{}".format(label, total, correct_num, correct_num / total))
+    # if correct_num < total:
+    for info in test_res[label][1]:
+        print(info)
+print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))

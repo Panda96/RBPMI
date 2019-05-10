@@ -184,6 +184,40 @@ def get_elements(layers, contours_rec, partial_elements, pools_list, model_tag):
     layers_num = len(layers)
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
+
+    potential_sub_procs = defaultdict(list)
+
+    while k < upper_limit:
+        layer = layers[k]
+        k += 1
+        for c_i in layer:
+            bound = contours_rec[c_i]
+            bound_rec = bound[0]
+
+            pool_id = -1
+            lane_id = -1
+            for pool_i, pool in enumerate(pools_list):
+                if helper.is_in(pool["lanes_rect"], bound_rec):
+                    pool_id = pool_i
+                    lanes = pool["lanes"]
+                    for lane_i, lane in enumerate(lanes):
+                        if helper.is_in(lane, bound_rec):
+                            lane_id = lane_i
+                            break
+                    break
+
+            if pool_id < 0 or lane_id < 0:
+                continue
+            else:
+                # found pool and lane
+                pass
+
+
+
+def get_elements_raw(layers, contours_rec, partial_elements, pools_list, model_tag):
+    layers_num = len(layers)
+    upper_limit = min(model_tag + 3, layers_num)
+    k = model_tag
     # 对后三层的轮廓进行遍历
     while k < upper_limit:
         layer = layers[k]

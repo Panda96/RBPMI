@@ -53,3 +53,11 @@ history = tune_model.fit_generator(
     validation_steps=32
 )
 tune_model.save_weights("Inception_v3_fc_model_2.h5")
+
+acc = history.history['acc']
+val_acc = history.history['val_acc']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+for i in range(len(acc)):
+    print("epoch_{},{},{},{},{}".format(i+1, loss[i], acc[i], val_loss[i], val_acc[i]))
