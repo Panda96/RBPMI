@@ -1,7 +1,46 @@
 # -*- coding:utf-8 -*-
 import cfg
+import numpy as np
+import cv2 as cv
 from helper import detector_helper as helper
 from collections import defaultdict
+
+
+def draw_pools(pools_list, input_img):
+    drawing = np.zeros_like(input_img, dtype=np.uint8)
+    for pool in pools_list:
+        pool_rect = pool["rect"]
+        header = (pool_rect[0], pool_rect[1], cfg.DEFAULT_POOL_HEADER_WIDTH, pool_rect[3])
+        pool_lanes = pool["lanes"]
+        drawing = helper.draw_one_rect(drawing, pool_rect, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+        # cv.namedWindow("pool", 0)
+        # cv.imshow("pool", drawing)
+        # cv.waitKey(0)
+        drawing = helper.draw_one_rect(drawing, header, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
+        # cv.imshow("pool", drawing)
+        # cv.waitKey(0)
+
+        sub_procs = pool.get("sub_procs", {})
+        for i, lane in enumerate(pool_lanes):
+            drawing = helper.draw_one_rect(drawing, lane, cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS)
+            # print(lane)
+            procs = sub_procs.get(i, None)
+            if procs is not None:
+                for proc in procs:
+                    drawing = helper.draw_one_rect(drawing, proc, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
+            # cv.imshow("pool", drawing)
+            # cv.waitKey(0)
+
+        elements = pool.get("elements")
+        if elements is not None:
+            keys = list(elements.keys())
+            keys.sort()
+            for key in keys:
+                elements_in_lane = elements[key]
+                for element in elements_in_lane:
+                    drawing = helper.draw_one_rect(drawing, element, cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS, True)
+
+    return drawing
 
 
 def get_pools(layers, contours_rec):
@@ -19,8 +58,8 @@ def get_pools(layers, contours_rec):
             potential_pools.append(c_i)
         # else:
         #     potential_elements.append(bound_i[0])
-            # else:
-            #     blank_pools.append(bound_i[0])
+        # else:
+        #     blank_pools.append(bound_i[0])
 
     pools_object = []
 
@@ -122,6 +161,9 @@ def get_pools(layers, contours_rec):
         #     pools_object.append(default_pool)
         tag = 1
 
+    for pool in pools_object:
+        pool["sub_procs"] = defaultdict(list)
+        pool["elements"] = defaultdict(list)
     return pools_object, tag
 
 
@@ -176,185 +218,147 @@ def create_default_pool(layer0, contours_rec, pool_dilate_value, layer1=None):
                 pool_lanes.append(lane)
                 next_lane_begin = k + max_height
 
-    pool = {"rect": pool_rect, "lanes_rect": pool_lanes_rect, "lanes": pool_lanes, "sub_procs": {}}
+    pool = {"rect": pool_rect, "lanes_rect": pool_lanes_rect, "lanes": pool_lanes}
     return pool
 
 
-def get_elements(layers, contours_rec, partial_elements, pools_list, model_tag):
+def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, model_tag):
     layers_num = len(layers)
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
 
     potential_sub_procs = defaultdict(list)
 
+    for ele_rec in partial_elements:
+        for pool in pools_list:
+            if helper.is_in(pool["lanes_rect"], ele_rec):
+                lanes = pool["lanes"]
+                for lane_i, lane in enumerate(lanes):
+                    if helper.is_in(lane, ele_rec):
+                        elements = pool.get("elements", defaultdict(list))
+                        elements[lane_i].append(ele_rec)
+
     while k < upper_limit:
         layer = layers[k]
         k += 1
+
+        boundary_fake_elements = []
         for c_i in layer:
             bound = contours_rec[c_i]
-            bound_rec = bound[0]
+            bound_rect = bound[0]
+
+            # filter the rec formed by lane boundary lines and sequence flows
+            is_fake = False
+            for fake_ele in boundary_fake_elements:
+                if helper.is_adjacent(fake_ele, bound_rect):
+                    is_fake = True
+                    boundary_fake_elements.append(bound_rect)
+                    break
+            if is_fake:
+                continue
 
             pool_id = -1
             lane_id = -1
             for pool_i, pool in enumerate(pools_list):
-                if helper.is_in(pool["lanes_rect"], bound_rec):
+                if helper.is_in(pool["lanes_rect"], bound_rect):
                     pool_id = pool_i
                     lanes = pool["lanes"]
                     for lane_i, lane in enumerate(lanes):
-                        if helper.is_in(lane, bound_rec):
-                            lane_id = lane_i
+                        # filter the rec formed by lane boundary lines and sequence flows
+                        if helper.is_in(lane, bound_rect):
+                            dilate_rec = helper.dilate(bound_rect, 5)
+                            if helper.is_in(lane, dilate_rec):
+                                lane_id = lane_i
+                                break
+                            else:
+                                boundary_fake_elements.append(bound_rect)
                             break
-                    break
-
+            # print("pool_id:{},lane_id:{}".format(pool_id, lane_id))
             if pool_id < 0 or lane_id < 0:
                 continue
             else:
-                # found pool and lane
-                pass
+                pool = pools_list[pool_id]
+                elements = pool.get("elements", defaultdict(list))
+                sub_procs = pool.get("sub_procs", defaultdict(list))
 
+                found = False
+                for i, elements_i in elements.items():
+                    for j, ele_i_j in enumerate(elements_i):
+                        if helper.is_in(ele_i_j, bound_rect):
+                            found = True
 
+                            # if bound_rect[2] <
+                            if bound[2] < 800:
+                                bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
 
-def get_elements_raw(layers, contours_rec, partial_elements, pools_list, model_tag):
-    layers_num = len(layers)
-    upper_limit = min(model_tag + 3, layers_num)
-    k = model_tag
-    # 对后三层的轮廓进行遍历
-    while k < upper_limit:
-        layer = layers[k]
-        # 遍历单层轮廓
-        for c_i in layer:
-            bound = contours_rec[c_i]
-            bound_rect = bound[0]
-            pool_pivot = None
-            # 遍历泳池，确定该轮廓所属的泳池
-            for pool in pools_list:
-                if helper.is_in(pool["lanes_rect"], bound_rect):
-                    pool_pivot = pool
-                    break
+                            # if
 
-            if pool_pivot is not None:
-                # 找到所属泳池
-                lanes = pool_pivot["lanes"]
-                elements = pool_pivot.get("elements")
-                if elements is None:
-                    elements = defaultdict(list)
-                    pool_pivot["elements"] = elements
-                # 遍历泳道，确定该轮廓所属的泳道
-                for i, lane in enumerate(lanes):
-                    if helper.is_in(lane, bound_rect):
-                        elements_i = elements[i]
-                        num = len(elements_i)
-                        found = False
-                        # 找到所属泳道后判断是否与泳道中已有的元素重叠，
-                        # 若重叠选择边界矩形面积小于930的那个作为元素边界矩形
-                        for j in range(num):
-                            if helper.is_in(elements_i[j], bound_rect):
-                                found = True
-                                if bound[2] < 930:
-                                    bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
+                            if bound[2] > 1100:
                                 elements_i[j] = bound_rect
-                                break
-                        if not found:
-                            # filter the blank rectangle formed by element border and lane border
-                            if bound_rect[3] < lane[3] - 2 * cfg.BOUNDARY_OFFSET:
-                                sub_procs = pool_pivot.get("sub_procs", {})
-                                if bound[2] < cfg.POOL_AREA_THRESHOLD:
-                                    # 如果不重叠，且面积不是太大，不是子进程，则加入泳道元素列表
-                                    elements_i.append(bound_rect)
-                                else:
-                                    # found subprocesses
-                                    # 若是子进程，则遍历层数加深，将子进程轮廓加入所属泳池
-                                    # 将子进程中的元素轮廓加入所属泳道
-                                    upper_limit = layers_num
 
-                                    sub_proc = sub_procs.get(i, None)
-                                    if sub_proc is None:
-                                        sub_procs[i] = [bound_rect]
-                                    else:
-                                        existed = False
-                                        for proc_id, proc in enumerate(sub_proc):
-                                            if helper.is_in(proc, bound_rect):
-                                                sub_proc[proc_id] = bound_rect
-                                                existed = True
-                                                break
-                                        if not existed:
-                                            sub_proc.append(bound_rect)
-        k += 1
+                            if ele_i_j[2] * ele_i_j[3] > 3000:
+                                elements_i[j] = bound_rect
 
-    # 将粗边框元素合并到泳池元素中
-    for ele_rect in partial_elements:
-        for pool_id, pool in enumerate(pools_list):
-            pool_lanes_rect = pool["lanes_rect"]
-            if helper.is_overlap(pool_lanes_rect, ele_rect):
-                elements = pool["elements"]
-                lanes = pool["lanes"]
-                for lane_id, lane in enumerate(lanes):
-                    if helper.is_overlap(lane, ele_rect):
-                        elements_in_lane = elements.get(lane_id)
+                            # elif bound_rect[2] > ele_i_j[2] * 0.5 and bound_rect[3] > ele_i_j[3] * 0.5:
+                            #     elements_i[j] = bound_rect
+                            # break
+
+                if not found:
+                    if bound[2] < cfg.SUB_PROC_AREA_THRESHOLD:
+                        elements[lane_id].append(bound_rect)
+                    else:
+                        upper_limit = layers_num
+                        sub_p_list = sub_procs.get(lane_id, [])
                         existed = False
-                        # 若与已检测出的元素冲突，选择重叠面积占比大的那一个
-                        for ele_id, element in enumerate(elements_in_lane):
-                            if helper.is_overlap(element, ele_rect):
+                        for p_id, p in enumerate(sub_p_list):
+                            if helper.is_in(p, bound_rect):
+                                sub_p_list[p_id] = bound_rect
                                 existed = True
-                                area1 = element[2] * element[3]
-                                area2 = ele_rect[2] * ele_rect[3]
-                                if area2 < area1:
-                                    elements_in_lane[ele_id] = ele_rect
+                                break
                         if not existed:
-                            elements_in_lane.append(ele_rect)
-                        break
-                break
+                            sub_procs[lane_id].append(bound_rect)
+        # pools_img = draw_pools(pools_list, input_img)
+        # cv.imshow("elements", pools_img)
+        # cv.waitKey(0)
 
-    # 筛选子进程，若元素横穿或者靠近子进程边界，则不是子进程
+    # remove invalid sup_process
     for pool in pools_list:
-        elements = pool["elements"]
-        for i, elements_i in elements.items():
-            num = len(elements_i)
-            remove_set = set()
-            for j in range(num):
-                sub_procs = pool.get("sub_procs", {})
-                for lane_id, lane_sub_procs in sub_procs.items():
-                    for proc_id, one_proc in enumerate(lane_sub_procs):
-                        shrink_proc = helper.shrink(one_proc, cfg.RECT_DILATION_VALUE)
-                        if not helper.is_in(shrink_proc, elements_i[j]) and helper.is_overlap(shrink_proc,
-                                                                                              elements_i[j]):
-                            lane_sub_procs[proc_id] = None
-                    lane_sub_procs = list(filter(lambda x: x is not None, lane_sub_procs))
-                    if len(lane_sub_procs) == 0:
-                        sub_procs.pop(lane_id)
+        lanes = pool["lanes"]
+        elements = pool.get("elements", defaultdict(list))
+        sub_procs = pool.get("sub_procs", defaultdict(list))
+        for lane_id, lane in enumerate(lanes):
+            valid_sub_p = []
+            for sub_p in sub_procs[lane_id]:
+                sub_p_elements_num = 0
+                valid = True
+                for ele in elements[lane_id]:
+                    dilate_ele = helper.dilate(ele, cfg.RECT_DILATION_VALUE)
+                    if helper.is_in(sub_p, dilate_ele):
+                        sub_p_elements_num += 1
+                    elif helper.is_overlap(sub_p, dilate_ele):
+                        valid = False
                         break
-                    else:
-                        sub_procs[lane_id] = lane_sub_procs
-                        break
+                if valid and sub_p_elements_num > 1:
+                    valid_sub_p.append(sub_p)
+            sub_procs[lane_id] = valid_sub_p
 
-                # 这里很奇怪，可能是针对特定情况的元素筛选
-                for m in range(j + 1, num):
-                    if helper.is_adjacent(elements_i[j], elements_i[m]):
-                        # two elements adjacent
-                        remove_set.add(m)
-                        remove_set.add(j)
-                    else:
-                        # two elements intersect
-                        overlap_area = helper.get_overlap_area(elements_i[j], elements_i[m])
-                        if overlap_area > 0:
-                            area_j = elements_i[j][2] * elements_i[j][3]
-                            area_m = elements_i[m][2] * elements_i[m][3]
-                            if area_m < 1200 or area_j < 1200:
-                                if area_m < area_j:
-                                    remove_set.add(m)
-                                else:
-                                    remove_set.add(j)
-                            else:
-                                ratio_j = overlap_area / area_j
-                                ratio_m = overlap_area / area_m
-                                if ratio_j > ratio_m:
-                                    remove_set.add(m)
-                                else:
-                                    remove_set.add(j)
+    # remove blank element
+    for pool in pools_list:
+        lanes = pool["lanes"]
+        elements = pool.get("elements", defaultdict(list))
+        for lane_id in range(len(lanes)):
+            non_blank = []
+            for ele in elements[lane_id]:
+                # ele = helper.shrink(ele, 1)
+                roi = helper.truncate(input_img, ele)
+                vertex_sum = sum(roi[0, 0]) + sum(roi[0, -1]) + sum(roi[-1, 0]) + sum(roi[-1, -1])
+                edge_point_sum = sum(roi[0, ele[2] // 2]) + sum(roi[ele[3] // 2, 0]) + sum(roi[-1, ele[2] // 2]) + sum(
+                    roi[ele[3] // 2, -1])
 
-            for j in remove_set:
-                elements_i[j] = None
-            elements_i = list(filter(lambda x: x is not None, elements_i))
-            elements[i] = elements_i
+                if vertex_sum == 0 and edge_point_sum == 0:
+                    print("has blank element")
+                else:
+                    non_blank.append(ele)
+            elements[lane_id] = non_blank
 
     return pools_list

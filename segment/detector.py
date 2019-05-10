@@ -147,7 +147,7 @@ def remove_elements(element_border):
         drawing = truncate(drawing, reverse, pool_rect)
         drawing = helper.draw_one_rect(drawing, pool_rect, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
         lanes = pool["lanes"]
-        elements = pool["elements"]
+        elements = pool.get("elements", defaultdict(list))
         sub_procs = pool.get("sub_procs", {})
 
         for i, lane in enumerate(lanes):
@@ -669,11 +669,11 @@ def add_one_element_to_pool(ele_rect):
     for pool_id, pool in enumerate(pools):
         pool_lanes_rect = pool["lanes_rect"]
         if helper.is_overlap(pool_lanes_rect, ele_rect):
-            elements = pool["elements"]
+            elements = pool.get("elements", defaultdict(list))
             lanes = pool["lanes"]
             for lane_id, lane in enumerate(lanes):
                 if helper.is_overlap(lane, ele_rect):
-                    elements_in_lane = elements.get(lane_id)
+                    elements_in_lane = elements.get(lane_id, [])
                     for ele_id, element in enumerate(elements_in_lane):
                         if helper.is_overlap(element, ele_rect):
                             ele_path = (pool_id, lane_id, ele_id, 0)
@@ -697,8 +697,8 @@ def get_element_rec_by_path(path):
     pool = pools[path[0]]
     # print(path)
     if path[3] == 0:
-        elements = pool["elements"]
-        elements_i = elements.get(path[1])
+        elements = pool.get("elements", defaultdict(list))
+        elements_i = elements.get(path[1], [])
         rect = elements_i[path[2]]
     else:
         sub_procs = pool["sub_procs"]
@@ -735,7 +735,7 @@ def match_arrows_and_elements(arrow_lines, arrows):
     all_elements = []
     for i, pool in enumerate(pools):
         lanes = pool["lanes"]
-        elements = pool["elements"]
+        elements = pool.get("elements",defaultdict(list))
         sub_procs = pool.get("sub_procs", {})
         for j in range(len(lanes)):
             elements_in_lane = elements.get(j)
@@ -757,7 +757,7 @@ def match_arrows_and_elements(arrow_lines, arrows):
         for pool_id, pool in enumerate(pools):
             pool_lanes_rect = pool["lanes_rect"]
             if helper.is_in(pool_lanes_rect, arrow):
-                elements = pool["elements"]
+                elements = pool.get("elements", defaultdict(list))
                 lanes = pool["lanes"]
                 sub_procs = pool.get("sub_procs",{})
                 for lane_id, lane in enumerate(lanes):
@@ -1166,10 +1166,14 @@ def parse_img(file_path):
 
     input_img, layers, contours, contours_rec, partial_elements = pre_process(file_path)
     pools, type_tag = pools_detector.get_pools(layers, contours_rec)
-    pools_img = draw_pools(pools)
+    show_im(input_img, "input")
+    # pools_img = draw_pools(pools)
+    # show_im(pools_img, "pools_img_no_elements")
+    # pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
+    pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
 
-    show_im(pools_img, "pools_img_no_elements")
-    pools = pools_detector.get_elements(layers, contours_rec, partial_elements, pools, type_tag)
+    pools_img = draw_pools(pools)
+    # show_im(pools_img, "raw_elements")
 
     flows_img = remove_elements(2)
     arrows = get_arrows(flows_img)
@@ -1402,6 +1406,7 @@ def parse_img(file_path):
 
 def show_im(img_matrix, name="img"):
     # pass
+    # cv.namedWindow(name, cv.WINDOW_NORMAL)
     cv.namedWindow(name)
     cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
@@ -1415,7 +1420,7 @@ def run():
     # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
-    selected = images
+    selected = images[-2:]
     for im in selected:
         file_path = sample_dir + im
         print(im)

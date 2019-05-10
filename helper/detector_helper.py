@@ -3,6 +3,7 @@ import cv2 as cv
 import numpy as np
 
 
+
 def get_structure_ele(morph_elem, morph_size):
     return cv.getStructuringElement(morph_elem, (2 * morph_size + 1, 2 * morph_size + 1), (morph_size, morph_size))
 
@@ -18,10 +19,19 @@ def get_one_contour_rec(contour_index, contours_list):
     return bound
 
 
-def draw_one_rect(draw_img, bound_rect, color, thickness):
+def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
     cv.rectangle(draw_img, (int(bound_rect[0]), int(bound_rect[1])),
                  (int(bound_rect[0] + bound_rect[2]), int(bound_rect[1] + bound_rect[3])), color,
                  thickness)
+    if show_text:
+        text = "{}".format(bound_rect[2]*bound_rect[3])
+        text_size = cv.getTextSize(text, cv.QT_FONT_NORMAL, 0.3, 1)
+        # put the text in the middle of a rectangle and not beyond the border of the image
+        org_x = bound_rect[0] + (bound_rect[2] - text_size[0][0]) // 2
+        org_x = max(org_x, 2)
+        org_x = min(org_x, draw_img.shape[1] - text_size[0][0] - 5)
+        cv.putText(draw_img, text, (org_x, bound_rect[1] + (bound_rect[3] + text_size[0][1]) // 2),
+                   cv.QT_FONT_BLACK, 0.3, (255, 255, 255))
 
     return draw_img
 
@@ -108,9 +118,11 @@ def dilate_drawing(drawing):
         (x_begin, y_begin) = get_center_position((0, 0, width, height), drawing_shape)
         if len(drawing_shape) == 2:
             base = np.zeros((height, width), dtype=np.uint8)
+            base = 123 + base
             base[y_begin:y_begin+drawing_shape[0], x_begin:x_begin+drawing_shape[1]] = drawing
         elif len(drawing_shape) == 3:
             base = np.zeros((height, width, 3), dtype=np.uint8)
+            base = 123 + base
             base[y_begin:y_begin + drawing_shape[0], x_begin:x_begin + drawing_shape[1], :] = drawing
         return base
 

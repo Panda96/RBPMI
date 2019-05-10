@@ -365,7 +365,6 @@ class BCF:
         print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
         return test_res
 
-
     def test(self):
         clf = self.load_classifier()
         # label_to_cls = self.load_label_to_class_mapping()

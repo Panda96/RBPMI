@@ -15,13 +15,13 @@ def draw_contours_rec(input_img, contors, contours_rec):
 
         # contour index:contour area，area of bounding box， height-to-width-ratio
         text = "{}:{},{},{}".format(i, int(bound[1]), int(bound[2]), "%.2f" % (bound_rect[3] / bound_rect[2]))
-        text_size = cv.getTextSize(text, cv.QT_FONT_NORMAL, 0.3, 1)
+        text_size = cv.getTextSize(text, cv.QT_STYLE_NORMAL, 0.3, 1)
         # put the text in the middle of a rectangle and not beyond the border of the image
         org_x = bound_rect[0] + (bound_rect[2] - text_size[0][0]) // 2
         org_x = max(org_x, 2)
         org_x = min(org_x, drawing.shape[1] - text_size[0][0] - 5)
         cv.putText(drawing, text, (org_x, bound_rect[1] + (bound_rect[3] + text_size[0][1]) // 2),
-                   cv.QT_FONT_BLACK, 0.3, cfg.COLOR_WHITE)
+                   cv.QT_STYLE_NORMAL, 0.3, cfg.COLOR_WHITE)
     return drawing
 
 
