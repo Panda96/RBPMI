@@ -3,9 +3,7 @@ import os
 
 import cv2 as cv
 import numpy as np
-from keras.models import Model
-from keras import layers
-from keras.applications.vgg16 import VGG16
+import modeler
 
 
 def image_reverse(image):
@@ -24,20 +22,9 @@ classes = len(labels)
 img_size = 150
 img_shape = (img_size, img_size)
 
-base_model = VGG16(include_top=False, input_shape=(img_size, img_size, 3))
-# base_model.summary()
-
-out = base_model.layers[-1].output
-out = layers.Flatten()(out)
-out = layers.Dense(1024, activation='relu')(out)
-# 因为前面输出的dense feature太多了，我们这里加入dropout layer来防止过拟合
-out = layers.Dropout(0.5)(out)
-out = layers.Dense(512, activation='relu')(out)
-out = layers.Dropout(0.3)(out)
-out = layers.Dense(classes, activation='softmax')(out)
-tuneModel = Model(inputs=base_model.input, outputs=out)
-tuneModel.load_weights(filepath="weights/VGG16_fc_model.h5")
-
+tune_model = modeler.get_vgg16_fc(img_size, classes)
+tune_model.load_weights(filepath="weights/VGG16_fc_model.h5")
+tune_model.summary()
 
 testing_data = []
 test_labels = []
@@ -57,12 +44,11 @@ for each_type in type_dirs:
         img = cv.resize(img, img_shape)
         img = img.reshape((1,) + img.shape)
         test_labels.append([each_type, image])
-        result = tuneModel.predict(img, batch_size=1)
+        result = tune_model.predict(img, batch_size=1)
         try:
             predictions.append(labels[int(np.where(result == 1)[1])])
         except TypeError:
             predictions.append("None")
-
 
 for (i, test_label) in enumerate(test_labels):
     type_name = test_label[0]
@@ -72,7 +58,6 @@ for (i, test_label) in enumerate(test_labels):
         test_res[type_name][0][1] += 1
     else:
         test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
-
 
 all_total = 0
 all_correct = 0

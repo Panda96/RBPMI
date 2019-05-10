@@ -1,11 +1,10 @@
 # -*- coding:utf-8 -*-
 import os
 
-from keras.models import Sequential, Model
-from keras import layers
 from keras.preprocessing.image import ImageDataGenerator
 from keras import optimizers
-from keras.applications.vgg16 import VGG16
+
+import modeler
 
 
 def image_reverse(image):
@@ -40,31 +39,17 @@ train_iter = data_gen.flow_from_directory(data_train, class_mode='categorical',
 val_iter = val_gen.flow_from_directory(data_val, class_mode='categorical',
                                        target_size=img_shape, batch_size=16)
 
-base_model = VGG16(include_top=False, weights='imagenet', input_shape=(img_size, img_size, 3))
-base_model.summary()
+tune_model = modeler.get_vgg16_fc(img_size, classes)
+tune_model.summary()
 
-out = base_model.layers[-1].output
-out = layers.Flatten()(out)
-out = layers.Dense(1024, activation='relu')(out)
-# 因为前面输出的dense feature太多了，我们这里加入dropout layer来防止过拟合
-out = layers.Dropout(0.5)(out)
-out = layers.Dense(512, activation='relu')(out)
-out = layers.Dropout(0.3)(out)
-out = layers.Dense(classes, activation='softmax')(out)
-tuneModel = Model(inputs=base_model.input, outputs=out)
-tuneModel.summary()
-# for layer in tuneModel.layers[:19]:  # freeze the base model only use it as feature extractors
-#     layer.trainable = False
-tuneModel.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
-                  metrics=['acc'])
+tune_model.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
+                   metrics=['acc'])
 
-history = tuneModel.fit_generator(
+history = tune_model.fit_generator(
     generator=train_iter,
     steps_per_epoch=100,
     epochs=100,
     validation_data=val_iter,
     validation_steps=32
 )
-tuneModel.save_weights("VGG16_fc_model.h5")
-
-
+tune_model.save_weights("VGG16_fc_model.h5")
