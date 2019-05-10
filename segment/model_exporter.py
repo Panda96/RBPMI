@@ -2,7 +2,6 @@
 import xml.etree.ElementTree as eTree
 import helper.detector_helper as helper
 
-
 eTree.register_namespace("bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI")
 eTree.register_namespace("bpmn", "http://www.omg.org/spec/BPMN/20100524/MODEL")
 eTree.register_namespace("dc", "http://www.omg.org/spec/DD/20100524/DC")
@@ -44,7 +43,19 @@ def create_bpmn_edge(flow_id, points):
     return bpmn_edge
 
 
+def create_event_definition(definition_type):
+    event_definition = "{}EventDefinition".format(definition_type)
+    return eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + event_definition)
+
+
 def create_model(pools, all_elements, all_elements_type, all_seq_flows):
+    # for pool_id, pool in enumerate(pools):
+    #     print("pool_{}:".format(pool_id))
+    #     lanes = pool["lanes"]
+    #     elements = pool["elements"]
+    #     for lane_id in range(len(lanes)):
+    #         print("lane_{}:".format(lane_id))
+    #         print(len(elements[lane_id]))
     definitions = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions",
                                 attrib={"id": "definitions", "name": "model"})
     collaboration = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}collaboration",
@@ -60,6 +71,7 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
     # process_list = []
 
     flows = []
+    sub_procs_in_one_pool = []
     for pool_id, pool in enumerate(pools):
         participant_id = "participant_{}".format(pool_id)
         process_id = "process_{}".format(pool_id)
@@ -92,7 +104,7 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
 
         for lane_id, lane in enumerate(lanes):
             # lane
-            lane_ele_id = "lane_{}".format(lane_id)
+            lane_ele_id = "pool_{}_lane_{}".format(pool_id, lane_id)
             lane_ele = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}lane",
                                      attrib={"id": lane_ele_id, "name": ""})
 
@@ -105,16 +117,18 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
             procs = sub_procs.get(lane_id, [])
             elements_in_lane = elements[lane_id]
 
-            sub_proc_nodes = []
+            lane_sub_proc_nodes = []
             # subprocess flowNodeRef
             for proc_id, proc in enumerate(procs):
                 e_id = get_element_id([pool_id, lane_id, proc_id, 1], all_elements)
-                sub_proc_id = "subProcess_{}".format(lane_id, e_id)
+                sub_proc_id = "subProcess_expanded_{}".format(e_id)
                 sub_proc_node = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}subProcess",
                                               attrib={"id": sub_proc_id})
-                sub_proc_nodes.append(sub_proc_node)
+                process.append(sub_proc_node)
+                lane_sub_proc_nodes.append(sub_proc_node)
+                sub_procs_in_one_pool.append([proc, sub_proc_node])
 
-                flow_node_ref = eTree.Element("flowNodeRef")
+                flow_node_ref = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}flowNodeRef")
                 flow_node_ref.text = sub_proc_id
                 lane_ele.append(flow_node_ref)
 
@@ -124,14 +138,56 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
             for ele_id, ele_rec in enumerate(elements_in_lane):
                 e_id = get_element_id([pool_id, lane_id, ele_id, 0], all_elements)
                 node_type = all_elements_type[e_id]
+
                 node_id = "{}_{}".format(node_type, e_id)
 
+                type_info = node_type.split("_")
+                node_tag = type_info[0]
+
                 node_shape = create_bpmn_shape(node_id, ele_rec)
+                if "expanded" in type_info:
+                    node_shape.attrib["isExpanded"] = "true"
                 bpmn_plane.append(node_shape)
 
-                node_tag = node_type.split("_")[0]
-                node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + node_tag,
-                                             attrib={"id": node_id})
+                is_boundary_event = False
+                ele_node_id = ""
+                if node_tag == "boundaryEvent" or node_tag == "intermediateCatchEvent":
+                    for ele_id_e, ele_rec_e in enumerate(elements_in_lane):
+                        if ele_id != ele_id_e and helper.is_overlap(ele_rec, ele_rec_e):
+                            is_boundary_event = True
+                            ele_e_id = get_element_id([pool_id, lane_id, ele_id_e, 0], all_elements)
+                            ele_node_id = "{}_{}".format(all_elements_type[ele_e_id], ele_e_id)
+                            break
+
+                    if not is_boundary_event:
+                        for proc_id, proc in enumerate(procs):
+                            if helper.is_overlap(proc, ele_rec) and not helper.is_in(proc, ele_rec):
+                                is_boundary_event = True
+                                ele_node_id = lane_sub_proc_nodes[proc_id].attrib["id"]
+                                break
+
+                if is_boundary_event:
+                    node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}boundaryEvent",
+                                                 attrib={"id": node_id})
+                    node_element.attrib["attachedToRef"] = ele_node_id
+                else:
+                    node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + node_tag,
+                                                 attrib={"id": node_id})
+
+                if node_tag.endswith("Event"):
+                    if len(type_info) > 1:
+                        if type_info[1] != "isInterrupting":
+                            event_definition = create_event_definition(type_info[1])
+                            node_element.append(event_definition)
+                        if "isInterrupting" in type_info:
+                            node_element.attrib["isInterrupting"] = "false"
+
+                        if "cancelActivity" in type_info:
+                            node_element.attrib["cancelActivity"] = "false"
+
+                if node_tag == "subProcess":
+                    if "triggeredByEvent" in type_info:
+                        node_element.attrib["triggeredByEvent"] = "true"
 
                 for flow_id, seq_flow in enumerate(all_seq_flows):
                     if seq_flow[0] == e_id:
@@ -151,7 +207,7 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
                 for proc_id, proc in enumerate(procs):
                     if helper.is_in(proc, ele_rec):
                         node_in_sub_proc = True
-                        sub_proc_nodes[proc_id].append(node_element)
+                        lane_sub_proc_nodes[proc_id].append(node_element)
                         break
 
                 if not node_in_sub_proc:
@@ -161,7 +217,7 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
                     process.append(node_element)
 
         flows_id = list(flows_id)
-        for flow_id in list(flows_id):
+        for flow_id in flows_id:
             seq_flow_id = "sequenceFlow_{}".format(flow_id)
             seq_flow = all_seq_flows[flow_id]
 
@@ -173,7 +229,21 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
             seq_flow_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}sequenceFlow",
                                              attrib={"id": seq_flow_id, "sourceRef": source_ref,
                                                      "targetRef": target_ref})
-            process.append(seq_flow_element)
+            flow_in_sub_proc = False
+            for proc, proc_node in sub_procs_in_one_pool:
+                all_in = True
+                for point in seq_flow[1]:
+                    if not helper.point_is_in(proc, point):
+                        all_in = False
+                        break
+                if all_in:
+                    flow_in_sub_proc = True
+                    proc_node.append(seq_flow_element)
+                    break
+
+            if not flow_in_sub_proc:
+                process.append(seq_flow_element)
+
         flows.extend(flows_id)
         definitions.append(process)
 

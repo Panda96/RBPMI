@@ -1,7 +1,11 @@
 # -*- coding:utf-8 -*-
 import cv2 as cv
 import numpy as np
+import time
 
+
+def print_time():
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
 
 
 def get_structure_ele(morph_elem, morph_size):
@@ -24,7 +28,7 @@ def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
                  (int(bound_rect[0] + bound_rect[2]), int(bound_rect[1] + bound_rect[3])), color,
                  thickness)
     if show_text:
-        text = "{}".format(bound_rect[2]*bound_rect[3])
+        text = "{}".format(bound_rect[2] * bound_rect[3])
         text_size = cv.getTextSize(text, cv.QT_FONT_NORMAL, 0.3, 1)
         # put the text in the middle of a rectangle and not beyond the border of the image
         org_x = bound_rect[0] + (bound_rect[2] - text_size[0][0]) // 2
@@ -102,8 +106,8 @@ def truncate(base, roi_rec):
 
 # place rec2 at the center of rec1
 def get_center_position(rec1, rec2_shape):
-    x_begin = rec1[0] + (rec1[2] - rec2_shape[1])//2
-    y_begin = rec1[1] + (rec1[3] - rec2_shape[0])//2
+    x_begin = rec1[0] + (rec1[2] - rec2_shape[1]) // 2
+    y_begin = rec1[1] + (rec1[3] - rec2_shape[0]) // 2
 
     return x_begin, y_begin
 
@@ -113,17 +117,15 @@ def dilate_drawing(drawing):
     if drawing_shape[0] > 300 and drawing_shape[1] > 300:
         return drawing
     else:
-        height = max(300, drawing_shape[0])+20
-        width = max(300, drawing_shape[1])+20
+        height = max(300, drawing_shape[0]) + 20
+        width = max(300, drawing_shape[1]) + 20
         (x_begin, y_begin) = get_center_position((0, 0, width, height), drawing_shape)
         if len(drawing_shape) == 2:
             base = np.zeros((height, width), dtype=np.uint8)
             base = 123 + base
-            base[y_begin:y_begin+drawing_shape[0], x_begin:x_begin+drawing_shape[1]] = drawing
+            base[y_begin:y_begin + drawing_shape[0], x_begin:x_begin + drawing_shape[1]] = drawing
         elif len(drawing_shape) == 3:
             base = np.zeros((height, width, 3), dtype=np.uint8)
             base = 123 + base
             base[y_begin:y_begin + drawing_shape[0], x_begin:x_begin + drawing_shape[1], :] = drawing
         return base
-
-

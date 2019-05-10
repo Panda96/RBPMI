@@ -64,7 +64,6 @@ def get_pools(layers, contours_rec):
     pools_object = []
 
     pools_num = len(potential_pools)
-    print("pools_num:", pools_num)
     if pools_num == 0:
         # no lanes and no pools, just one process
         print("only elements")
@@ -282,26 +281,22 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                 sub_procs = pool.get("sub_procs", defaultdict(list))
 
                 found = False
-                for i, elements_i in elements.items():
-                    for j, ele_i_j in enumerate(elements_i):
-                        if helper.is_in(ele_i_j, bound_rect):
-                            found = True
 
-                            # if bound_rect[2] <
-                            if bound[2] < 800:
-                                bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
+                for j, ele_i_j in enumerate(elements[lane_id]):
+                    if helper.is_in(ele_i_j, bound_rect):
+                        # if bound_rect == ele_i_j:
 
-                            # if
+                        found = True
 
-                            if bound[2] > 1100:
-                                elements_i[j] = bound_rect
+                        # if bound_rect[2] <
+                        if bound[2] < 800:
+                            bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
 
-                            if ele_i_j[2] * ele_i_j[3] > 3000:
-                                elements_i[j] = bound_rect
+                        if bound[2] > 1100:
+                            elements[lane_id][j] = bound_rect
 
-                            # elif bound_rect[2] > ele_i_j[2] * 0.5 and bound_rect[3] > ele_i_j[3] * 0.5:
-                            #     elements_i[j] = bound_rect
-                            # break
+                        if ele_i_j[2] * ele_i_j[3] > 3000:
+                            elements[lane_id][j] = bound_rect
 
                 if not found:
                     if bound[2] < cfg.SUB_PROC_AREA_THRESHOLD:
@@ -360,5 +355,18 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                 else:
                     non_blank.append(ele)
             elements[lane_id] = non_blank
+
+    for pool_id, pool in enumerate(pools_list):
+        # print("pool_{}:".format(pool_id))
+        lanes = pool["lanes"]
+        elements = pool["elements"]
+
+        for lane_id in range(len(lanes)):
+            unique_eles = []
+            for ele in elements[lane_id]:
+                if ele not in unique_eles:
+                    unique_eles.append(ele)
+            elements[lane_id] = unique_eles
+            # print(len(unique_eles))
 
     return pools_list

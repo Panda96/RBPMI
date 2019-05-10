@@ -5,7 +5,7 @@ from collections import defaultdict
 from functools import cmp_to_key
 
 import helper.detector_helper as helper
-from bcf.bcf import BCF
+from classifier import Classifier
 import cfg
 from img_preprocess import pre_process
 import pools_detector
@@ -641,7 +641,7 @@ def create_virtual_element(arrow, direct):
         p_x = arrow[0] + arrow[2] // 2 - default_width // 2
         p_y = arrow[1] + arrow[3] // 2 - default_height // 2
 
-    default_element = [p_x, p_y, default_width, default_height]
+    default_element = [int(p_x), int(p_y), default_width, default_height]
     return default_element
 
 
@@ -654,8 +654,8 @@ def get_possible_element(arrow_id_list, arrows):
         x_list.append(arrow_center[0])
         y_list.append(arrow_center[1])
 
-    p_x = np.mean(x_list)
-    p_y = np.mean(y_list)
+    p_x = int(np.mean(x_list))
+    p_y = int(np.mean(y_list))
     height = max(y_list) - min(y_list)
     width = max(x_list) - min(x_list)
     length = max(height, width, 40)
@@ -728,14 +728,14 @@ def get_element_id(ele_path):
     return -1
 
 
-def match_arrows_and_elements(arrow_lines, arrows):
+def get_all_elements():
     global all_elements
     # 统计所有的元素
     # [[pool_id, lane_id, element_id, is_sub_process]]
     all_elements = []
     for i, pool in enumerate(pools):
         lanes = pool["lanes"]
-        elements = pool.get("elements",defaultdict(list))
+        elements = pool.get("elements", defaultdict(list))
         sub_procs = pool.get("sub_procs", {})
         for j in range(len(lanes)):
             elements_in_lane = elements.get(j)
@@ -746,6 +746,9 @@ def match_arrows_and_elements(arrow_lines, arrows):
             if sub_procs_in_lane is not None:
                 for k in range(len(sub_procs_in_lane)):
                     all_elements.append((i, j, k, 1))
+
+
+def match_arrows_and_elements(arrow_lines, arrows):
     # 匹配 arrow 与 element
     # 依据两者位置关系，删除一些线
     # 依据 arrow 确定一些未检出的元素
@@ -759,7 +762,7 @@ def match_arrows_and_elements(arrow_lines, arrows):
             if helper.is_in(pool_lanes_rect, arrow):
                 elements = pool.get("elements", defaultdict(list))
                 lanes = pool["lanes"]
-                sub_procs = pool.get("sub_procs",{})
+                sub_procs = pool.get("sub_procs", {})
                 for lane_id, lane in enumerate(lanes):
                     if helper.is_in(lane, arrow):
                         sub_procs_in_lane = sub_procs.get(lane_id, None)
@@ -1178,6 +1181,8 @@ def parse_img(file_path):
     flows_img = remove_elements(2)
     arrows = get_arrows(flows_img)
 
+    get_all_elements()
+    flows = defaultdict(list)
     if len(arrows) > 0:
         flows_img = remove_elements(4)
         flows_only = remove_text(flows_img)
@@ -1373,7 +1378,7 @@ def parse_img(file_path):
                             print(flow_points)
                         for i in range(1, len(flow_points)):
                             # try:
-                            p1 = (int(flow_points[i-1][0]), int(flow_points[i-1][1]))
+                            p1 = (int(flow_points[i - 1][0]), int(flow_points[i - 1][1]))
                             p2 = (int(flow_points[i][0]), int(flow_points[i][1]))
                             cv.line(pools_img, p1, p2, color, cfg.CONTOUR_THICKNESS)
                             # except TypeError:
@@ -1383,32 +1388,39 @@ def parse_img(file_path):
     # cv.waitKey(0)
 
     all_seq_flows = []
-    for arrow_id in range(len(arrows)):
-        arrow_flows = flows.get(arrow_id)
-        # print(arrow_id)
-        for flow in arrow_flows:
-            all_seq_flows.append(flow)
+    if len(flows) > 0:
+        for arrow_id in range(len(arrows)):
+            arrow_flows = flows.get(arrow_id)
+            # print(arrow_id)
+            for flow in arrow_flows:
+                all_seq_flows.append(flow)
 
     all_elements_type = []
-    # for ele_path in all_elements:
-    #     if ele_path[3] == 1:
-    #         all_elements_type.append("subProcess_expanded")
-    #     else:
-    #         ele_rec = get_element_rec_by_path(ele_path)
-    #         ele_rec = helper.dilate(ele_rec, 5)
-    #         ele_img = helper.truncate(input_img, ele_rec)
-    #         ele_type = bcf.get_one_image_type(ele_img)
-    #         all_elements_type.append(ele_type)
-    # print(all_elements_type)
+    print("Classifying begins...")
+    helper.print_time()
+    for ele_path in all_elements:
+        if ele_path[3] == 1:
+            all_elements_type.append("subProcess_expanded")
+        else:
+            ele_rec = get_element_rec_by_path(ele_path)
+            ele_rec = helper.dilate(ele_rec, 5)
+
+            ele_img = helper.truncate(input_img, ele_rec)
+
+            ele_type = classifier.classify_with_vgg_16(ele_img)
+            all_elements_type.append(ele_type)
+    print(all_elements_type)
+    helper.print_time()
+    print("Classifying finished!")
 
     return all_elements_type, all_seq_flows
 
 
 def show_im(img_matrix, name="img"):
-    # pass
+    pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
-    cv.namedWindow(name)
-    cv.imshow(name, img_matrix)
+    # cv.namedWindow(name)
+    # cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
     # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
@@ -1420,23 +1432,19 @@ def run():
     # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
-    selected = images[-2:]
+    selected = images[4:5]
     for im in selected:
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
             all_elements_type, all_seq_flows = parse_img(file_path)
-            # definitions = model_exporter.create_model(pools, all_elements, all_elements_type, all_seq_flows)
-            # model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
-            cv.waitKey(0)
+            definitions = model_exporter.create_model(pools, all_elements, all_elements_type, all_seq_flows)
+            model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
+            # cv.waitKey(0)
         # break
 
 
 if __name__ == '__main__':
-    # bcf = BCF()
-    # bcf.CODEBOOK_FILE = "../bcf/model/codebook_15.data"
-    # bcf.CLASSIFIER_FILE = "../bcf/model/classifier_base_15_50"
-    # bcf.load_kmeans()
-    # bcf.load_classifier()
+    # print(helper.is_in([1, 2, 3, 4], [1, 2, 3, 4]))
+    classifier = Classifier()
     run()
-    # show_layers()

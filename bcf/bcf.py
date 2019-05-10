@@ -23,7 +23,7 @@ class BCF:
     def __init__(self,):
         self.DATA_DIR = "../622data/train/"
         self.CODEBOOK_FILE = "model/code_book_56_30.data"
-        self.CLASSIFIER_FILE = "model/classifier_56_300"
+        self.CLASSIFIER_FILE = "model/classifier_56_30_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -402,10 +402,9 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     code_book_train_num = 30
-    classifier_train_num = 100
+    classifier_train_num = 50
     bcf = BCF()
-
-    bcf.train_code_book(code_book_train_num)
+    # bcf.train_code_book(code_book_train_num)
     bcf.train(classifier_train_num)
     bcf.test_dir("../622data/test/")
     # print(os.getcwd())
