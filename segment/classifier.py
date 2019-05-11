@@ -1,10 +1,6 @@
 # -*- coding:utf-8 -*-
-import sys
-
-sys.path.append("..")
-
 from image_classification import modeler
-from bcf.bcf import BCF
+from bcf import BCF
 
 import cv2 as cv
 import numpy as np

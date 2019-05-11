@@ -124,4 +124,11 @@ bcf/data
 bcf/model
 bcf/codebook_*.txt
 
+segment/bcf/data
+segment/bcf/model/
+segment/bcf/codebook_*.txt
+
 segment/output
+segment/bcf/model/classifier_30_50
+segment/bcf/model/classifier_30_50
+segment/bcf/model/code_book_56_30.data
