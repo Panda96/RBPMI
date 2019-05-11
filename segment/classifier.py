@@ -64,21 +64,30 @@ class Classifier:
         self.load_vgg_16_classifier()
         img = self.vgg_pre_process_image(image)
         result = self.vgg_16_classifier.predict(img, batch_size=1)
-        label = self.classes[int(np.where(result == 1)[1])]
+        try:
+            label = self.classes[int(np.where(result == 1)[1])]
+        except TypeError:
+            label = "None"
         return label
 
     def classify_with_vgg_16_56(self, image):
         self.load_vgg_16_56_classifier()
         img = self.vgg_pre_process_image(image)
         result = self.vgg_16_56_classifier.predict(img, batch_size=1)
-        label = self.classes_56[int(np.where(result == 1)[1])]
+        try:
+            label = self.classes_56[int(np.where(result == 1)[1])]
+        except TypeError:
+            label = "None"
         return label
 
     def classify_with_vgg_16_57(self, image):
         self.load_vgg_16_57_classifier()
         img = self.vgg_pre_process_image(image)
         result = self.vgg_16_57_classifier.predict(img, batch_size=1)
-        label = self.classes_57[int(np.where(result == 1)[1])]
+        try:
+            label = self.classes_57[int(np.where(result == 1)[1])]
+        except TypeError:
+            label = "None"
         return label
 
     def load_bcf_classifier(self):
