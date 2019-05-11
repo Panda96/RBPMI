@@ -1378,12 +1378,9 @@ def parse_img(file_path):
                         if show_points:
                             print(flow_points)
                         for i in range(1, len(flow_points)):
-                            # try:
                             p1 = (int(flow_points[i - 1][0]), int(flow_points[i - 1][1]))
                             p2 = (int(flow_points[i][0]), int(flow_points[i][1]))
                             cv.line(pools_img, p1, p2, color, cfg.CONTOUR_THICKNESS)
-                            # except TypeError:
-                            #     print(flow_points[i - 1], flow_points[i])
 
     show_im(pools_img, name="pools_img")
     # cv.waitKey(0)
@@ -1396,6 +1393,10 @@ def parse_img(file_path):
             for flow in arrow_flows:
                 all_seq_flows.append(flow)
 
+    return all_seq_flows
+
+
+def classify_elements(classifier, classifier_type):
     all_elements_type = []
     print("Classifying begins...")
     helper.print_time()
@@ -1407,7 +1408,7 @@ def parse_img(file_path):
             ele_rec = helper.dilate(ele_rec, 10)
             ele_img = helper.truncate(input_img, ele_rec)
 
-            ele_type = classifier.classify_with_vgg_16(ele_img)
+            ele_type = classifier.classify(ele_img, classifier_type)
             text = ""
             if ele_type.endswith("ask") or ele_type in cfg.TASK_LIKE_LIST:
                 text = translator.translate(ele_img)
@@ -1416,7 +1417,7 @@ def parse_img(file_path):
     helper.print_time()
     print("Classifying finished!")
 
-    return all_elements_type, all_seq_flows
+    return all_elements_type
 
 
 def show_im(img_matrix, name="img"):
@@ -1429,7 +1430,17 @@ def show_im(img_matrix, name="img"):
     # cv.waitKey(0)
 
 
+def detect_one_image(file_path, classifier, classifier_type):
+
+    all_seq_flows = parse_img(file_path)
+    all_elements_type = classify_elements(classifier, classifier_type)
+    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+                                                                 all_seq_flows)
+    return definitions, all_elements_info
+
+
 def run():
+    classifier = Classifier()
     # sample_dir = "imgs/admission/"
     sample_dir = "samples/imgs/sample_1/"
     # sample_dir = "samples/imgs/"
@@ -1440,14 +1451,9 @@ def run():
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
-            all_elements_type, all_seq_flows = parse_img(file_path)
-            definitions = model_exporter.create_model(input_img, pools, all_elements, all_elements_type, all_seq_flows)
+            definitions, all_elements_info = detect_one_image(file_path, classifier, "vgg16")
             model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
-            # cv.waitKey(0)
-        # break
 
 
 if __name__ == '__main__':
-    # print(helper.is_in([1, 2, 3, 4], [1, 2, 3, 4]))
-    classifier = Classifier()
     run()

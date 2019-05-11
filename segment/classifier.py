@@ -150,18 +150,7 @@ class Classifier:
                 file_path = type_dir + image
                 test_labels.append([each_type, image])
 
-                if classifier_type == "vgg16":
-                    prediction = self.classify_with_vgg_16(file_path)
-                elif classifier_type == "vgg16_56":
-                    prediction = self.classify_with_vgg_16_56(file_path)
-                elif classifier_type == "vgg16_57":
-                    prediction = self.classify_with_vgg_16_57(file_path)
-                elif classifier_type == "bcf":
-                    prediction = self.classify_with_bcf(file_path)
-                elif classifier_type == "bcf_56":
-                    prediction = self.classify_with_bcf_56(file_path)
-                else:
-                    prediction = self.classify_with_bcf_57(file_path)
+                prediction = self.classify(file_path, classifier_type)
                 predictions.append(prediction)
 
         for (i, test_label) in enumerate(test_labels):
@@ -173,9 +162,9 @@ class Classifier:
             else:
                 test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
 
-        test_logs = os.listdir("test_results")
-        id = len(test_logs)
-        test_res_file = "test_results/{}_{}_test.txt".format(id, classifier_type)
+        test_logs = os.listdir("test_results/")
+        file_id = len(test_logs)
+        test_res_file = "test_results/{}_{}_test.txt".format(file_id, classifier_type)
         with open(test_res_file, "w") as f:
             all_total = 0
             all_correct = 0
@@ -194,6 +183,22 @@ class Classifier:
             record = "{}\t{},{},{}\n".format("all", all_total, all_correct, all_correct / all_total)
             print(record)
             f.write(record)
+
+    def classify(self, image, classifier_type):
+        if classifier_type == "vgg16":
+            prediction = self.classify_with_vgg_16(image)
+        elif classifier_type == "vgg16_56":
+            prediction = self.classify_with_vgg_16_56(image)
+        elif classifier_type == "vgg16_57":
+            prediction = self.classify_with_vgg_16_57(image)
+        elif classifier_type == "bcf":
+            prediction = self.classify_with_bcf(image)
+        elif classifier_type == "bcf_56":
+            prediction = self.classify_with_bcf_56(image)
+        else:
+            prediction = self.classify_with_bcf_57(image)
+
+        return prediction
 
 
 if __name__ == '__main__':

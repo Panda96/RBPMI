@@ -285,7 +285,7 @@ def create_model(input_img, pools, all_elements, all_elements_type, all_seq_flow
         bpmn_plane.append(bpmn_edge)
     definitions.append(bpmn_diagram)
 
-    return definitions
+    return definitions, all_elements_type
 
 
 def indent(elem, level=0):
