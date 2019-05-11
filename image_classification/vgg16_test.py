@@ -10,7 +10,7 @@ def image_reverse(image):
     return 255 - image
 
 
-data_dir = "../57_622data/"
+data_dir = "../56_622data/"
 
 data_train = data_dir + "train/"
 data_test = data_dir + "test/"
@@ -23,7 +23,7 @@ img_size = 150
 img_shape = (img_size, img_size)
 
 tune_model = modeler.get_vgg16_fc(img_size, classes)
-tune_model.load_weights(filepath="weights/VGG16_fc_model_57.h5")
+tune_model.load_weights(filepath="weights/VGG16_fc_model_56.h5")
 tune_model.summary()
 
 testing_data = []
