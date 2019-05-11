@@ -63,7 +63,7 @@ def validate_one(bpmn_file, image_file):
 
     validate_result = defaultdict(dict)
     fake_elements = []
-    image_ele_id_map = dict()
+
 
     shapes_label, _, flows_label = count.count_one_bpmn(bpmn_file)
     _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier, classifier_type)
@@ -87,6 +87,7 @@ def validate_one(bpmn_file, image_file):
                 sub_p_shapes.append(shape_index)
 
     # {detected element id: bpmn file element id}
+    image_ele_id_map = dict()
 
     for ele_index, ele_path in enumerate(all_elements):
         ele_rec = get_element_rec_by_path(ele_path, pools)
@@ -99,7 +100,27 @@ def validate_one(bpmn_file, image_file):
             # expanded sub processes
             sub_p_shapes = match_ele_and_shape(ele_index, ele_rec, ele_type, sub_p_shapes)
 
-    # flow_rest =
+    # [file seq flow num, end point no match num, end point match num, start point match num, other seq flow]
+    seq_flow_result = [0, 0, 0, 0]
+
+
+    for flow_label in flows_label:
+        # [file_id, main_type, points_label, element_id, source_ref, target_ref]
+        if flow_label[1] == "sequenceFlow":
+            seq_flow_result[0] += 1
+            target_ref = flows_label[-1]
+            source_ref = flows_label[-2]
+
+            matched = False
+            # [end_ele_id, flow_points, start_ele_id]
+            for seq_flow in all_seq_flows:
+                target_ele_id = seq_flow[0]
+                source_ele_id = seq_flow[-1]
+                target_ele_ref = image_ele_id_map[target_ele_id]
+                source_ele_ref = image_ele_id_map[source_ele_id]
+
+
+
 
 
 def validate():
