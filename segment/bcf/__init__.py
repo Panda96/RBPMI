@@ -1,2 +1,2 @@
 # -*- coding:utf-8 -*-
-import bcf
+from bcf.bcf import BCF
