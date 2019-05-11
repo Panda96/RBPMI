@@ -1,4 +1,8 @@
 # -*- coding:utf-8 -*-
+import sys
+
+sys.path.append("..")
+
 from image_classification import modeler
 from bcf.bcf import BCF
 
