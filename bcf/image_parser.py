@@ -78,7 +78,7 @@ def show_layers(input_img, layers, contours):
         k = cv.waitKey(0)
 
         if k == 27:
-            print("break one image")
+            print("break one image_mat")
             break
 
 

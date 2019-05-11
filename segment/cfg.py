@@ -28,3 +28,5 @@ SEQ_MIN_LENGTH = 10
 SEQ_MAX_GAP = 3
 
 LINE_AREA_THRESHOLD = 10
+
+TASK_LIKE_LIST = ["adHocSubProcess", "callActivity", "subProcess", "subProcess_triggeredByEvent", "transaction"]

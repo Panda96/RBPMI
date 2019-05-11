@@ -21,7 +21,7 @@ classes = len(labels)
 
 img_size = 150
 img_shape = (img_size, img_size)
-# image generator
+# image_mat generator
 
 data_gen = ImageDataGenerator(
     rescale=1. / 255,

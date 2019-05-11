@@ -21,7 +21,7 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self,):
-        self.DATA_DIR = "../622data/train/"
+        self.DATA_DIR = "../56_622data/train/"
         self.CODEBOOK_FILE = "model/code_book_56_30.data"
         self.CLASSIFIER_FILE = "model/classifier_56_30_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
@@ -99,7 +99,7 @@ class BCF:
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
 
     def learn_codebook(self):
-        MAX_CFS = 800  # max number of contour fragments per image; if above, sample randomly
+        MAX_CFS = 800  # max number of contour fragments per image_mat; if above, sample randomly
         CLUSTERING_CENTERS = 1500
         feats_sc = []
         for image in self.data.values():
@@ -187,7 +187,7 @@ class BCF:
             feat = image['cfs']
             image['spp_descriptor'] = self.spp_llc_code(pyramid, image['cfs'], image["llc_coding"])
             # print(image_key)
-            # print(image["spp_descriptor"].shape)
+            # print(image_mat["spp_descriptor"].shape)
         self.print_time()
         print("SPP Finished!")
 
@@ -241,8 +241,8 @@ class BCF:
         self.save_classifier(self.clf)
         return self.clf
 
-    # def show(self, image):
-    #     cv2.imshow('image', image)
+    # def show(self, image_mat):
+    #     cv2.imshow('image_mat', image_mat)
     #     _ = cv2.waitKey()
 
     def extr_raw_points(self, c, max_value, N, nn):
@@ -379,7 +379,7 @@ class BCF:
                 image_key = (type_dir, image)
                 print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
-                # predictions_2.append(self.get_one_image_type(image_path))
+                # predictions_2.append(self.get_one_image_type(image_dir))
                 testing_data.append(self.get_one_image_feature(image_path))
                 labels.append(type_dir)
 
@@ -406,5 +406,5 @@ if __name__ == "__main__":
     bcf = BCF()
     # bcf.train_code_book(code_book_train_num)
     bcf.train(classifier_train_num)
-    bcf.test_dir("../622data/test/")
+    bcf.test_dir("../56_622data/test/")
     # print(os.getcwd())

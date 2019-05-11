@@ -10,6 +10,7 @@ import cfg
 from img_preprocess import pre_process
 import pools_detector
 import model_exporter
+import translator
 
 input_img = []
 
@@ -1400,15 +1401,17 @@ def parse_img(file_path):
     helper.print_time()
     for ele_path in all_elements:
         if ele_path[3] == 1:
-            all_elements_type.append("subProcess_expanded")
+            all_elements_type.append(["subProcess_expanded", ""])
         else:
             ele_rec = get_element_rec_by_path(ele_path)
-            ele_rec = helper.dilate(ele_rec, 5)
-
+            ele_rec = helper.dilate(ele_rec, 10)
             ele_img = helper.truncate(input_img, ele_rec)
 
             ele_type = classifier.classify_with_vgg_16(ele_img)
-            all_elements_type.append(ele_type)
+            text = ""
+            if ele_type.endswith("ask") or ele_type in cfg.TASK_LIKE_LIST:
+                text = translator.translate(ele_img)
+            all_elements_type.append([ele_type, text])
     print(all_elements_type)
     helper.print_time()
     print("Classifying finished!")
@@ -1432,13 +1435,13 @@ def run():
     # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
-    selected = images[4:5]
+    selected = images
     for im in selected:
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
             all_elements_type, all_seq_flows = parse_img(file_path)
-            definitions = model_exporter.create_model(pools, all_elements, all_elements_type, all_seq_flows)
+            definitions = model_exporter.create_model(input_img, pools, all_elements, all_elements_type, all_seq_flows)
             model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
             # cv.waitKey(0)
         # break

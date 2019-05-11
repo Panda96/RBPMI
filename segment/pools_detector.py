@@ -95,6 +95,7 @@ def get_pools(layers, contours_rec):
                         children_rest.remove(child_id)
                         # a rect with appropriate height-to-width ratio is very likely to be a header bounding box
                         header_rect = child_bound[0]
+                        pool["header_rect"] = header_rect
 
                         pool_rect = (header_rect[0], header_rect[1], pool_bound[0][2], header_rect[3])
                         pool["rect"] = pool_rect
@@ -189,6 +190,7 @@ def create_default_pool(layer0, contours_rec, pool_dilate_value, layer1=None):
     width = right_bottom_x - x
     height = right_bottom_y - left_top_y
     pool_rect = (x, left_top_y, width, height)
+    header_rect = (x, left_top_y, cfg.DEFAULT_POOL_HEADER_WIDTH, height)
     lane_width = right_bottom_x - left_top_x
     pool_lanes_rect = (left_top_x, left_top_y, lane_width, height)
 
@@ -217,7 +219,8 @@ def create_default_pool(layer0, contours_rec, pool_dilate_value, layer1=None):
                 pool_lanes.append(lane)
                 next_lane_begin = k + max_height
 
-    pool = {"rect": pool_rect, "lanes_rect": pool_lanes_rect, "lanes": pool_lanes}
+    pool = {"rect": pool_rect, "lanes_rect": pool_lanes_rect, "header_rect": header_rect, "lanes": pool_lanes,
+            "name": "pool"}
     return pool
 
 
@@ -225,8 +228,6 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
     layers_num = len(layers)
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
-
-    potential_sub_procs = defaultdict(list)
 
     for ele_rec in partial_elements:
         for pool in pools_list:
@@ -284,11 +285,8 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
 
                 for j, ele_i_j in enumerate(elements[lane_id]):
                     if helper.is_in(ele_i_j, bound_rect):
-                        # if bound_rect == ele_i_j:
-
                         found = True
 
-                        # if bound_rect[2] <
                         if bound[2] < 800:
                             bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
 

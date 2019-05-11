@@ -30,7 +30,7 @@ def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
     if show_text:
         text = "{}".format(bound_rect[2] * bound_rect[3])
         text_size = cv.getTextSize(text, cv.QT_FONT_NORMAL, 0.3, 1)
-        # put the text in the middle of a rectangle and not beyond the border of the image
+        # put the text in the middle of a rectangle and not beyond the border of the image_mat
         org_x = bound_rect[0] + (bound_rect[2] - text_size[0][0]) // 2
         org_x = max(org_x, 2)
         org_x = min(org_x, draw_img.shape[1] - text_size[0][0] - 5)
@@ -41,7 +41,7 @@ def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
 
 
 def dilate(rect, dilation_value):
-    # may be I need to consider whether if the rect will beyond the border of the image after dilation
+    # may be I need to consider whether if the rect will beyond the border of the image_mat after dilation
     x = max(0, rect[0] - dilation_value)
     y = max(0, rect[1] - dilation_value)
     width = rect[2] + 2 * dilation_value
@@ -101,7 +101,13 @@ def truncate(base, roi_rec):
         return base[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
                max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1])]
     else:
-        print("The image's channels are not 2 or 3.")
+        print("The image_mat's channels are not 2 or 3.")
+
+
+def rotate_90_clockwise(image):
+    rotated_img = cv.transpose(image)
+    rotated_img = cv.flip(rotated_img, 1)
+    return rotated_img
 
 
 # place rec2 at the center of rec1

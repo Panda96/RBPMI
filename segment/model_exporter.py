@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 import xml.etree.ElementTree as eTree
 import helper.detector_helper as helper
+import cfg
+import translator
 
 eTree.register_namespace("bpmndi", "http://www.omg.org/spec/BPMN/20100524/DI")
 eTree.register_namespace("bpmn", "http://www.omg.org/spec/BPMN/20100524/MODEL")
@@ -48,7 +50,16 @@ def create_event_definition(definition_type):
     return eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}" + event_definition)
 
 
-def create_model(pools, all_elements, all_elements_type, all_seq_flows):
+def get_rect_text(input_img, rec, is_pool=False):
+    if is_pool and (rec[0] < 0 or rec[1] < 0):
+        return "Pool"
+    roi = helper.truncate(input_img, rec)
+    roi = helper.rotate_90_clockwise(roi)
+    text = translator.translate(roi)
+    return text
+
+
+def create_model(input_img, pools, all_elements, all_elements_type, all_seq_flows):
     # for pool_id, pool in enumerate(pools):
     #     print("pool_{}:".format(pool_id))
     #     lanes = pool["lanes"]
@@ -79,6 +90,14 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
         # participant
         participant = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}participant",
                                     attrib={"id": participant_id, "processRef": process_id})
+
+        name = pool.get("name", "")
+        if name == "":
+            header_rect = pool["header_rect"]
+            name = get_rect_text(input_img, header_rect, is_pool=True)
+
+        participant.attrib["name"] = name
+
         collaboration.append(participant)
 
         pool_rect = pool["rect"]
@@ -106,7 +125,11 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
             # lane
             lane_ele_id = "pool_{}_lane_{}".format(pool_id, lane_id)
             lane_ele = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}lane",
-                                     attrib={"id": lane_ele_id, "name": ""})
+                                     attrib={"id": lane_ele_id})
+
+            lane_header = [lane[0], lane[1], cfg.DEFAULT_POOL_HEADER_WIDTH, lane[3]]
+            lane_name = get_rect_text(input_img, lane_header)
+            lane_ele.attrib["name"] = lane_name
 
             lane_set.append(lane_ele)
 
@@ -137,13 +160,14 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
 
             for ele_id, ele_rec in enumerate(elements_in_lane):
                 e_id = get_element_id([pool_id, lane_id, ele_id, 0], all_elements)
-                node_type = all_elements_type[e_id]
+                node_type = all_elements_type[e_id][0]
 
                 node_id = "{}_{}".format(node_type, e_id)
 
                 type_info = node_type.split("_")
                 node_tag = type_info[0]
 
+                ele_rec = helper.dilate(ele_rec, 2)
                 node_shape = create_bpmn_shape(node_id, ele_rec)
                 if "expanded" in type_info:
                     node_shape.attrib["isExpanded"] = "true"
@@ -156,7 +180,7 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
                         if ele_id != ele_id_e and helper.is_overlap(ele_rec, ele_rec_e):
                             is_boundary_event = True
                             ele_e_id = get_element_id([pool_id, lane_id, ele_id_e, 0], all_elements)
-                            ele_node_id = "{}_{}".format(all_elements_type[ele_e_id], ele_e_id)
+                            ele_node_id = "{}_{}".format(all_elements_type[ele_e_id][0], ele_e_id)
                             break
 
                     if not is_boundary_event:
@@ -167,6 +191,9 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
                                 break
 
                 if is_boundary_event:
+                    type_info[0] = "boundaryEvent"
+                    node_type = "_".join(type_info)
+                    all_elements_type[e_id][0] = node_type
                     node_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}boundaryEvent",
                                                  attrib={"id": node_id})
                     node_element.attrib["attachedToRef"] = ele_node_id
@@ -188,6 +215,9 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
                 if node_tag == "subProcess":
                     if "triggeredByEvent" in type_info:
                         node_element.attrib["triggeredByEvent"] = "true"
+
+                if node_tag.endswith("ask") or node_tag in cfg.TASK_LIKE_LIST:
+                    node_element.attrib["name"] = all_elements_type[e_id][1]
 
                 for flow_id, seq_flow in enumerate(all_seq_flows):
                     if seq_flow[0] == e_id:
@@ -223,8 +253,8 @@ def create_model(pools, all_elements, all_elements_type, all_seq_flows):
 
             source_id = seq_flow[-1]
             target_id = seq_flow[0]
-            source_ref = "{}_{}".format(all_elements_type[source_id], source_id)
-            target_ref = "{}_{}".format(all_elements_type[target_id], target_id)
+            source_ref = "{}_{}".format(all_elements_type[source_id][0], source_id)
+            target_ref = "{}_{}".format(all_elements_type[target_id][0], target_id)
 
             seq_flow_element = eTree.Element("{http://www.omg.org/spec/BPMN/20100524/MODEL}sequenceFlow",
                                              attrib={"id": seq_flow_id, "sourceRef": source_ref,

@@ -54,8 +54,9 @@ def move_complex_type():
     print("Moving Complex Type Finished!")
 
 
-def make_type_dirs(ele_type_list):
-    train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
+def make_type_dirs(ele_type_list, train_data):
+    # train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
+    # train_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/ele_type_data/"
 
     if not os.path.exists(train_data):
         os.mkdir(train_data)
@@ -64,6 +65,13 @@ def make_type_dirs(ele_type_list):
         one_type_dir = train_data + one_type
         if not os.path.exists(one_type_dir):
             os.mkdir(one_type_dir)
+        else:
+            return
+            print("dirs exists!")
+
+
+def get_file_name(file_name):
+    return file_name[0:-4]
 
 
 def get_file_id(file_name):
@@ -74,9 +82,14 @@ def distribute_shape_data():
     # data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/data700_3/ele_type_data/"
     # files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/data700_3/bpmn/"
     # imgs_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/data700_3/imgs/"
+
     data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
     files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
     imgs_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/images/"
+
+    # data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/ele_type_data/"
+    # files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/bpmn/"
+    # imgs_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
 
     # if not os.path.exists(data_dir):
     #     os.mkdir(data_dir)
@@ -85,14 +98,16 @@ def distribute_shape_data():
     count.count(files_dir)
     print("Counting finished!")
     ele_type_list = count.statistic()
-    make_type_dirs(ele_type_list)
+    make_type_dirs(ele_type_list, data_dir)
 
     all_shapes_label = count.all_shapes_label
 
     imgs = os.listdir(imgs_dir)
+    # imgs.sort()
 
     i = 0
     file_id = get_file_id(imgs[i])
+    # file_id = get_file_name(imgs[i])
     file_path = imgs_dir + imgs[i]
     cur_img = cv.imread(file_path, cv.COLOR_BGR2GRAY)
     for shape_id, shape_label in enumerate(all_shapes_label):
@@ -123,5 +138,5 @@ def distribute_shape_data():
 
 if __name__ == '__main__':
     distribute_shape_data()
-    move_complex_type()
+    # move_complex_type()
     # filter_enough_data()

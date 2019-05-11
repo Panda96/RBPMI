@@ -76,8 +76,9 @@ def divide_120_data():
 
 
 def divide_6_2_2_data():
-    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
-    data_622 = "E:/diagrams/bpmn-io/bpmn2image/data0423/622data/"
+    # all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
+    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500/"
+    data_622 = "E:/diagrams/bpmn-io/bpmn2image/data0423/57_622data/"
     data_622_train = data_622 + "train/"
     data_622_val = data_622 + "val/"
     data_622_test = data_622 + "test/"
@@ -193,13 +194,15 @@ def divide_data():
 
 
 def get_data_500():
-    merge_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data/"
-    data_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
+    # merge_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data/"
+    # data_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
+    aug_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_data/"
+    data_57_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500/"
 
-    type_dirs = os.listdir(merge_data)
+    type_dirs = os.listdir(aug_data)
     for each_type in type_dirs:
-        type_dir = merge_data + each_type + "/"
-        data_500_type_dir = data_500 + each_type + "/"
+        type_dir = aug_data + each_type + "/"
+        data_500_type_dir = data_57_500 + each_type + "/"
         print(each_type)
         images = os.listdir(type_dir)
         size = len(images)
