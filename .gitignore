@@ -132,3 +132,5 @@ segment/output
 segment/bcf/model/classifier_30_50
 segment/bcf/model/classifier_30_50
 segment/bcf/model/code_book_56_30.data
+
+segment/test_results
