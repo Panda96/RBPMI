@@ -1430,13 +1430,13 @@ def show_im(img_matrix, name="img"):
     # cv.waitKey(0)
 
 
-def detect_one_image(file_path, classifier, classifier_type):
+def detect(file_path, classifier, classifier_type):
 
     all_seq_flows = parse_img(file_path)
     all_elements_type = classify_elements(classifier, classifier_type)
     definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
                                                                  all_seq_flows)
-    return definitions, all_elements_info
+    return definitions, all_elements_info, all_seq_flows, all_elements, pools
 
 
 def run():
@@ -1451,7 +1451,7 @@ def run():
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
-            definitions, all_elements_info = detect_one_image(file_path, classifier, "vgg16")
+            definitions, _, _, _ , _= detect(file_path, classifier, "vgg16")
             model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
 
 

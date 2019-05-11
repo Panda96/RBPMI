@@ -11,7 +11,7 @@ def image_reverse(image):
     return 255 - image
 
 
-data_dir = "../622data/"
+data_dir = "../56_622data/"
 
 data_train = data_dir + "train/"
 data_test = data_dir + "test/"
@@ -52,7 +52,7 @@ history = tune_model.fit_generator(
     validation_data=val_iter,
     validation_steps=32
 )
-tune_model.save_weights("VGG16_fc_model.h5")
+tune_model.save_weights("VGG16_fc_model_56.h5")
 
 
 acc = history.history['acc']

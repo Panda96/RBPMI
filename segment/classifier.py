@@ -133,8 +133,8 @@ class Classifier:
         else:
             data_dir = "../57_622data/"
 
-        labels = os.listdir(data_dir)
         data_test = data_dir + "test/"
+        # labels = os.listdir(data_test)
 
         test_labels = []
         predictions = []
@@ -168,21 +168,21 @@ class Classifier:
         with open(test_res_file, "w") as f:
             all_total = 0
             all_correct = 0
-            for label in labels:
+            for label in type_dirs:
                 total = test_res[label][0][0]
                 correct_num = test_res[label][0][1]
                 all_total += total
                 all_correct += correct_num
-                record = "{}\t{},{},{}\n".format(label, total, correct_num, correct_num / total)
+                record = "{}\t{},{},{}".format(label, total, correct_num, correct_num / total)
                 print(record)
-                f.write(record)
+                f.write(record+"\n")
 
                 # if correct_num < total:
                 for info in test_res[label][1]:
                     print(info)
-            record = "{}\t{},{},{}\n".format("all", all_total, all_correct, all_correct / all_total)
+            record = "{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total)
             print(record)
-            f.write(record)
+            f.write(record+"\n")
 
     def classify(self, image, classifier_type):
         if classifier_type == "vgg16":

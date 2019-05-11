@@ -233,20 +233,20 @@ def count_one_bpmn(file):
                 text_label = [file_id, [shape_bound[0], shape_bound[1], shape_bound[2], shape_bound[3]], element_id, 0]
                 texts_label.append(text_label)
 
-            if element_id in list(bound_dic.keys()):
-                bound_recs = bound_dic[element_id]
-                bound_recs.append(shape_bound)
-                x_min = float("inf")
-                y_min = float("inf")
-                x_max = -1
-                y_max = -1
-                for rec in bound_recs:
-                    x_min = min(rec[0], x_min)
-                    y_min = min(rec[1], y_min)
-                    x_max = max(rec[0] + rec[2], x_max)
-                    y_max = max(rec[1] + rec[3], y_max)
-
-                shape_bound = [x_min, y_min, x_max - x_min, y_max - y_min]
+            # if element_id in list(bound_dic.keys()):
+            #     bound_recs = bound_dic[element_id]
+            #     bound_recs.append(shape_bound)
+            #     x_min = float("inf")
+            #     y_min = float("inf")
+            #     x_max = -1
+            #     y_max = -1
+            #     for rec in bound_recs:
+            #         x_min = min(rec[0], x_min)
+            #         y_min = min(rec[1], y_min)
+            #         x_max = max(rec[0] + rec[2], x_max)
+            #         y_max = max(rec[1] + rec[3], y_max)
+            #
+            #     shape_bound = [x_min, y_min, x_max - x_min, y_max - y_min]
 
             if shape_bound[0] < min_x:
                 min_x = shape_bound[0]
@@ -324,6 +324,8 @@ def count_one_bpmn(file):
     all_shapes_label.extend(shapes_label)
     all_texts_label.extend(texts_label)
     all_flows_label.extend(flows_label)
+
+    return shapes_label, texts_label, flows_label
 
 
 def output():
