@@ -13,7 +13,7 @@ from collections import defaultdict
 from helper import detector_helper as helper
 
 classifier = Classifier()
-classifier_type = "vgg16"
+classifier_type = "vgg16_57"
 labels = classifier.classes_57
 
 
@@ -36,24 +36,28 @@ def validate_one(bpmn_file, image_file):
         ele_area = e_rec[2] * e_rec[3]
 
         matched = False
-        for shape_index in shapes_list:
+        for shape_id in shapes_list:
             # [file_id, element_type, shape_bound, element_id]
-            shape_label = shapes_label[shape_index]
-            shape_rec = shape_label[2]
+            ele_label = shapes_label[shape_id]
+            shape_rec = ele_label[2]
             shape_area = shape_rec[2] * shape_rec[3]
             overlap_area = helper.get_overlap_area(e_rec, shape_rec)
-            if overlap_area / ele_area > 0.8 and overlap_area / shape_area > 0.8:
-                shapes_list.remove(shape_index)
-                image_ele_id_map[e_index] = shape_label[-1]
-                shape_type = shape_label[1]
+            if overlap_area / ele_area > 0.5 and overlap_area / shape_area > 0.5:
+                # print("here")
+                shapes_list.remove(shape_id)
+                image_ele_id_map[e_index] = ele_label[-1]
+
+                ele_shape_type = ele_label[1]
+                # print(ele_shape_type)
                 matched = True
                 # detected_num, type_right, type_wrong
-                shape_type_res = validate_result[shape_type].get("detect", [0, 0, 0])
+                shape_type_res = validate_result[ele_shape_type].get("detect", [0, 0, 0])
                 shape_type_res[0] += 1
-                if e_type == shape_type:
+                if e_type == ele_shape_type:
                     shape_type_res[1] += 1
                 else:
                     shape_type_res[2] += 1
+                validate_result[ele_shape_type]["detect"] = shape_type_res
                 break
 
         if not matched:
@@ -64,7 +68,6 @@ def validate_one(bpmn_file, image_file):
     validate_result = defaultdict(dict)
     fake_elements = []
 
-
     shapes_label, _, flows_label = count.count_one_bpmn(bpmn_file)
     _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier, classifier_type)
 
@@ -72,7 +75,7 @@ def validate_one(bpmn_file, image_file):
     sub_p_shapes = []
     # [file_id, element_type, shape_bound, element_id]
     for shape_index, shape_label in enumerate(shapes_label):
-        shape_type = shapes_label[1]
+        shape_type = shape_label[1]
         if shape_type in labels:
             type_num = validate_result[shape_type].get("total", 0)
             type_num += 1
@@ -100,42 +103,89 @@ def validate_one(bpmn_file, image_file):
             # expanded sub processes
             sub_p_shapes = match_ele_and_shape(ele_index, ele_rec, ele_type, sub_p_shapes)
 
-    # [file seq flow num, end point no match num, end point match num, start point match num, other seq flow]
-    seq_flow_result = [0, 0, 0, 0]
+    # [file seq num, not matched, target match, source match, others]
+    seq_result = [0, 0, 0, 0, 0]
 
+    flows_label_rest = []
 
-    for flow_label in flows_label:
-        # [file_id, main_type, points_label, element_id, source_ref, target_ref]
-        if flow_label[1] == "sequenceFlow":
-            seq_flow_result[0] += 1
-            target_ref = flows_label[-1]
-            source_ref = flows_label[-2]
+    for flow_id in range(len(flows_label)):
+        if flows_label[flow_id][1] == "sequenceFlow":
+            flows_label_rest.append(flow_id)
 
-            matched = False
-            # [end_ele_id, flow_points, start_ele_id]
-            for seq_flow in all_seq_flows:
-                target_ele_id = seq_flow[0]
-                source_ele_id = seq_flow[-1]
-                target_ele_ref = image_ele_id_map[target_ele_id]
-                source_ele_ref = image_ele_id_map[source_ele_id]
+    seq_result[0] = len(flows_label_rest)
 
+    for seq_flow in all_seq_flows:
+        target_ele_id = seq_flow[0]
+        source_ele_id = seq_flow[-1]
+        target_ele_ref = image_ele_id_map[target_ele_id]
+        source_ele_ref = image_ele_id_map[source_ele_id]
 
+        same_target_seqs = []
+        for flow_id in flows_label_rest:
+            # [file_id, main_type, points_label, element_id, source_ref, target_ref]
+            flow_label = flows_label[flow_id]
+            target_ref = flow_label[-1]
+            source_ref = flow_label[-2]
 
+            if target_ele_ref == target_ref:
+                same_target_seqs.append([flow_id, source_ref])
+
+        # matched = False
+        if len(same_target_seqs) > 0:
+            seq_result[2] += 1
+            for same_target_seq in same_target_seqs:
+                if source_ele_ref == same_target_seq[1]:
+                    seq_result[3] += 1
+                    flows_label_rest.remove(same_target_seq[0])
+                    # matched = True
+                    break
+
+        else:
+            seq_result[-1] += 1
+
+    seq_result[1] = len(flows_label_rest)
+
+    interested_labels = labels.copy()
+    interested_labels.append("subProcess_expanded")
+
+    print(image_file)
+    for label in interested_labels:
+        label_result = validate_result[label]
+        # print(label)
+        # print(len(label_result))
+        if len(label_result) > 0:
+            # print(label)
+            total = label_result["total"]
+            if len(label_result) == 2:
+                detect = label_result["detect"]
+            else:
+                print("not detected")
+                detect = [0, 0, 0]
+            print("{}\t{},{},{},{}".format(label, total, detect[0], detect[1], detect[2]))
+    seq_record = "sequenceFlow\t{},{},{},{},{}".format(seq_result[0], seq_result[1],
+                                                       seq_result[2], seq_result[3], seq_result[4])
+    print(seq_record)
+
+    print("=" * 100)
 
 
 def validate():
     data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/"
 
     bpmn_dir = data_dir + "bpmn/"
-    image_dir = data_dir + "images/"
+    images_dir = data_dir + "images/"
 
     bpmns = os.listdir(bpmn_dir)
     bpmns.sort()
-    images = os.listdir(image_dir)
+    images = os.listdir(images_dir)
     images.sort()
 
-    for i in range(len(bpmns)):
+    for i in range(len(bpmns))[0:1]:
         bpmn_file = bpmn_dir + bpmns[i]
-        image_file = bpmn_dir + images[i]
+        image_file = images_dir + images[i]
+        # print(bpmn_file)
+        # print(image_file)
         validate_one(bpmn_file, image_file)
 
+
+validate()

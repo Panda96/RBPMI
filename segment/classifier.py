@@ -47,18 +47,18 @@ class Classifier:
 
     def load_vgg_16_classifier(self):
         if self.vgg_16_classifier is None:
-            self.vgg_16_classifier = modeler.get_vgg16_fc(self.img_size, self.classes)
+            self.vgg_16_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes))
             self.vgg_16_classifier.load_weights("../image_classification/weights/VGG16_fc_model.h5")
 
     def load_vgg_16_56_classifier(self):
         if self.vgg_16_56_classifier is None:
-            self.vgg_16_56_classifier = modeler.get_vgg16_fc(self.img_size, self.classes_56)
-            self.vgg_16_56_classifier.load_weights("")
+            self.vgg_16_56_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_56))
+            self.vgg_16_56_classifier.load_weights("../image_classification/weights/VGG16_fc_model_56.h5")
 
     def load_vgg_16_57_classifier(self):
         if self.vgg_16_57_classifier is None:
-            self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, self.classes_57)
-            self.vgg_16_57_classifier.load_weights("")
+            self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_57))
+            self.vgg_16_57_classifier.load_weights("../image_classification/weights/VGG16_fc_model_57.h5")
 
     def classify_with_vgg_16(self, image):
         self.load_vgg_16_classifier()

@@ -1398,8 +1398,8 @@ def parse_img(file_path):
 
 def classify_elements(classifier, classifier_type):
     all_elements_type = []
-    print("Classifying begins...")
-    helper.print_time()
+    # print("Classifying begins...")
+    # helper.print_time()
     for ele_path in all_elements:
         if ele_path[3] == 1:
             all_elements_type.append(["subProcess_expanded", ""])
@@ -1413,9 +1413,9 @@ def classify_elements(classifier, classifier_type):
             if ele_type.endswith("ask") or ele_type in cfg.TASK_LIKE_LIST:
                 text = translator.translate(ele_img)
             all_elements_type.append([ele_type, text])
-    print(all_elements_type)
-    helper.print_time()
-    print("Classifying finished!")
+    # print(all_elements_type)
+    # helper.print_time()
+    # print("Classifying finished!")
 
     return all_elements_type
 
@@ -1431,7 +1431,6 @@ def show_im(img_matrix, name="img"):
 
 
 def detect(file_path, classifier, classifier_type):
-
     all_seq_flows = parse_img(file_path)
     all_elements_type = classify_elements(classifier, classifier_type)
     definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
@@ -1442,7 +1441,8 @@ def detect(file_path, classifier, classifier_type):
 def run():
     classifier = Classifier()
     # sample_dir = "imgs/admission/"
-    sample_dir = "samples/imgs/sample_1/"
+    # sample_dir = "samples/imgs/sample_1/"
+    sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
     # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
@@ -1451,7 +1451,7 @@ def run():
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
-            definitions, _, _, _ , _= detect(file_path, classifier, "vgg16")
+            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16")
             model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
 
 
