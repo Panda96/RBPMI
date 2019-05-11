@@ -1,2 +1,5 @@
 # -*- coding:utf-8 -*-
-from bcf import evolution, llc, shape_context, bcf
+from bcf import bcf
+import evolution
+import llc
+import image_parser
