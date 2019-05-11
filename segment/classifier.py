@@ -209,4 +209,4 @@ if __name__ == '__main__':
     # print(res)
     # res = classifier.classify_with_vgg_16(image_mat)
     # print(res)
-    classifier.test("bcf")
+    classifier.test("vgg16")
