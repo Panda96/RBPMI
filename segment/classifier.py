@@ -1,10 +1,10 @@
 # -*- coding:utf-8 -*-
 import sys
 sys.path.append("../")
-sys.path.append("./bcf")
+sys.path.append("../bcf/")
 
 from image_classification import modeler
-from bcf import BCF
+from bcf.bcf import BCF
 
 import cv2 as cv
 import numpy as np
@@ -143,6 +143,7 @@ class Classifier:
         type_dirs = os.listdir(data_test)
         for each_type in type_dirs:
             print(each_type)
+            test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
             images = os.listdir(type_dir)
             for image in images:
