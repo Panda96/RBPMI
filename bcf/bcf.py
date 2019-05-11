@@ -2,6 +2,7 @@ import os
 import sys
 
 sys.path.append("..")
+sys.path.append(".")
 
 from collections import defaultdict
 from functools import reduce
