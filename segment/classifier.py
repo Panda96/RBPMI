@@ -67,12 +67,12 @@ class Classifier:
             self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_57))
             self.vgg_16_57_classifier.load_weights("../image_classification/weights/VGG16_fc_model_57.h5")
 
-    def classify_with_vgg_16(self, clf, images):
+    def classify_with_vgg_16(self, clf, images, labels):
         imgs = self.vgg_pre_process_image(images)
         results = clf.predict(imgs)
         predictions = []
         for result in results:
-            label = self.classes[int(np.where(result == 1)[0])]
+            label = labels[int(np.where(result == 1)[0])]
             predictions.append(label)
         return predictions
 
@@ -110,13 +110,13 @@ class Classifier:
     def classify(self, images, classifier_type):
         if classifier_type == "vgg16":
             self.load_vgg_16_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_classifier, images)
+            predictions = self.classify_with_vgg_16(self.vgg_16_classifier, images, self.classes)
         elif classifier_type == "vgg16_56":
             self.load_vgg_16_56_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_56_classifier, images)
+            predictions = self.classify_with_vgg_16(self.vgg_16_56_classifier, images, self.classes_56)
         elif classifier_type == "vgg16_57":
             self.load_vgg_16_57_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_57_classifier, images)
+            predictions = self.classify_with_vgg_16(self.vgg_16_57_classifier, images, self.classes_57)
         elif classifier_type == "bcf":
             self.load_bcf_classifier()
             predictions = self.classify_with_bcf(self.bcf_classifier, images)
@@ -149,7 +149,7 @@ class Classifier:
             test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
             image_names = os.listdir(type_dir)
-            images = [type_dir + name for name in image_names][0:1]
+            images = [type_dir + name for name in image_names]
             predictions = self.classify(images, classifier_type)
             test_res[each_type][0][0] = len(images)
             for i, prediction in enumerate(predictions):
