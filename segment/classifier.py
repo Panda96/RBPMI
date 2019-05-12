@@ -27,6 +27,10 @@ class Classifier:
         self.classes_56 = os.listdir("../56_622data/train/")
         self.classes_57 = os.listdir("../57_622data/train/")
 
+        self.classes_weights = "../image_classification/weights/VGG16_fc_model{}.h5"
+        self.classes_56_weights = "../image_classification/weights/VGG16_fc_model_56{}.h5"
+        self.classes_57_weights = "../image_classification/weights/VGG16_fc_model_57{}.h5"
+
         self.img_size = 150
 
     def vgg_pre_process_image(self, images):
@@ -56,17 +60,17 @@ class Classifier:
     def load_vgg_16_classifier(self):
         if self.vgg_16_classifier is None:
             self.vgg_16_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes))
-            self.vgg_16_classifier.load_weights("../image_classification/weights/VGG16_fc_model.h5")
+            self.vgg_16_classifier.load_weights(self.classes_weights)
 
     def load_vgg_16_56_classifier(self):
         if self.vgg_16_56_classifier is None:
             self.vgg_16_56_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_56))
-            self.vgg_16_56_classifier.load_weights("../image_classification/weights/VGG16_fc_model_56_2.h5")
+            self.vgg_16_56_classifier.load_weights(self.classes_56_weights)
 
     def load_vgg_16_57_classifier(self):
         if self.vgg_16_57_classifier is None:
             self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_57))
-            self.vgg_16_57_classifier.load_weights("../image_classification/weights/VGG16_fc_model_57_2.h5")
+            self.vgg_16_57_classifier.load_weights(self.classes_57_weights)
 
     def classify_with_vgg_16(self, clf, images, labels):
         imgs = self.vgg_pre_process_image(images)
@@ -195,9 +199,19 @@ if __name__ == '__main__':
 
     if opt == "vgg":
         print("test vgg")
-        classifier.test("vgg16")
-        classifier.test("vgg16_56")
-        classifier.test("vgg16_57")
+        weights_base = "../image_classification/VGG16_fc_model_{}.h5"
+        for model_i in range(5):
+            model_id = "{}".format(model_i)
+            classifier.classes_weights = weights_base.format(model_id)
+            classifier.test("vgg16")
+
+            model_56_id = "56_{}".format(model_i)
+            classifier.classes_56_weights = weights_base.format(model_56_id)
+            classifier.test("vgg16_56")
+
+            model_57_id = "57_{}".format(model_i)
+            classifier.classes_57_weights = weights_base.format(model_57_id)
+            classifier.test("vgg16_57")
     elif opt == "bcf":
         print("test bcf")
         classifier.test("bcf")
@@ -205,4 +219,3 @@ if __name__ == '__main__':
         classifier.test("bcf_57")
     else:
         print("wrong args, it should be 'bcf or vgg'")
-
