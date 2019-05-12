@@ -50,7 +50,7 @@ class Classifier:
                 imgs.append(cv.imread(image))
             else:
                 imgs.append(image)
-        imgs = np.array(imgs)
+        # imgs = np.array(imgs)
         return imgs
 
     def load_vgg_16_classifier(self):
@@ -193,12 +193,12 @@ if __name__ == '__main__':
     classifier = Classifier()
     opt = sys.argv[1]
 
-    if opt == "test_vgg":
+    if opt == "vgg":
         print("test vgg")
         classifier.test("vgg16")
         classifier.test("vgg16_56")
         classifier.test("vgg16_57")
-    elif opt == "test_bcf":
+    elif opt == "bcf":
         print("test bcf")
         classifier.test("bcf")
         classifier.test("bcf_56")

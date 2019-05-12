@@ -12,8 +12,8 @@ from collections import defaultdict
 
 from helper import detector_helper as helper
 
+
 classifier = Classifier()
-classifier_type = "vgg16_57"
 labels = classifier.classes_57
 
 
@@ -31,7 +31,7 @@ def get_element_rec_by_path(path, pools):
     return rect
 
 
-def validate_one(bpmn_file, image_file):
+def validate_one(bpmn_file, image_file, classifier_type):
     def match_ele_and_shape(e_index, e_rec, e_type, shapes_list):
         ele_area = e_rec[2] * e_rec[3]
 
@@ -51,13 +51,13 @@ def validate_one(bpmn_file, image_file):
                 # print(ele_shape_type)
                 matched = True
                 # detected_num, type_right, type_wrong
-                shape_type_res = validate_result[ele_shape_type].get("detect", [0, 0, 0])
+                shape_type_res = shapes_result[ele_shape_type].get("detect", [0, 0, 0])
                 shape_type_res[0] += 1
                 if e_type == ele_shape_type:
                     shape_type_res[1] += 1
                 else:
                     shape_type_res[2] += 1
-                validate_result[ele_shape_type]["detect"] = shape_type_res
+                shapes_result[ele_shape_type]["detect"] = shape_type_res
                 break
 
         if not matched:
@@ -65,7 +65,7 @@ def validate_one(bpmn_file, image_file):
             fake_elements.append(e_index)
         return shapes_list
 
-    validate_result = defaultdict(dict)
+    shapes_result = defaultdict(dict)
     fake_elements = []
 
     shapes_label, _, flows_label = count.count_one_bpmn(bpmn_file)
@@ -77,16 +77,16 @@ def validate_one(bpmn_file, image_file):
     for shape_index, shape_label in enumerate(shapes_label):
         shape_type = shape_label[1]
         if shape_type in labels:
-            type_num = validate_result[shape_type].get("total", 0)
+            type_num = shapes_result[shape_type].get("total", 0)
             type_num += 1
-            validate_result[shape_type]["total"] = type_num
+            shapes_result[shape_type]["total"] = type_num
             flow_shapes.append(shape_index)
         else:
             if "expanded" in shape_type.split("_"):
                 shapes_label[shape_index][1] = "subProcess_expanded"
-                type_num = validate_result["subProcess_expanded"].get("total", 0)
+                type_num = shapes_result["subProcess_expanded"].get("total", 0)
                 type_num += 1
-                validate_result["subProcess_expanded"]["total"] = type_num
+                shapes_result["subProcess_expanded"]["total"] = type_num
                 sub_p_shapes.append(shape_index)
 
     # {detected element id: bpmn file element id}
@@ -148,9 +148,10 @@ def validate_one(bpmn_file, image_file):
     interested_labels = labels.copy()
     interested_labels.append("subProcess_expanded")
 
+    one_res = {}
     print(image_file)
     for label in interested_labels:
-        label_result = validate_result[label]
+        label_result = shapes_result[label]
         # print(label)
         # print(len(label_result))
         if len(label_result) > 0:
@@ -169,8 +170,9 @@ def validate_one(bpmn_file, image_file):
     print("=" * 100)
 
 
-def validate():
-    data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/"
+
+
+def validate(data_dir, classifier_type):
 
     bpmn_dir = data_dir + "bpmn/"
     images_dir = data_dir + "images/"
@@ -180,12 +182,23 @@ def validate():
     images = os.listdir(images_dir)
     images.sort()
 
-    for i in range(len(bpmns))[0:1]:
+    for i in range(len(bpmns))[0:2]:
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
-        # print(bpmn_file)
-        # print(image_file)
-        validate_one(bpmn_file, image_file)
+
+        validate_one(bpmn_file, image_file, classifier_type)
 
 
-validate()
+if __name__ == '__main__':
+
+    opt = sys.argv[1]
+
+    validate_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/"
+    classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]
+    if opt == "vgg":
+        print("validate vgg")
+
+    elif opt == "bcf":
+        print("validate vgg")
+
+
