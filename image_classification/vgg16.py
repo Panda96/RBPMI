@@ -12,6 +12,7 @@ def image_reverse(image):
 
 
 def train(all_data_dir, model_id):
+    print(model_id)
     data_train = all_data_dir + "train/"
     data_test = all_data_dir + "test/"
     data_val = all_data_dir + "val/"
@@ -39,7 +40,7 @@ def train(all_data_dir, model_id):
                                            target_size=img_shape, batch_size=16)
 
     tune_model = modeler.get_vgg16_fc(img_size, classes)
-    tune_model.summary()
+    # tune_model.summary()
 
     tune_model.compile(loss="categorical_crossentropy", optimizer=optimizers.RMSprop(lr=1e-4),
                        metrics=['acc'])
@@ -60,7 +61,7 @@ def train(all_data_dir, model_id):
     val_loss = history.history['val_loss']
 
     model_log = "model_log/"
-    if os.path.exists(model_log):
+    if not os.path.exists(model_log):
         os.mkdir(model_log)
 
     log_name = "VGG16_fc_model_{}.log".format(model_id)
