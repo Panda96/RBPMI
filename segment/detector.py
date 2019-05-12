@@ -1398,8 +1398,8 @@ def parse_img(file_path):
 
 def classify_elements(classifier, classifier_type):
     all_elements_type = []
-    print("Classifying begins...")
-    helper.print_time()
+    # print("Classifying begins...")
+    # helper.print_time()
     all_elements_images = []
     for ele_path in all_elements:
         if ele_path[3] == 1:
@@ -1422,8 +1422,8 @@ def classify_elements(classifier, classifier_type):
 
 
     # print(all_elements_type)
-    helper.print_time()
-    print("Classifying finished!")
+    # helper.print_time()
+    # print("Classifying finished!")
 
     return all_elements_type
 

@@ -4,14 +4,13 @@ import sys
 sys.path.append("..")
 
 import os
-
+import json
 from preprocess import count
 import detector
 from classifier import Classifier
 from collections import defaultdict
 
 from helper import detector_helper as helper
-
 
 classifier = Classifier()
 labels = classifier.classes_57
@@ -149,7 +148,11 @@ def validate_one(bpmn_file, image_file, classifier_type):
     interested_labels.append("subProcess_expanded")
 
     one_res = {}
+    file_name = image_file.split("/")[-1]
+    file_label = file_name.split(".")[0]
+    one_res["file_label"] = file_label
     print(image_file)
+    one_res["shapes"] = {}
     for label in interested_labels:
         label_result = shapes_result[label]
         # print(label)
@@ -163,16 +166,23 @@ def validate_one(bpmn_file, image_file, classifier_type):
                 print("not detected")
                 detect = [0, 0, 0]
             print("{}\t{},{},{},{}".format(label, total, detect[0], detect[1], detect[2]))
+            one_res["shapes"][label] = [total, detect[0], detect[1], detect[2]]
+
+    print("fake_elements\t{}".format(len(fake_elements)))
+    one_res["fake_elements"] = len(fake_elements)
+
     seq_record = "sequenceFlow\t{},{},{},{},{}".format(seq_result[0], seq_result[1],
                                                        seq_result[2], seq_result[3], seq_result[4])
+    one_res["seq_record"] = seq_record
     print(seq_record)
 
     print("=" * 100)
-
-
+    return one_res
 
 
 def validate(data_dir, classifier_type):
+    print("validate {}", classifier_type)
+    validate_res_dir = "validate_results/"
 
     bpmn_dir = data_dir + "bpmn/"
     images_dir = data_dir + "images/"
@@ -182,23 +192,41 @@ def validate(data_dir, classifier_type):
     images = os.listdir(images_dir)
     images.sort()
 
-    for i in range(len(bpmns))[0:2]:
+    results = []
+    for i in range(len(bpmns))[0:1]:
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
 
-        validate_one(bpmn_file, image_file, classifier_type)
+        one_res = validate_one(bpmn_file, image_file, classifier_type)
+        results.append(one_res)
+
+    if not os.path.exists(validate_res_dir):
+        os.mkdir(validate_res_dir)
+
+    data_dir_name = data_dir.split("/")[-2]
+
+    file_id = len(os.listdir(validate_res_dir))
+    file_name = "{}_{}_{}_res.json".format(file_id, classifier_type, data_dir_name)
+    file_path = validate_res_dir + file_name
+
+    with open(file_path, "w") as f:
+        json.dump(results, f)
 
 
 if __name__ == '__main__':
 
     opt = sys.argv[1]
+    # opt = "bcf"
 
-    validate_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/"
-    classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]
+    validate_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/gen_data/"
+    # classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]
     if opt == "vgg":
         print("validate vgg")
-
+        validate(validate_data_dir, "vgg16")
+        validate(validate_data_dir, "vgg16_56")
+        validate(validate_data_dir, "vgg16_57")
     elif opt == "bcf":
-        print("validate vgg")
-
-
+        print("validate bcf")
+        validate(validate_data_dir, "bcf")
+        validate(validate_data_dir, "bcf_56")
+        validate(validate_data_dir, "bcf_57")
