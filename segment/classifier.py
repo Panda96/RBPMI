@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import sys
+import getopt
 
 sys.path.append("../")
 sys.path.append("../bcf/")
@@ -188,17 +189,18 @@ class Classifier:
 
 
 if __name__ == '__main__':
-    # image_path = "../622data/test/dataObjectReference/4034_019_01.png"
-    # image_mat = cv.imread(image_path)
+
     classifier = Classifier()
-    # res = classifier.classify_with_vgg_16(image_path)
-    # print(res)
-    # res = classifier.classify_with_vgg_16(image_mat)
-    # print(res)
-    classifier.test("vgg16")
-    classifier.test("vgg16_56")
-    classifier.test("vgg16_57")
-    classifier.test("bcf")
-    classifier.test("bcf_56")
-    classifier.test("bcf_57")
+    opt = sys.argv[1]
+
+    if opt == "test_vgg":
+        classifier.test("vgg16")
+        classifier.test("vgg16_56")
+        classifier.test("vgg16_57")
+    elif opt == "test_bcf":
+        classifier.test("bcf")
+        classifier.test("bcf_56")
+        classifier.test("bcf_57")
+    else:
+        print("wrong args, it should be 'test_***'")
 

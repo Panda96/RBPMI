@@ -45,7 +45,7 @@ def evolution(slist, number, max_value=None, keep_endpoints=False, process_until
     value = np.zeros((len(s), 1))
 
     if number < 3 or len(slist) <= 3:
-        print("WARNING (evolution): less than 3 vertices")
+        # print("WARNING (evolution): less than 3 vertices")
         return (s, value, del_val)
 
     peri = poly_perimeter(np.append(slist, [slist[0]], axis=0))
