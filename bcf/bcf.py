@@ -370,19 +370,22 @@ if __name__ == "__main__":
     data_56_dir = "../56_622data/"
     data_57_dir = "../57_622data/"
 
-    for i in range(5):
-        model_id = "{}".format(i)
-        model_56_id = "56_{}".format(i)
-        model_57_id = "57_{}".format(i)
+    for model_i in range(5):
+        model_id = "{}".format(model_i)
+        model_56_id = "56_{}".format(model_i)
+        model_57_id = "57_{}".format(model_i)
 
         model_classifier_name = "classifier_{}_30_50".format(model_id)
         bcf.CLASSIFIER_FILE = model_classifier_name
+        print(model_classifier_name)
         bcf.train(classifier_train_num)
         model_56_classifier_name = "classifier_{}_30_50".format(model_56_id)
         bcf.CLASSIFIER_FILE = model_56_classifier_name
+        print(model_56_classifier_name)
         bcf.train(classifier_train_num)
         model_57_classifier_name = "classifier_{}_30_50".format(model_57_id)
         bcf.CLASSIFIER_FILE = model_57_classifier_name
+        print(model_57_classifier_name)
         bcf.train(classifier_train_num)
 
     # bcf.test_dir("../56_622data/test/")
