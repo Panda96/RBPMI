@@ -57,14 +57,14 @@ for result in results:
     # except TypeError:
     #     predictions.append("None")
 
-# for (i, test_label) in enumerate(test_labels):
+# for (model_i, test_label) in enumerate(test_labels):
 #     type_name = test_label[0]
 #     image_name = test_label[1]
 #     test_res[type_name][0][0] += 1
-#     if predictions[i] == type_name:
+#     if predictions[model_i] == type_name:
 #         test_res[type_name][0][1] += 1
 #     else:
-#         test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
+#         test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[model_i]))
 #
 # all_total = 0
 # all_correct = 0

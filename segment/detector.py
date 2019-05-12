@@ -1005,7 +1005,7 @@ def detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, me
 
 def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
     # n = len(all_elements)
-    # graph = [[-1 for j in range(n)] for i in range(n)]
+    # graph = [[-1 for j in range(n)] for model_i in range(n)]
     # flows: {arrow_id: [[end_ele_id, flow_points, start_ele_id]]}
     flows = defaultdict(list)
     merged_lines = []

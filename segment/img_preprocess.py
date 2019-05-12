@@ -36,8 +36,8 @@ def draw_contours(input_img, contors, contours):
 # def get_layers_img(f, show):
 #     pre_process(f)
 #
-#     for i in range(len(layers)):
-#         layer = layers[i].keys()
+#     for model_i in range(len(layers)):
+#         layer = layers[model_i].keys()
 #         contours_drawing = draw_contours(layer)
 #         rec_drawing = draw_contours_rec(layer)
 #         contours_drawing = helper.dilate_drawing(contours_drawing)
@@ -56,8 +56,8 @@ def draw_contours(input_img, contors, contours):
 #             output_dir = "samples/layers/" + f.split("/")[-1][:-4]
 #             if not os.path.exists(output_dir):
 #                 os.makedirs(output_dir)
-#             contour_file = output_dir + "/" + "layer_{}_contour.png".format(i)
-#             rec_file = output_dir + "/" + "layer_{}_rec.png".format(i)
+#             contour_file = output_dir + "/" + "layer_{}_contour.png".format(model_i)
+#             rec_file = output_dir + "/" + "layer_{}_rec.png".format(model_i)
 #             cv.imwrite(contour_file, contours_drawing)
 #             cv.imwrite(rec_file, rec_drawing)
 #     cv.destroyAllWindows()

@@ -184,7 +184,7 @@ def blocked(s, i):
     maxy = max([s[i0, 1], s[i, 1], s[i1, 1]])
 
     # check if any boundary-vertex is inside bounding box
-    # first create index-set v=s\(i0,i,i1)
+    # first create index-set v=s\(i0,model_i,i1)
 
     if i0 < i1:
         k = [i1, i, i0]
@@ -206,8 +206,8 @@ def blocked(s, i):
         b = False
         if not (px < minx or py < miny or px > maxx or py > maxy):
             # inside, now test triangle
-            a = s[i, :] - s[i0, :]  # a = i0 to i
-            b = s[i1, :] - s[i, :]  # b = i to i1
+            a = s[i, :] - s[i0, :]  # a = i0 to model_i
+            b = s[i1, :] - s[i, :]  # b = model_i to i1
             c = s[i0, :] - s[i1, :]  # c = i1 to i0
 
             e0 = s[i0, :] - np.array([px, py])

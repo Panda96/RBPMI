@@ -87,7 +87,7 @@ class BCF:
             size = len(images)
             index = np.arange(size)
             np.random.shuffle(index)
-            # upper = 300
+
             for i in index[:upper]:
                 image = images[i]
                 image_key = (type_dir, image)

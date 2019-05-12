@@ -107,7 +107,7 @@ def distribute_shape_data():
 
     i = 0
     file_id = get_file_id(imgs[i])
-    # file_id = get_file_name(imgs[i])
+    # file_id = get_file_name(imgs[model_i])
     file_path = imgs_dir + imgs[i]
     cur_img = cv.imread(file_path, cv.COLOR_BGR2GRAY)
     for shape_id, shape_label in enumerate(all_shapes_label):
