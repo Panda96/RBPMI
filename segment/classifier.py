@@ -72,7 +72,12 @@ class Classifier:
         results = clf.predict(imgs)
         predictions = []
         for result in results:
-            label = labels[int(np.where(result == 1)[0])]
+            try:
+                label = labels[int(np.where(result == 1)[0])]
+            except TypeError:
+                label = "None"
+                print(result.shape)
+                print(np.where(result == 1))
             predictions.append(label)
         return predictions
 
