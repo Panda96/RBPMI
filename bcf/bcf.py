@@ -44,6 +44,7 @@ class BCF:
     #     return self.label_to_class_mapping
 
     def get_image_shape_feats(self, image):
+        # print(image)
         shapes_feature = []
         if type(image) == str:
             input_img, _, contours = image_parser.get_layers_by_file_name(image)
@@ -76,7 +77,7 @@ class BCF:
                     # shape context descriptor sc for each cf is 300x1
                     # save a point at the midpoint of the contour fragment
                     xy[i, 0:2] = cf[np.round(len(cf) / 2. - 1).astype('int32'), :]
-                shapes_feature.append([contour_feature, xy])
+                shapes_feature.append(np.array([contour_feature, xy]))
         shape_feats = [np.array(shapes_feature), sz]
         return shape_feats
 
@@ -317,7 +318,6 @@ class BCF:
         clf = self.load_classifier()
         testing_data = []
         for image in images:
-            # print(image)
             spp_feature = self.get_one_image_feature(image)
             testing_data.append(spp_feature)
         testing_data = np.array(testing_data)
@@ -325,10 +325,7 @@ class BCF:
         return predictions
 
     def test_dir(self, test_data):
-        clf = self.load_classifier()
 
-        test_labels = []
-        # predictions = []
         type_dirs = os.listdir(test_data)
         # {type:[[test_num, correct_num], ["mistook info"...]]}
         test_res = {}
@@ -346,7 +343,6 @@ class BCF:
                 else:
                     test_res[each_type][1].append("Mistook {} {} for {}".format(image_names[i], each_type, prediction))
 
-
         all_total = 0
         all_correct = 0
         for label in type_dirs:
@@ -360,36 +356,6 @@ class BCF:
         print("{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total))
         return test_res
 
-    def test(self):
-        clf = self.load_classifier()
-        # label_to_cls = self.load_label_to_class_mapping()
-        testing_data = []
-        labels = []
-        type_dirs = os.listdir(self.DATA_DIR)
-        for type_dir in type_dirs:
-            print(type_dir)
-            images = os.listdir(self.DATA_DIR + type_dir)
-            begin = 100
-            for image in images[begin:begin + 50]:
-                image_key = (type_dir, image)
-                print(image_key)
-                image_path = self.DATA_DIR + type_dir + "/" + image
-                # predictions_2.append(self.get_one_image_type(image_dir))
-                testing_data.append(self.get_one_image_feature(image_path))
-                labels.append(type_dir)
-
-        predictions = clf.predict(testing_data)
-
-        correct = 0
-        for (i, label) in enumerate(labels):
-            if predictions[i] == label:
-                correct += 1
-                print("took %s for %s" % (label, predictions[i]))
-            else:
-                print("Mistook %s for %s" % (label, predictions[i]))
-        print(
-            "Correct: %s out of %s (Accuracy: %.2f%%)" % (correct, len(predictions), 100. * correct / len(predictions)))
-
 
 if __name__ == "__main__":
     # sys.path.append("../helper")
@@ -399,7 +365,25 @@ if __name__ == "__main__":
     code_book_train_num = 30
     classifier_train_num = 50
     bcf = BCF()
-    # bcf.train_code_book(code_book_train_num)
-    # bcf.train(classifier_train_num)
-    bcf.test_dir("../56_622data/test/")
+
+    data_dir = "../622data/"
+    data_56_dir = "../56_622data/"
+    data_57_dir = "../57_622data/"
+
+    for i in range(5):
+        model_id = "{}".format(i)
+        model_56_id = "56_{}".format(i)
+        model_57_id = "57_{}".format(i)
+
+        model_classifier_name = "classifier_{}_30_50".format(model_id)
+        bcf.CLASSIFIER_FILE = model_classifier_name
+        bcf.train(classifier_train_num)
+        model_56_classifier_name = "classifier_{}_30_50".format(model_56_id)
+        bcf.CLASSIFIER_FILE = model_56_classifier_name
+        bcf.train(classifier_train_num)
+        model_57_classifier_name = "classifier_{}_30_50".format(model_57_id)
+        bcf.CLASSIFIER_FILE = model_57_classifier_name
+        bcf.train(classifier_train_num)
+
+    # bcf.test_dir("../56_622data/test/")
     # print(os.getcwd())

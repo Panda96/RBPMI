@@ -120,6 +120,7 @@ dmypy.json
 *.jpg
 *.h5
 
+bcf/classifier*
 bcf/data
 bcf/model
 bcf/codebook_*.txt

@@ -204,5 +204,5 @@ if __name__ == '__main__':
         classifier.test("bcf_56")
         classifier.test("bcf_57")
     else:
-        print("wrong args, it should be 'test_***'")
+        print("wrong args, it should be 'bcf or vgg'")
 
