@@ -194,10 +194,12 @@ if __name__ == '__main__':
     opt = sys.argv[1]
 
     if opt == "test_vgg":
+        print("test vgg")
         classifier.test("vgg16")
         classifier.test("vgg16_56")
         classifier.test("vgg16_57")
     elif opt == "test_bcf":
+        print("test bcf")
         classifier.test("bcf")
         classifier.test("bcf_56")
         classifier.test("bcf_57")
