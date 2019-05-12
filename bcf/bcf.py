@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.append("..")
 
 from collections import defaultdict
@@ -19,10 +20,10 @@ import image_parser as image_parser
 
 
 class BCF:
-    def __init__(self,):
-        self.DATA_DIR = "../57_622data/train/"
-        self.CODEBOOK_FILE = "model/code_book_57_30.data"
-        self.CLASSIFIER_FILE = "model/classifier_57_30_50"
+    def __init__(self, ):
+        self.DATA_DIR = "../56_622data/train/"
+        self.CODEBOOK_FILE = "model/code_book_56_30.data"
+        self.CLASSIFIER_FILE = "model/classifier_56_30_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -312,43 +313,39 @@ class BCF:
         spp_feature = self.spp_llc_code(pyramid, shape_feats, encoded_shape_feats)
         return spp_feature
 
-    def get_one_image_type(self, image):
+    def get_images_type(self, images):
         clf = self.load_classifier()
-        spp_feature = self.get_one_image_feature(image)
-        testing_data = [spp_feature]
+        testing_data = []
+        for image in images:
+            # print(image)
+            spp_feature = self.get_one_image_feature(image)
+            testing_data.append(spp_feature)
+        testing_data = np.array(testing_data)
         predictions = clf.predict(testing_data)
-        return predictions[0]
+        return predictions
 
     def test_dir(self, test_data):
         clf = self.load_classifier()
 
         test_labels = []
-        predictions = []
+        # predictions = []
         type_dirs = os.listdir(test_data)
         # {type:[[test_num, correct_num], ["mistook info"...]]}
         test_res = {}
         for each_type in type_dirs:
-            testing_data = []
             print(each_type)
             test_res[each_type] = [[0, 0], []]
-            images = os.listdir(test_data + each_type)
-            for image in images:
-                image_path = test_data + each_type + "/" + image
-                testing_data.append(self.get_one_image_feature(image_path))
-                test_labels.append([each_type, image])
-            type_predictions = clf.predict(testing_data)
-            predictions.extend(type_predictions)
+            type_dir = test_data + each_type + "/"
+            image_names = os.listdir(type_dir)
+            images = [type_dir + name for name in image_names]
+            predictions = self.get_images_type(images[0:1])
+            test_res[each_type][0][0] = len(images)
+            for i, prediction in enumerate(predictions):
+                if prediction == each_type:
+                    test_res[each_type][0][1] += 1
+                else:
+                    test_res[each_type][1].append("Mistook {} {} for {}".format(image_names[i], each_type, prediction))
 
-        # predictions = clf.predict(testing_data)
-
-        for (i, test_label) in enumerate(test_labels):
-            type_name = test_label[0]
-            image_name = test_label[1]
-            test_res[type_name][0][0] += 1
-            if predictions[i] == type_name:
-                test_res[type_name][0][1] += 1
-            else:
-                test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
 
         all_total = 0
         all_correct = 0
@@ -402,7 +399,7 @@ if __name__ == "__main__":
     code_book_train_num = 30
     classifier_train_num = 50
     bcf = BCF()
-    bcf.train_code_book(code_book_train_num)
-    bcf.train(classifier_train_num)
-    bcf.test_dir("../57_622data/test/")
+    # bcf.train_code_book(code_book_train_num)
+    # bcf.train(classifier_train_num)
+    bcf.test_dir("../56_622data/test/")
     # print(os.getcwd())

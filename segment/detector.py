@@ -1398,8 +1398,9 @@ def parse_img(file_path):
 
 def classify_elements(classifier, classifier_type):
     all_elements_type = []
-    # print("Classifying begins...")
-    # helper.print_time()
+    print("Classifying begins...")
+    helper.print_time()
+    all_elements_images = []
     for ele_path in all_elements:
         if ele_path[3] == 1:
             all_elements_type.append(["subProcess_expanded", ""])
@@ -1408,14 +1409,21 @@ def classify_elements(classifier, classifier_type):
             ele_rec = helper.dilate(ele_rec, 10)
             ele_img = helper.truncate(input_img, ele_rec)
 
-            ele_type = classifier.classify(ele_img, classifier_type)
+            ele_type = classifier.classify([ele_img], classifier_type)[0]
             text = ""
             if ele_type.endswith("ask") or ele_type in cfg.TASK_LIKE_LIST:
                 text = translator.translate(ele_img)
             all_elements_type.append([ele_type, text])
+
+            # all_elements_images.append(ele_img)
+
+    # elements_type = classifier.classify(all_elements_images, classifier_type)
+    # elements_text = translator.translate_images(all_elements_images)
+
+
     # print(all_elements_type)
-    # helper.print_time()
-    # print("Classifying finished!")
+    helper.print_time()
+    print("Classifying finished!")
 
     return all_elements_type
 
@@ -1451,7 +1459,7 @@ def run():
         file_path = sample_dir + im
         print(im)
         if os.path.isfile(file_path):
-            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16")
+            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
             model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
 
 

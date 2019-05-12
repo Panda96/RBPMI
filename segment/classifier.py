@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import sys
+
 sys.path.append("../")
 sys.path.append("../bcf/")
 
@@ -27,23 +28,29 @@ class Classifier:
 
         self.img_size = 150
 
-    def vgg_pre_process_image(self, image):
-        if type(image) == str:
-            img = cv.imread(image)
-        else:
-            img = image
-        img = 255 - img
-        img_shape = (self.img_size, self.img_size)
-        img = cv.resize(img, img_shape)
-        img = img.reshape((1,) + img.shape)
-        return img
+    def vgg_pre_process_image(self, images):
+        imgs = []
+        for image in images:
+            if type(image) == str:
+                img = cv.imread(image)
+            else:
+                img = image
+            img = 255 - img
+            img_shape = (self.img_size, self.img_size)
+            img = cv.resize(img, img_shape)
+            imgs.append(img)
+        imgs = np.array(imgs)
+        return imgs
 
-    def bcf_pre_process_image(self, image):
-        if type(image) == str:
-            img = cv.imread(image)
-        else:
-            img = image
-        return img
+    def bcf_pre_process_image(self, images):
+        imgs = []
+        for image in images:
+            if type(image) == str:
+                imgs.append(cv.imread(image))
+            else:
+                imgs.append(image)
+        imgs = np.array(imgs)
+        return imgs
 
     def load_vgg_16_classifier(self):
         if self.vgg_16_classifier is None:
@@ -60,35 +67,14 @@ class Classifier:
             self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_57))
             self.vgg_16_57_classifier.load_weights("../image_classification/weights/VGG16_fc_model_57.h5")
 
-    def classify_with_vgg_16(self, image):
-        self.load_vgg_16_classifier()
-        img = self.vgg_pre_process_image(image)
-        result = self.vgg_16_classifier.predict(img, batch_size=1)
-        try:
-            label = self.classes[int(np.where(result == 1)[1])]
-        except TypeError:
-            label = "None"
-        return label
-
-    def classify_with_vgg_16_56(self, image):
-        self.load_vgg_16_56_classifier()
-        img = self.vgg_pre_process_image(image)
-        result = self.vgg_16_56_classifier.predict(img, batch_size=1)
-        try:
-            label = self.classes_56[int(np.where(result == 1)[1])]
-        except TypeError:
-            label = "None"
-        return label
-
-    def classify_with_vgg_16_57(self, image):
-        self.load_vgg_16_57_classifier()
-        img = self.vgg_pre_process_image(image)
-        result = self.vgg_16_57_classifier.predict(img, batch_size=1)
-        try:
-            label = self.classes_57[int(np.where(result == 1)[1])]
-        except TypeError:
-            label = "None"
-        return label
+    def classify_with_vgg_16(self, clf, images):
+        imgs = self.vgg_pre_process_image(images)
+        results = clf.predict(imgs)
+        predictions = []
+        for result in results:
+            label = self.classes[int(np.where(result == 1)[0])]
+            predictions.append(label)
+        return predictions
 
     def load_bcf_classifier(self):
         if self.bcf_classifier is None:
@@ -106,7 +92,7 @@ class Classifier:
             bcf.CODEBOOK_FILE = "../bcf/model/code_book_56_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
-            self.bcf_classifier = bcf
+            self.bcf_56_classifier = bcf
 
     def load_bcf_57_classifier(self):
         if self.bcf_57_classifier is None:
@@ -115,22 +101,32 @@ class Classifier:
             bcf.CODEBOOK_FILE = "../bcf/model/code_book_57_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
-            self.bcf_classifier = bcf
+            self.bcf_57_classifier = bcf
 
-    def classify_with_bcf(self, image):
-        self.load_bcf_classifier()
-        img = self.bcf_pre_process_image(image)
-        return self.bcf_classifier.get_one_image_type(img)
+    def classify_with_bcf(self, clf, images):
+        imgs = self.bcf_pre_process_image(images)
+        return clf.get_images_type(imgs)
 
-    def classify_with_bcf_56(self, image):
-        self.load_bcf_56_classifier()
-        img = self.bcf_pre_process_image(image)
-        return self.bcf_56_classifier.get_one_image_type(img)
-
-    def classify_with_bcf_57(self, image):
-        self.load_bcf_57_classifier()
-        img = self.bcf_pre_process_image(image)
-        return self.bcf_57_classifier.get_one_image_type(img)
+    def classify(self, images, classifier_type):
+        if classifier_type == "vgg16":
+            self.load_vgg_16_classifier()
+            predictions = self.classify_with_vgg_16(self.vgg_16_classifier, images)
+        elif classifier_type == "vgg16_56":
+            self.load_vgg_16_56_classifier()
+            predictions = self.classify_with_vgg_16(self.vgg_16_56_classifier, images)
+        elif classifier_type == "vgg16_57":
+            self.load_vgg_16_57_classifier()
+            predictions = self.classify_with_vgg_16(self.vgg_16_57_classifier, images)
+        elif classifier_type == "bcf":
+            self.load_bcf_classifier()
+            predictions = self.classify_with_bcf(self.bcf_classifier, images)
+        elif classifier_type == "bcf_56":
+            self.load_bcf_56_classifier()
+            predictions = self.classify_with_bcf(self.bcf_56_classifier, images)
+        else:
+            self.load_bcf_57_classifier()
+            predictions = self.classify_with_bcf(self.bcf_57_classifier, images)
+        return predictions
 
     def test(self, classifier_type):
         # vgg16, vgg16_56, vgg16_57, bcf, bcf_56, bcf_57
@@ -145,8 +141,6 @@ class Classifier:
         data_test = data_dir + "test/"
         # labels = os.listdir(data_test)
 
-        test_labels = []
-        predictions = []
         test_res = {}
 
         type_dirs = os.listdir(data_test)
@@ -154,22 +148,15 @@ class Classifier:
             print(each_type)
             test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
-            images = os.listdir(type_dir)
-            for image in images:
-                file_path = type_dir + image
-                test_labels.append([each_type, image])
-
-                prediction = self.classify(file_path, classifier_type)
-                predictions.append(prediction)
-
-        for (i, test_label) in enumerate(test_labels):
-            type_name = test_label[0]
-            image_name = test_label[1]
-            test_res[type_name][0][0] += 1
-            if predictions[i] == type_name:
-                test_res[type_name][0][1] += 1
-            else:
-                test_res[type_name][1].append("Mistook {} {} for {}".format(type_name, image_name, predictions[i]))
+            image_names = os.listdir(type_dir)
+            images = [type_dir + name for name in image_names][0:1]
+            predictions = self.classify(images, classifier_type)
+            test_res[each_type][0][0] = len(images)
+            for i, prediction in enumerate(predictions):
+                if prediction == each_type:
+                    test_res[each_type][0][1] += 1
+                else:
+                    test_res[each_type][1].append("Mistook {} {} for {}".format(image_names[i], each_type, prediction))
 
         test_logs = os.listdir("test_results/")
         file_id = len(test_logs)
@@ -184,30 +171,15 @@ class Classifier:
                 all_correct += correct_num
                 record = "{}\t{},{},{}".format(label, total, correct_num, correct_num / total)
                 print(record)
-                f.write(record+"\n")
+                f.write(record + "\n")
 
                 # if correct_num < total:
                 for info in test_res[label][1]:
                     print(info)
+                    f.write(info + "\n")
             record = "{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total)
             print(record)
-            f.write(record+"\n")
-
-    def classify(self, image, classifier_type):
-        if classifier_type == "vgg16":
-            prediction = self.classify_with_vgg_16(image)
-        elif classifier_type == "vgg16_56":
-            prediction = self.classify_with_vgg_16_56(image)
-        elif classifier_type == "vgg16_57":
-            prediction = self.classify_with_vgg_16_57(image)
-        elif classifier_type == "bcf":
-            prediction = self.classify_with_bcf(image)
-        elif classifier_type == "bcf_56":
-            prediction = self.classify_with_bcf_56(image)
-        else:
-            prediction = self.classify_with_bcf_57(image)
-
-        return prediction
+            f.write(record + "\n")
 
 
 if __name__ == '__main__':
@@ -219,3 +191,9 @@ if __name__ == '__main__':
     # res = classifier.classify_with_vgg_16(image_mat)
     # print(res)
     classifier.test("vgg16")
+    classifier.test("vgg16_56")
+    classifier.test("vgg16_57")
+    classifier.test("bcf")
+    classifier.test("bcf_56")
+    classifier.test("bcf_57")
+

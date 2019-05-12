@@ -11,6 +11,13 @@ def format_text(text):
     return res
 
 
+def translate_images(images):
+    all_text = []
+    for image in images:
+        all_text.append(translate(image))
+    return all_text
+
+
 def translate(image):
     if type(image) == str:
         image = cv.imread(image)
