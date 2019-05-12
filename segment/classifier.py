@@ -27,9 +27,9 @@ class Classifier:
         self.classes_56 = os.listdir("../56_622data/train/")
         self.classes_57 = os.listdir("../57_622data/train/")
 
-        self.classes_weights = "../image_classification/weights/VGG16_fc_model{}.h5"
-        self.classes_56_weights = "../image_classification/weights/VGG16_fc_model_56{}.h5"
-        self.classes_57_weights = "../image_classification/weights/VGG16_fc_model_57{}.h5"
+        self.classes_weights = "../image_classification/weights/VGG16_fc_model_0.h5"
+        self.classes_56_weights = "../image_classification/weights/VGG16_fc_model_56_0.h5"
+        self.classes_57_weights = "../image_classification/weights/VGG16_fc_model_57_0.h5"
 
         self.img_size = 150
 
@@ -170,7 +170,8 @@ class Classifier:
 
         test_logs = os.listdir("test_results/")
         file_id = len(test_logs)
-        test_res_file = "test_results/{}_{}_test.txt".format(file_id, classifier_type)
+
+        test_res_file = "test_results/{}_{}_{}_test.txt".format(file_id, classifier_type, 0)
         with open(test_res_file, "w") as f:
             all_total = 0
             all_correct = 0
@@ -199,19 +200,10 @@ if __name__ == '__main__':
 
     if opt == "vgg":
         print("test vgg")
-        weights_base = "../image_classification/VGG16_fc_model_{}.h5"
-        for model_i in range(5):
-            model_id = "{}".format(model_i)
-            classifier.classes_weights = weights_base.format(model_id)
-            classifier.test("vgg16")
+        classifier.test("vgg16")
+        classifier.test("vgg16_56")
+        classifier.test("vgg16_57")
 
-            model_56_id = "56_{}".format(model_i)
-            classifier.classes_56_weights = weights_base.format(model_56_id)
-            classifier.test("vgg16_56")
-
-            model_57_id = "57_{}".format(model_i)
-            classifier.classes_57_weights = weights_base.format(model_57_id)
-            classifier.test("vgg16_57")
     elif opt == "bcf":
         print("test bcf")
         classifier.test("bcf")
