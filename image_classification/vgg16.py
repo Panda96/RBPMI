@@ -75,9 +75,9 @@ def train(all_data_dir, model_id):
 
 if __name__ == '__main__':
 
-    data_dir = "../622data"
-    data_56_dir = "../56_622data"
-    data_57_dir = "../57_622data"
+    data_dir = "../622data/"
+    data_56_dir = "../56_622data/"
+    data_57_dir = "../57_622data/"
 
     for model_i in range(5):
         model__id = "{}".format(model_i)
