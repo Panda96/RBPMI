@@ -84,6 +84,8 @@ class BCF:
 
     def extract_cf(self, upper):
         type_dirs = os.listdir(self.DATA_DIR)
+        print("Extracting CF...")
+        self.print_time()
         for type_dir in type_dirs:
             print(type_dir)
             images = os.listdir(self.DATA_DIR + type_dir)
@@ -97,6 +99,8 @@ class BCF:
                 # print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
                 self.data[image_key]['cfs'] = self.get_image_shape_feats(image_path)
+        self.print_time()
+        print("Extracting finished!")
 
     def print_time(self):
         print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
