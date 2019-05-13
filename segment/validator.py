@@ -218,7 +218,7 @@ if __name__ == '__main__':
     opt = sys.argv[1]
     # opt = "bcf"
 
-    validate_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/gen_data/"
+    validate_data_dir = "../gen_data/"
     # classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]
     if opt == "vgg":
         print("validate vgg")
