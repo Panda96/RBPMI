@@ -22,7 +22,7 @@ import image_parser as image_parser
 class BCF:
     def __init__(self, ):
         self.DATA_DIR = "../56_622data/train/"
-        self.CODEBOOK_FILE = "model/code_book_56_30.data"
+        self.CODEBOOK_FILE = "model/code_book_57_30.data"
         self.CLASSIFIER_FILE = "model/classifier_56_30_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
@@ -77,8 +77,12 @@ class BCF:
                     # shape context descriptor sc for each cf is 300x1
                     # save a point at the midpoint of the contour fragment
                     xy[i, 0:2] = cf[np.round(len(cf) / 2. - 1).astype('int32'), :]
-                shapes_feature.append(np.array([contour_feature, xy]))
-        shape_feats = [np.array(shapes_feature), sz]
+
+                shapes_feature.append([contour_feature, xy])
+
+                # print(contour_feature.shape)
+                # print(xy.shape)
+        shape_feats = [shapes_feature, sz]
         return shape_feats
 
     def extract_cf(self, upper):
@@ -108,7 +112,6 @@ class BCF:
             shapes_feature = feats[0]
             for shape_feature in shapes_feature:
                 contour_feature = shape_feature[0]
-
                 if contour_feature.shape[1] > MAX_CFS:
                     # Sample MAX_CFS from contour fragments
                     rand_indices = np.random.permutation(contour_feature.shape[1])
@@ -142,6 +145,9 @@ class BCF:
         encoded_shape_feats = []
         for shape_feature in shapes_feature:
             contour_feature = shape_feature[0]
+            print("raw:{}".format(contour_feature.shape))
+            contour_feature = np.array(contour_feature)
+            print("after:{}".format(contour_feature.shape))
             encoded_shape_feats.append(
                 llc_coding_approx(kmeans.cluster_centers_, contour_feature.transpose(), k_nn))
         return encoded_shape_feats
@@ -363,7 +369,7 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     code_book_train_num = 30
-    classifier_train_num = 50
+    classifier_train_num = 10
     bcf = BCF()
 
     data_dir = "../622data/"

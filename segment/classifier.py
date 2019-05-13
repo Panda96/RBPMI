@@ -80,7 +80,7 @@ class Classifier:
             try:
                 label = labels[int(np.where(result == 1)[0])]
             except TypeError:
-                label = "None"
+                label = "task"
                 print(result.shape)
                 print(np.where(result == 1))
             predictions.append(label)
