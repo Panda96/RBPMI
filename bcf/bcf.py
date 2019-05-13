@@ -79,9 +79,6 @@ class BCF:
                     xy[i, 0:2] = cf[np.round(len(cf) / 2. - 1).astype('int32'), :]
 
                 shapes_feature.append([contour_feature, xy])
-
-                # print(contour_feature.shape)
-                # print(xy.shape)
         shape_feats = [shapes_feature, sz]
         return shape_feats
 
@@ -369,7 +366,7 @@ if __name__ == "__main__":
     # sys.path.append("../bcf")
     # print(sys.path)
     code_book_train_num = 30
-    classifier_train_num = 10
+    classifier_train_num = 50
     bcf = BCF()
 
     data_dir = "../622data/train/"
