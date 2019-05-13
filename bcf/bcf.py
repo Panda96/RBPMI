@@ -85,6 +85,7 @@ class BCF:
     def extract_cf(self, upper):
         type_dirs = os.listdir(self.DATA_DIR)
         for type_dir in type_dirs:
+            print(type_dir)
             images = os.listdir(self.DATA_DIR + type_dir)
             size = len(images)
             index = np.arange(size)
