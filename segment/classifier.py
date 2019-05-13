@@ -90,7 +90,7 @@ class Classifier:
         if self.bcf_classifier is None:
             bcf = BCF()
             bcf.CLASSIFIER_FILE = "../bcf/model/classifier_30_50"
-            bcf.CODEBOOK_FILE = "../bcf/model/code_book_56_30.data"
+            bcf.CODEBOOK_FILE = "../bcf/model/code_book_57_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
             self.bcf_classifier = bcf
@@ -99,7 +99,7 @@ class Classifier:
         if self.bcf_56_classifier is None:
             bcf = BCF()
             bcf.CLASSIFIER_FILE = "../bcf/model/classifier_56_30_50"
-            bcf.CODEBOOK_FILE = "../bcf/model/code_book_56_30.data"
+            bcf.CODEBOOK_FILE = "../bcf/model/code_book_57_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
             self.bcf_56_classifier = bcf

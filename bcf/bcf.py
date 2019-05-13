@@ -22,7 +22,7 @@ import image_parser as image_parser
 class BCF:
     def __init__(self, ):
         self.DATA_DIR = "../22data/train/"
-        self.CODEBOOK_FILE = "ode_book_57_30.data"
+        self.CODEBOOK_FILE = "model/code_book_57_30.data"
         self.CLASSIFIER_FILE = "lassifier_56_30_50"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
