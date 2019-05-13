@@ -27,9 +27,12 @@ class Classifier:
         self.classes_56 = os.listdir("../56_622data/train/")
         self.classes_57 = os.listdir("../57_622data/train/")
 
-        self.classes_weights = "../image_classification/VGG16_fc_model_4.h5"
-        self.classes_56_weights = "../image_classification/VGG16_fc_model_56_4.h5"
-        self.classes_57_weights = "../image_classification/VGG16_fc_model_57_4.h5"
+        # self.classes_weights = "../image_classification/VGG16_fc_model_4.h5"
+        # self.classes_56_weights = "../image_classification/VGG16_fc_model_56_4.h5"
+        # self.classes_57_weights = "../image_classification/VGG16_fc_model_57_4.h5"
+        self.classes_weights = "../image_classification/weights/VGG16_fc_model.h5"
+        self.classes_56_weights = "../image_classification/weights/VGG16_fc_model_56_1.h5"
+        self.classes_57_weights = "../image_classification/weights/VGG16_fc_model_57_1.h5"
 
         self.img_size = 150
 

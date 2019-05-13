@@ -181,7 +181,7 @@ def validate_one(bpmn_file, image_file, classifier_type):
 
 
 def validate(data_dir, classifier_type):
-    print("validate {}", classifier_type)
+    print("validate {}".format(classifier_type))
     validate_res_dir = "validate_results/"
 
     bpmn_dir = data_dir + "bpmn/"
@@ -193,7 +193,7 @@ def validate(data_dir, classifier_type):
     images.sort()
 
     results = []
-    for i in range(len(bpmns))[0:1]:
+    for i in range(len(bpmns)):
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
 
