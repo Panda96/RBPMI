@@ -44,7 +44,7 @@ class BCF:
     #     return self.label_to_class_mapping
 
     def get_image_shape_feats(self, image):
-        print(image)
+        # print(image)
         shapes_feature = []
         if type(image) == str:
             input_img, _, contours = image_parser.get_layers_by_file_name(image)
@@ -93,7 +93,7 @@ class BCF:
             for i in index[:upper]:
                 image = images[i]
                 image_key = (type_dir, image)
-                print(image_key)
+                # print(image_key)
                 image_path = self.DATA_DIR + type_dir + "/" + image
                 self.data[image_key]['cfs'] = self.get_image_shape_feats(image_path)
 
@@ -142,9 +142,9 @@ class BCF:
         encoded_shape_feats = []
         for shape_feature in shapes_feature:
             contour_feature = shape_feature[0]
-            print("raw:{}".format(contour_feature.shape))
+            # print("raw:{}".format(contour_feature.shape))
             contour_feature = np.array(contour_feature)
-            print("after:{}".format(contour_feature.shape))
+            # print("after:{}".format(contour_feature.shape))
             encoded_shape_feats.append(
                 llc_coding_approx(kmeans.cluster_centers_, contour_feature.transpose(), k_nn))
         return encoded_shape_feats
