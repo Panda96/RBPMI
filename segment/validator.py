@@ -212,11 +212,15 @@ def validate(data_dir, classifier_type):
             one_res = validate_one(bpmn_file, image_file, classifier_type)
         except TypeError:
             with open("validate_invalid_list.txt", "a+") as f:
-                f.write("{}:{}\n".format(i, image_file))
+                f.write("{}\t{}:{}\n".format("TypeError", i, image_file))
             continue
         except IndexError:
             with open("validate_invalid_list.txt", "a+") as f:
-                f.write("{}:{}\n".format(i, image_file))
+                f.write("{}\t{}:{}\n".format("IndexError", i, image_file))
+            continue
+        except KeyError:
+            with open("validate_invalid_list.txt", "a+") as f:
+                f.write("{}\t{}:{}\n".format("KeyError", i, image_file))
             continue
         results.append(one_res)
 
