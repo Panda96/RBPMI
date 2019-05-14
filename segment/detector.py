@@ -1434,13 +1434,12 @@ def show_im(img_matrix, name="img"):
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     # cv.namedWindow(name)
     # cv.imshow(name, img_matrix)
-    # file_name = "samples/imgs/example/"+ name+".png"
-    # cv.imwrite(file_name, img_matrix)
     # cv.waitKey(0)
 
 
 def detect(file_path, classifier, classifier_type):
     all_seq_flows = parse_img(file_path)
+
     all_elements_type = classify_elements(classifier, classifier_type)
     definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
                                                                  all_seq_flows)
@@ -1450,9 +1449,9 @@ def detect(file_path, classifier, classifier_type):
 def run():
     classifier = Classifier()
     # sample_dir = "imgs/admission/"
-    # sample_dir = "samples/imgs/loop/"
+    sample_dir = "samples/imgs/loop/"
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
-    sample_dir = "samples/imgs/"
+    # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
     selected = images

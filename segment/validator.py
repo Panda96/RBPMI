@@ -202,12 +202,16 @@ def validate(data_dir, classifier_type):
     images.sort()
 
     results = []
-    for i in range(len(bpmns))[99:]:
+    for i in range(len(bpmns))[173:]:
         print(i)
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
         print(image_file)
-        one_res = validate_one(bpmn_file, image_file, classifier_type)
+        try:
+            one_res = validate_one(bpmn_file, image_file, classifier_type)
+        except TypeError:
+            with open("validate_invalid_list.txt", "a+") as f:
+                f.write("{}:{}\n".format(i, image_file))
         results.append(one_res)
 
     if not os.path.exists(validate_res_dir):
