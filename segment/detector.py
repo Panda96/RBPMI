@@ -1430,13 +1430,13 @@ def classify_elements(classifier, classifier_type):
 
 
 def show_im(img_matrix, name="img"):
-    # pass
+    pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
-    cv.namedWindow(name)
-    cv.imshow(name, img_matrix)
+    # cv.namedWindow(name)
+    # cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
     # cv.imwrite(file_name, img_matrix)
-    cv.waitKey(0)
+    # cv.waitKey(0)
 
 
 def detect(file_path, classifier, classifier_type):
