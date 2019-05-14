@@ -116,8 +116,17 @@ def validate_one(bpmn_file, image_file, classifier_type):
     for seq_flow in all_seq_flows:
         target_ele_id = seq_flow[0]
         source_ele_id = seq_flow[-1]
-        target_ele_ref = image_ele_id_map[target_ele_id]
-        source_ele_ref = image_ele_id_map[source_ele_id]
+        try:
+            target_ele_ref = image_ele_id_map[target_ele_id]
+            source_ele_ref = image_ele_id_map[source_ele_id]
+        except KeyError:
+            seq_result[-1] += 1
+            continue
+        # try:
+        #     source_ele_ref = image_ele_id_map[source_ele_id]
+        # except KeyError:
+        #     seq_result[-1] += 1
+        #     continue
 
         same_target_seqs = []
         for flow_id in flows_label_rest:
@@ -193,7 +202,8 @@ def validate(data_dir, classifier_type):
     images.sort()
 
     results = []
-    for i in range(len(bpmns)):
+    for i in range(len(bpmns))[90:]:
+        print(i)
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
 
@@ -223,8 +233,8 @@ if __name__ == '__main__':
     if opt == "vgg":
         print("validate vgg")
         validate(validate_data_dir, "vgg16")
-        validate(validate_data_dir, "vgg16_56")
-        validate(validate_data_dir, "vgg16_57")
+        # validate(validate_data_dir, "vgg16_56")
+        # validate(validate_data_dir, "vgg16_57")
     elif opt == "bcf":
         print("validate bcf")
         validate(validate_data_dir, "bcf")

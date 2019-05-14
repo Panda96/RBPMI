@@ -43,7 +43,7 @@ def draw_pools(pools_list, input_img):
     return drawing
 
 
-def get_pools(layers, contours_rec):
+def get_pools(input_img, layers, contours_rec):
     # tag = -1
     potential_pools = []
     # potential_elements = []
@@ -74,7 +74,9 @@ def get_pools(layers, contours_rec):
     else:
         print("has pools or lanes")
         for c_i in potential_pools:
+            # print("-"*50)
             pool_bound = contours_rec[c_i]
+            # print(pool_bound)
             # c_children = layers[0][c_i]
             # Sort the child contours by x-coordinate
             children_recs = [[child_id, contours_rec[child_id]] for child_id in layers[0][c_i]]
@@ -84,11 +86,15 @@ def get_pools(layers, contours_rec):
             pools_in_one_rec = []
 
             children_rest = c_children.copy()
+            # print(children_rest)
             for child_id in c_children:
+                # print(child_id)
                 # get normal pools
                 if child_id in children_rest:
                     child_bound = contours_rec[child_id]
+
                     if is_pool_header(child_bound):
+                        # print(child_bound)
                         # found a header means found a pool
                         pool = dict()
                         # remove header contour id
@@ -116,12 +122,15 @@ def get_pools(layers, contours_rec):
                                 lane_seg_rec = lane_seg_bound[0]
                                 # print(lane_seg_rec)
                                 if helper.is_in(pool_lanes_rect, lane_seg_rec) and \
-                                        lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5 and lane_seg_rec[2] > 30:
+                                    lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5:
                                     # one_lane_seg.append(c_id)
                                     # print(lane_seg_rec[1])
-                                    seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]
-                                    if seg_y_end > next_y_begin:
-                                        next_y_begin = seg_y_end
+                                    if lane_seg_rec[2] > 32:
+                                        seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]
+                                        if seg_y_end > next_y_begin:
+                                            next_y_begin = seg_y_end
+                                    # else:
+
                             # print("next:",next_y_begin)
                             lane = [pool_lanes_rect[0], lane_y_begin, pool_lanes_rect[2],
                                     next_y_begin - lane_y_begin]
@@ -131,7 +140,7 @@ def get_pools(layers, contours_rec):
                             one_lane_seg = []
                             for c_id in children_rest:
                                 lane_seg_rec = contours_rec[c_id][0]
-                                if helper.is_in(lane, lane_seg_rec):
+                                if helper.is_overlap(lane, lane_seg_rec):
                                     one_lane_seg.append(c_id)
 
                             for lane_seg in one_lane_seg:
@@ -139,6 +148,11 @@ def get_pools(layers, contours_rec):
                             lane_y_begin = next_y_begin
                         pool["lanes"] = pool_lanes
                         pools_in_one_rec.append(pool)
+
+                    # pools_img = draw_pools(pools_in_one_rec, input_img)
+                    # cv.namedWindow("pools", cv.WINDOW_NORMAL)
+                    # cv.imshow("pools", pools_img)
+                    # cv.waitKey(0)
 
             if len(pools_in_one_rec) == 0:
                 print("has one pool only lanes")
@@ -154,14 +168,14 @@ def get_pools(layers, contours_rec):
 
             pools_object.extend(pools_in_one_rec)
 
-        # layer_1 = layers[1].keys()
-        # if len(pools_object) == 0:
-        #     print("no pools but lanes")
-        #     default_pool = create_default_pool(layer_0, contours_rec, layer1=layer_1)
-        #     pools_object.append(default_pool)
+            # pools_img = draw_pools(pools_object, input_img)
+            # cv.namedWindow("pools", cv.WINDOW_NORMAL)
+            # cv.imshow("pools", pools_img)
+            # cv.waitKey(0)
         tag = 1
 
     for pool in pools_object:
+
         pool["sub_procs"] = defaultdict(list)
         pool["elements"] = defaultdict(list)
     return pools_object, tag

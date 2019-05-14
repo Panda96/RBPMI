@@ -1169,7 +1169,8 @@ def parse_img(file_path):
     global input_img
 
     input_img, layers, contours, contours_rec, partial_elements = pre_process(file_path)
-    pools, type_tag = pools_detector.get_pools(layers, contours_rec)
+
+    pools, type_tag = pools_detector.get_pools(input_img, layers, contours_rec)
     show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
@@ -1449,8 +1450,8 @@ def detect(file_path, classifier, classifier_type):
 def run():
     classifier = Classifier()
     # sample_dir = "imgs/admission/"
-    # sample_dir = "samples/imgs/sample_1/"
-    sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
+    sample_dir = "samples/imgs/loop/"
+    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
     # sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
