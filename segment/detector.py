@@ -1170,7 +1170,7 @@ def parse_img(file_path):
 
     input_img, layers, contours, contours_rec, partial_elements = pre_process(file_path)
 
-    pools, type_tag = pools_detector.get_pools(input_img, layers, contours_rec)
+    pools, type_tag, partial_elements = pools_detector.get_pools(input_img, layers, contours_rec, partial_elements)
     show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
@@ -1430,13 +1430,13 @@ def classify_elements(classifier, classifier_type):
 
 
 def show_im(img_matrix, name="img"):
-    pass
+    # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
-    # cv.namedWindow(name)
-    # cv.imshow(name, img_matrix)
+    cv.namedWindow(name)
+    cv.imshow(name, img_matrix)
     # file_name = "samples/imgs/example/"+ name+".png"
     # cv.imwrite(file_name, img_matrix)
-    # cv.waitKey(0)
+    cv.waitKey(0)
 
 
 def detect(file_path, classifier, classifier_type):

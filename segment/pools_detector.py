@@ -43,7 +43,7 @@ def draw_pools(pools_list, input_img):
     return drawing
 
 
-def get_pools(input_img, layers, contours_rec):
+def get_pools(input_img, layers, contours_rec, partial_elements):
     # tag = -1
     potential_pools = []
     # potential_elements = []
@@ -150,14 +150,19 @@ def get_pools(input_img, layers, contours_rec):
                         pools_in_one_rec.append(pool)
 
                     # pools_img = draw_pools(pools_in_one_rec, input_img)
-                    # cv.namedWindow("pools", cv.WINDOW_NORMAL)
+                    # # cv.namedWindow("pools", cv.WINDOW_NORMAL)
                     # cv.imshow("pools", pools_img)
                     # cv.waitKey(0)
 
             if len(pools_in_one_rec) == 0:
                 print("has one pool only lanes")
-                default_pool = create_default_pool([c_i], contours_rec, 0, layer1=c_children)
-                pools_in_one_rec.append(default_pool)
+                # print("c_children:", len(c_children))
+                if len(c_children) > 1:
+                    default_pool = create_default_pool([c_i], contours_rec, 0, layer1=c_children)
+                    pools_in_one_rec.append(default_pool)
+                else:
+                    partial_elements.append(contours_rec[c_i][0])
+
             else:
                 for c_id in children_rest:
                     child_bound = contours_rec[c_id]
@@ -167,18 +172,25 @@ def get_pools(input_img, layers, contours_rec):
                         pools_in_one_rec.append(blank_pool)
 
             pools_object.extend(pools_in_one_rec)
+        # print("pools_object:", len(pools_object))
+        if len(pools_object) == 0:
+            print("only elements")
+            default_pool = create_default_pool(layer_0, contours_rec, 5)
+            pools_object.append(default_pool)
+            tag = 0
 
-            # pools_img = draw_pools(pools_object, input_img)
-            # cv.namedWindow("pools", cv.WINDOW_NORMAL)
-            # cv.imshow("pools", pools_img)
-            # cv.waitKey(0)
-        tag = 1
+        else:
+            tag = 1
+        # pools_img = draw_pools(pools_object, input_img)
+        # # cv.namedWindow("pools", cv.WINDOW_NORMAL)
+        # cv.imshow("pools", pools_img)
+        # cv.waitKey(0)
 
     for pool in pools_object:
 
         pool["sub_procs"] = defaultdict(list)
         pool["elements"] = defaultdict(list)
-    return pools_object, tag
+    return pools_object, tag, partial_elements
 
 
 def is_pool_header(bound):
