@@ -1450,9 +1450,9 @@ def detect(file_path, classifier, classifier_type):
 def run():
     classifier = Classifier()
     # sample_dir = "imgs/admission/"
-    sample_dir = "samples/imgs/loop/"
+    # sample_dir = "samples/imgs/loop/"
     # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
-    # sample_dir = "samples/imgs/"
+    sample_dir = "samples/imgs/"
     images = os.listdir(sample_dir)
     # 5, -1, -4
     selected = images

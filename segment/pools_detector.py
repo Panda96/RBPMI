@@ -64,6 +64,7 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
     pools_object = []
 
     pools_num = len(potential_pools)
+    # print("potential_pools:{}".format(pools_num))
     if pools_num == 0:
         # no lanes and no pools, just one process
         print("only elements")
@@ -76,7 +77,7 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
         for c_i in potential_pools:
             # print("-"*50)
             pool_bound = contours_rec[c_i]
-            # print(pool_bound)
+            # print("pool_bound:{}".format(pool_bound))
             # c_children = layers[0][c_i]
             # Sort the child contours by x-coordinate
             children_recs = [[child_id, contours_rec[child_id]] for child_id in layers[0][c_i]]
@@ -86,73 +87,73 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
             pools_in_one_rec = []
 
             children_rest = c_children.copy()
-            # print(children_rest)
-            for child_id in c_children:
-                # print(child_id)
-                # get normal pools
-                if child_id in children_rest:
-                    child_bound = contours_rec[child_id]
+            if len(children_rest) > 1:
+                for child_id in c_children:
+                    # print(child_id)
+                    # get normal pools
+                    if child_id in children_rest:
+                        child_bound = contours_rec[child_id]
 
-                    if is_pool_header(child_bound):
-                        # print(child_bound)
-                        # found a header means found a pool
-                        pool = dict()
-                        # remove header contour id
-                        children_rest.remove(child_id)
-                        # a rect with appropriate height-to-width ratio is very likely to be a header bounding box
-                        header_rect = child_bound[0]
-                        pool["header_rect"] = header_rect
+                        if is_pool_header(child_bound):
+                            # print(child_bound)
+                            # found a header means found a pool
+                            pool = dict()
+                            # remove header contour id
+                            children_rest.remove(child_id)
+                            # a rect with appropriate height-to-width ratio is very likely to be a header bounding box
+                            header_rect = child_bound[0]
+                            pool["header_rect"] = header_rect
 
-                        pool_rect = (header_rect[0], header_rect[1], pool_bound[0][2], header_rect[3])
-                        pool["rect"] = pool_rect
+                            pool_rect = (header_rect[0], header_rect[1], pool_bound[0][2], header_rect[3])
+                            pool["rect"] = pool_rect
 
-                        lane_width = pool_bound[0][2] - header_rect[2]
-                        pool_lanes_rect = [header_rect[0] + header_rect[2], header_rect[1], lane_width, header_rect[3]]
-                        pool["lanes_rect"] = pool_lanes_rect
+                            lane_width = pool_bound[0][2] - header_rect[2]
+                            pool_lanes_rect = [header_rect[0] + header_rect[2], header_rect[1], lane_width, header_rect[3]]
+                            pool["lanes_rect"] = pool_lanes_rect
 
-                        pool_lanes = []
+                            pool_lanes = []
 
-                        lane_y_begin = pool_lanes_rect[1]
-                        while lane_y_begin < pool_lanes_rect[1] + pool_lanes_rect[3] - 20:
-                            # print(lane_y_begin)
-                            # 按水平方向寻找lane
-                            next_y_begin = lane_y_begin
-                            for c_id in children_rest:
-                                lane_seg_bound = contours_rec[c_id]
-                                lane_seg_rec = lane_seg_bound[0]
-                                # print(lane_seg_rec)
-                                if helper.is_in(pool_lanes_rect, lane_seg_rec) and \
-                                    lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5:
-                                    # one_lane_seg.append(c_id)
-                                    # print(lane_seg_rec[1])
-                                    if lane_seg_rec[2] > 32:
-                                        seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]
-                                        if seg_y_end > next_y_begin:
-                                            next_y_begin = seg_y_end
-                                    # else:
+                            lane_y_begin = pool_lanes_rect[1]
+                            while lane_y_begin < pool_lanes_rect[1] + pool_lanes_rect[3] - 20:
+                                # print(lane_y_begin)
+                                # 按水平方向寻找lane
+                                next_y_begin = lane_y_begin
+                                for c_id in children_rest:
+                                    lane_seg_bound = contours_rec[c_id]
+                                    lane_seg_rec = lane_seg_bound[0]
+                                    # print(lane_seg_rec)
+                                    if helper.is_in(pool_lanes_rect, lane_seg_rec) and \
+                                        lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5:
+                                        # one_lane_seg.append(c_id)
+                                        # print(lane_seg_rec[1])
+                                        if lane_seg_rec[2] > 32:
+                                            seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]
+                                            if seg_y_end > next_y_begin:
+                                                next_y_begin = seg_y_end
+                                        # else:
 
-                            # print("next:",next_y_begin)
-                            lane = [pool_lanes_rect[0], lane_y_begin, pool_lanes_rect[2],
-                                    next_y_begin - lane_y_begin]
-                            # print(lane)
-                            pool_lanes.append(lane)
+                                # print("next:",next_y_begin)
+                                lane = [pool_lanes_rect[0], lane_y_begin, pool_lanes_rect[2],
+                                        next_y_begin - lane_y_begin]
+                                # print(lane)
+                                pool_lanes.append(lane)
 
-                            one_lane_seg = []
-                            for c_id in children_rest:
-                                lane_seg_rec = contours_rec[c_id][0]
-                                if helper.is_overlap(lane, lane_seg_rec):
-                                    one_lane_seg.append(c_id)
+                                one_lane_seg = []
+                                for c_id in children_rest:
+                                    lane_seg_rec = contours_rec[c_id][0]
+                                    if helper.is_overlap(lane, lane_seg_rec):
+                                        one_lane_seg.append(c_id)
 
-                            for lane_seg in one_lane_seg:
-                                children_rest.remove(lane_seg)
-                            lane_y_begin = next_y_begin
-                        pool["lanes"] = pool_lanes
-                        pools_in_one_rec.append(pool)
+                                for lane_seg in one_lane_seg:
+                                    children_rest.remove(lane_seg)
+                                lane_y_begin = next_y_begin
+                            pool["lanes"] = pool_lanes
+                            pools_in_one_rec.append(pool)
 
-                    # pools_img = draw_pools(pools_in_one_rec, input_img)
-                    # # cv.namedWindow("pools", cv.WINDOW_NORMAL)
-                    # cv.imshow("pools", pools_img)
-                    # cv.waitKey(0)
+                        # pools_img = draw_pools(pools_in_one_rec, input_img)
+                        # # cv.namedWindow("pools", cv.WINDOW_NORMAL)
+                        # cv.imshow("pools", pools_img)
+                        # cv.waitKey(0)
 
             if len(pools_in_one_rec) == 0:
                 print("has one pool only lanes")
