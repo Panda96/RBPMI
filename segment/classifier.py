@@ -92,7 +92,7 @@ class Classifier:
     def load_bcf_classifier(self):
         if self.bcf_classifier is None:
             bcf = BCF()
-            bcf.CLASSIFIER_FILE = "../bcf/model/classifier_30_50"
+            bcf.CLASSIFIER_FILE = "../bcf/model_0/classifier_0_30_50"
             bcf.CODEBOOK_FILE = "../bcf/model/code_book_56_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
@@ -101,7 +101,7 @@ class Classifier:
     def load_bcf_56_classifier(self):
         if self.bcf_56_classifier is None:
             bcf = BCF()
-            bcf.CLASSIFIER_FILE = "../bcf/model/classifier_56_30_50"
+            bcf.CLASSIFIER_FILE = "../bcf/model_0/classifier_56_0_30_50"
             bcf.CODEBOOK_FILE = "../bcf/model/code_book_56_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
@@ -110,7 +110,7 @@ class Classifier:
     def load_bcf_57_classifier(self):
         if self.bcf_57_classifier is None:
             bcf = BCF()
-            bcf.CLASSIFIER_FILE = "../bcf/model/classifier_57_30_50"
+            bcf.CLASSIFIER_FILE = "../bcf/model_0/classifier_57_0_30_50"
             bcf.CODEBOOK_FILE = "../bcf/model/code_book_57_30.data"
             bcf.load_kmeans()
             bcf.load_classifier()
