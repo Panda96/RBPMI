@@ -68,6 +68,7 @@ def validate_one(bpmn_file, image_file, classifier_type):
     fake_elements = []
 
     shapes_label, _, flows_label = count.count_one_bpmn(bpmn_file)
+
     _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier, classifier_type)
 
     flow_shapes = []
@@ -202,7 +203,7 @@ def validate(data_dir, classifier_type):
     images.sort()
 
     results = []
-    for i in range(len(bpmns))[173:]:
+    for i in range(len(bpmns))[353:]:
         print(i)
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
@@ -212,6 +213,7 @@ def validate(data_dir, classifier_type):
         except TypeError:
             with open("validate_invalid_list.txt", "a+") as f:
                 f.write("{}:{}\n".format(i, image_file))
+            continue
         results.append(one_res)
 
     if not os.path.exists(validate_res_dir):

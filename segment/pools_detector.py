@@ -78,7 +78,7 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
         #     only_one = True
         print("has pools or lanes")
         for c_i in potential_pools:
-            print("-"*50)
+            # print("-"*50)
             pool_bound = contours_rec[c_i]
             # print("pool_bound:{}".format(pool_bound))
             # c_children = layers[0][c_i]
