@@ -378,24 +378,24 @@ if __name__ == "__main__":
     data_56_dir = "../56_622data/train/"
     data_57_dir = "../57_622data/train/"
 
-    for model_i in range(5):
+    for model_i in range(1):
         model_id = "{}".format(model_i)
         model_56_id = "56_{}".format(model_i)
         model_57_id = "57_{}".format(model_i)
 
-        model_57_classifier_name = "classifier_{}_30_50".format(model_57_id)
-        bcf.CLASSIFIER_FILE = model_57_classifier_name
-        bcf.DATA_DIR = data_57_dir
-        bcf.CODEBOOK_FILE = "model/code_book_57_30.data"
-        print(model_57_classifier_name)
-        bcf.train(classifier_train_num)
+        #model_57_classifier_name = "classifier_{}_30_50".format(model_57_id)
+        #bcf.CLASSIFIER_FILE = model_57_classifier_name
+        #bcf.DATA_DIR = data_57_dir
+        #bcf.CODEBOOK_FILE = "model/code_book_57_30.data"
+        #print(model_57_classifier_name)
+        #bcf.train(classifier_train_num)
 
-        model_56_classifier_name = "classifier_{}_30_50".format(model_56_id)
-        bcf.CLASSIFIER_FILE = model_56_classifier_name
-        bcf.DATA_DIR = data_56_dir
-        bcf.CODEBOOK_FILE = "model/code_book_56_30.data"
-        print(model_56_classifier_name)
-        bcf.train(classifier_train_num)
+        #model_56_classifier_name = "classifier_{}_30_50".format(model_56_id)
+        #bcf.CLASSIFIER_FILE = model_56_classifier_name
+        #bcf.DATA_DIR = data_56_dir
+        #bcf.CODEBOOK_FILE = "model/code_book_56_30.data"
+        #print(model_56_classifier_name)
+        #bcf.train(classifier_train_num)
 
         model_classifier_name = "classifier_{}_30_50".format(model_id)
         bcf.CLASSIFIER_FILE = model_classifier_name
