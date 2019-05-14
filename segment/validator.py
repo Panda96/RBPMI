@@ -203,7 +203,7 @@ def validate(data_dir, classifier_type):
     images.sort()
 
     results = []
-    for i in range(len(bpmns))[631:]:
+    for i in range(len(bpmns))[1431:]:
         print(i)
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
