@@ -55,7 +55,10 @@ def validate_one(bpmn_file, image_file, classifier_type):
                 if e_type == ele_shape_type:
                     shape_type_res[1] += 1
                 else:
-                    shape_type_res[2] += 1
+                    if e_type == "exclusiveGateway_fork" and ele_shape_type == "exclusiveGateway":
+                        shape_type_res[1] += 1
+                    else:
+                        shape_type_res[2] += 1
                 shapes_result[ele_shape_type]["detect"] = shape_type_res
                 break
 

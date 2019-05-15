@@ -30,9 +30,9 @@ class Classifier:
         # self.classes_weights = "../image_classification/VGG16_fc_model_4.h5"
         # self.classes_56_weights = "../image_classification/VGG16_fc_model_56_4.h5"
         # self.classes_57_weights = "../image_classification/VGG16_fc_model_57_4.h5"
-        self.classes_weights = "../image_classification/weights/VGG16_fc_model.h5"
-        self.classes_56_weights = "../image_classification/weights/VGG16_fc_model_56_1.h5"
-        self.classes_57_weights = "../image_classification/weights/VGG16_fc_model_57_1.h5"
+        self.classes_weights = "../image_classification/weights_2/VGG16_fc_model_3.h5"
+        self.classes_56_weights = "../image_classification/weights_2/VGG16_fc_model_56_2.h5"
+        self.classes_57_weights = "../image_classification/weights_2/VGG16_fc_model_57_2.h5"
 
         self.img_size = 150
 
