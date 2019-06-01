@@ -69,11 +69,13 @@ def show_layers(input_img, layers, contours):
     for i in range(len(layers)):
         layer = layers[i].keys()
         contours_drawing = draw_contours(input_img, contours, layer)
-        contours_drawing = helper.dilate_drawing(contours_drawing)
+        # contours_drawing = helper.dilate_drawing(contours_drawing)
         img = helper.dilate_drawing(input_img)
 
         cv.imshow("input", img)
+        contours_drawing = 255 - contours_drawing
         cv.imshow("contour", contours_drawing)
+        # cv.imwrite("../segment/img_output/parallel_{}.png".format(i), contours_drawing)
         k = cv.waitKey(0)
 
         if k == 27:
@@ -84,7 +86,7 @@ def show_layers(input_img, layers, contours):
 def draw_contours(input_img, contours, contors):
     drawing = np.zeros_like(input_img, dtype=np.uint8)
     for i in contors:
-        cv.drawContours(drawing, contours, i, (255, 255, 255), 1, cv.LINE_8)
+        cv.drawContours(drawing, contours, i, (255, 255, 255), 2, cv.LINE_8)
 
     return drawing
 
@@ -110,7 +112,7 @@ def get_layers_by_img(input_img):
     _, contours, hierarchy = cv.findContours(input_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     layers = divide_layers(input_img.shape, hierarchy, contours)
-
+    show_layers(input_img, layers, contours)
     return input_img, layers, contours
 
 
@@ -135,9 +137,10 @@ def get_layers_by_img(input_img):
 
 
 # if __name__ == '__main__':
+#     get_layers_by_file_name("../segment/samples/imgs/test/parallel.png")
 #     file_path = ""
 #     input_img, layers, contours = get_layers(file_path)
 #     show_layers(input_img, layers, contours)
-
-    # a = helper.shrink((0, 0, 100, 100), 5)
-    # print(a)
+#
+#     a = helper.shrink((0, 0, 100, 100), 5)
+#     print(a)

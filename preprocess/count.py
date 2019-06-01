@@ -115,7 +115,7 @@ def count_one_bpmn(file):
 
     if len(res) != 1:
         print(file_name, " more than one diagram")
-        exit(0)
+        return
 
     diagram = res[0]
     plane = diagram.findall("{http://www.omg.org/spec/BPMN/20100524/DI}BPMNPlane")[0]
@@ -413,6 +413,22 @@ def statistic():
     shape_type_list.sort()
     # sorted_shape_type_list = sorted(shape_type_list, key=lambda x: x.split("_")[0][-2:])
     type_dirs = []
+    shape_type_list = ["intermediateCatchEvent_conditional", "intermediateCatchEvent_link",
+                       "intermediateCatchEvent_message", "intermediateCatchEvent_signal",
+                       "intermediateCatchEvent_timer", "intermediateThrowEvent", "intermediateThrowEvent_compensate",
+                       "intermediateThrowEvent_escalation", "intermediateThrowEvent_link",
+                       "intermediateThrowEvent_message", "intermediateThrowEvent_signal", "boundaryEvent_cancel",
+                       "boundaryEvent_compensate", "boundaryEvent_error", "boundaryEvent_escalation",
+                       "boundaryEvent_timer_cancelActivity", "endEvent", "endEvent_cancel", "endEvent_compensate",
+                       "endEvent_error", "endEvent_escalation", "endEvent_link", "endEvent_message", "endEvent_signal",
+                       "endEvent_terminate", "startEvent", "startEvent_compensate", "startEvent_conditional",
+                       "startEvent_conditional_isInterrupting", "startEvent_error", "startEvent_escalation",
+                       "startEvent_isInterrupting", "startEvent_message", "startEvent_message_isInterrupting",
+                       "startEvent_signal", "startEvent_timer", "complexGateway", "eventBasedGateway",
+                       "exclusiveGateway", "inclusiveGateway", "parallelGateway", "dataObjectReference",
+                       "dataStoreReference", "adHocSubProcess", "callActivity", "subProcess",
+                       "subProcess_triggeredByEvent", "transaction", "manualTask", "businessRuleTask", "receiveTask",
+                       "scriptTask", "sendTask", "serviceTask", "task", "userTask"]
     for shape_type in shape_type_list:
         type_dir_name = "{}:{}".format(shape_type, len(shape_type_dict[shape_type]))
         print(type_dir_name)
@@ -455,6 +471,9 @@ shape_type_dict = defaultdict(list)
 
 if __name__ == '__main__':
     files_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/files/"
+    admission_dir = "E:/diagrams/admission/bpmn/"
+    bpi_dir = "E:/diagrams/bpi_templates/"
+
     count(files_dir)
     #
     # for shape_label in all_shapes_label:
