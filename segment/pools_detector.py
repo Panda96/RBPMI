@@ -43,23 +43,33 @@ def draw_pools(pools_list, input_img):
     return drawing
 
 
-def get_pools(input_img, layers, contours_rec, partial_elements):
+def connected_by_arrows(pool_rec, arrows):
+    connected = False
+    for arrow in arrows:
+        dilate_arrow = helper.dilate(arrow, 20)
+        if not helper.is_in(pool_rec, dilate_arrow) and helper.is_overlap(pool_rec, dilate_arrow):
+            connected = True
+            break
+    return connected
+
+
+def get_pools(input_img, layers, contours_rec, partial_elements, arrows):
     # tag = -1
     potential_pools = []
     # potential_elements = []
     layer_0 = layers[0].keys()
     for c_i in layer_0:
         bound_i = contours_rec[c_i]
+        is_pool = False
         if bound_i[1] > cfg.POOL_AREA_THRESHOLD:
             # print(len(layers[0][c_i]))
-            potential_pools.append(c_i)
+            is_pool = True
         elif bound_i[1] > 20000 and len(layers[0][c_i]) <= 2 and bound_i[1] / bound_i[2] > 0.8:
             print("detect small pool")
+            is_pool = True
+
+        if is_pool and not connected_by_arrows(bound_i[0], arrows):
             potential_pools.append(c_i)
-        # else:
-        #     potential_elements.append(bound_i[0])
-        # else:
-        #     blank_pools.append(bound_i[0])
 
     pools_object = []
 
@@ -111,7 +121,8 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
                             pool["rect"] = pool_rect
 
                             lane_width = pool_bound[0][2] - header_rect[2]
-                            pool_lanes_rect = [header_rect[0] + header_rect[2], header_rect[1], lane_width, header_rect[3]]
+                            pool_lanes_rect = [header_rect[0] + header_rect[2], header_rect[1], lane_width,
+                                               header_rect[3]]
                             pool["lanes_rect"] = pool_lanes_rect
 
                             pool_lanes = []
@@ -126,7 +137,7 @@ def get_pools(input_img, layers, contours_rec, partial_elements):
                                     lane_seg_rec = lane_seg_bound[0]
                                     # print(lane_seg_rec)
                                     if helper.is_in(pool_lanes_rect, lane_seg_rec) and \
-                                        lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5:
+                                            lane_y_begin <= lane_seg_rec[1] < lane_y_begin + 5:
                                         # one_lane_seg.append(c_id)
                                         # print(lane_seg_rec[1])
                                         if lane_seg_rec[2] > 32:
@@ -270,6 +281,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
 
+
     for ele_rec in partial_elements:
         for pool in pools_list:
             if helper.is_in(pool["lanes_rect"], ele_rec):
@@ -282,6 +294,13 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
     while k < upper_limit:
         layer = layers[k]
         k += 1
+
+        # show layers
+        # print(k)
+        # layer_contour_rec = list(map(lambda x: contours_rec[x][0], layer))
+        # base = np.zeros_like(input_img)
+        # layer_img = helper.draw_rects(base, layer_contour_rec, cfg.COLOR_WHITE, cfg.CONTOUR_THICKNESS)
+        # cv.imshow(str(k), layer_img)
 
         boundary_fake_elements = []
         for c_i in layer:
@@ -350,6 +369,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                                 existed = True
                                 break
                         if not existed:
+                            # print("found sub_proc")
                             sub_procs[lane_id].append(bound_rect)
         # pools_img = draw_pools(pools_list, input_img)
         # # cv.namedWindow("elements", cv.WINDOW_NORMAL)
@@ -364,6 +384,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
         for lane_id, lane in enumerate(lanes):
             valid_sub_p = []
             for sub_p in sub_procs[lane_id]:
+                # print(sub_p)
                 sub_p_elements_num = 0
                 valid = True
                 for ele in elements[lane_id]:
@@ -376,7 +397,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                 if valid:
                     if sub_p_elements_num > 1:
                         valid_sub_p.append(sub_p)
-                    else:
+                    elif sub_p_elements_num == 0:
                         elements[lane_id].append(sub_p)
 
             sub_procs[lane_id] = valid_sub_p

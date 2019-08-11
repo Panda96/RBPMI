@@ -4,12 +4,45 @@ import numpy as np
 import time
 
 
+def points_cmp(p1, p2):
+    if p1[0] < p2[0]:
+        return -1
+    elif p1[0] > p2[0]:
+        return 1
+    else:
+        if p1[1] < p2[1]:
+            return -1
+        elif p1[1] > p2[1]:
+            return 1
+        else:
+            return 0
+
+
+def get_func_value(x, k, b):
+    return int(k * x + b)
+
+
+def get_points_dist_square(p1, p2):
+    return (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2
+
+
+def get_points_dist(p1, p2):
+    dist_sq = get_points_dist_square(p1, p2)
+    return dist_sq ** 0.5
+
+
 def print_time():
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
 
 
 def get_structure_ele(morph_elem, morph_size):
     return cv.getStructuringElement(morph_elem, (2 * morph_size + 1, 2 * morph_size + 1), (morph_size, morph_size))
+
+
+def get_one_contour_box(contour):
+    contour_poly = cv.approxPolyDP(contour, 3, True)
+    bound_rect = cv.boundingRect(contour_poly)
+    return bound_rect
 
 
 def get_one_contour_rec(contour_index, contours_list):
@@ -38,6 +71,20 @@ def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
                    cv.QT_FONT_BLACK, 0.3, (255, 255, 255))
 
     return draw_img
+
+
+def draw_rects(draw_img, rects, color, thickness, show_text=False):
+    base_img = draw_img.copy()
+    for rect in rects:
+        base_img = draw_one_rect(base_img, rect, color, thickness)
+    return base_img
+
+
+def draw_lines(draw_img, line_list, color, thickness):
+    base_img = np.copy(draw_img)
+    for line in line_list:
+        cv.line(base_img, line.p1, line.p2, color, thickness, cv.LINE_AA)
+    return base_img
 
 
 def dilate(rect, dilation_value):
@@ -85,6 +132,7 @@ def get_overlap_area(rec1, rec2):
 
 # rec2 is in rec1
 def is_in(rec1, rec2):
+    """判断 rec2 是否在 rec1 里"""
     return rec1[0] <= rec2[0] and rec1[1] <= rec2[1] \
            and rec1[0] + rec1[2] >= rec2[0] + rec2[2] and rec1[1] + rec1[3] >= rec2[1] + rec2[3]
 
@@ -93,13 +141,48 @@ def point_is_in(rec, point):
     return is_in(rec, [point[0], point[1], 0, 0])
 
 
+def get_rect_vertices(rec):
+    # the four vertices of a rectangle in clockwise turn
+    points = list()
+    points.append((rec[0], rec[1]))
+    points.append((rec[0] + rec[2], rec[1]))
+    points.append((rec[0] + rec[2], rec[1] + rec[3]))
+    points.append((rec[0], rec[1] + rec[3]))
+    return points
+
+
+def get_rec_center(rec):
+    rec_center = (rec[0] + rec[2] // 2, rec[1] + rec[3] // 2)
+    return rec_center
+
+
 def truncate(base, roi_rec):
+    """从图片中截取Region of Interest"""
     if len(base.shape) == 3:
         return base[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
                max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1]), :]
     elif len(base.shape) == 2:
         return base[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
                max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1])]
+    else:
+        print("The image_mat's channels are not 2 or 3.")
+
+
+def mask(base, mask, roi_rec):
+    """替换图片中的 ROI 为相应mask中的内容"""
+
+    if len(base.shape) == 3:
+        base[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
+        max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1]), :] = \
+            mask[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
+            max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1]), :]
+        return base
+    elif len(base.shape) == 2:
+        base[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
+        max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1])] = \
+            mask[max(0, roi_rec[1]): min(roi_rec[1] + roi_rec[3], base.shape[0]),
+            max(0, roi_rec[0]): min(roi_rec[0] + roi_rec[2], base.shape[1])]
+        return base
     else:
         print("The image_mat's channels are not 2 or 3.")
 
@@ -119,6 +202,7 @@ def get_center_position(rec1, rec2_shape):
 
 
 def dilate_drawing(drawing, background=0):
+    """确保图片的最小尺寸为300*300, 图片在窗口中居中显式"""
     drawing_shape = drawing.shape
     if drawing_shape[0] > 300 and drawing_shape[1] > 300:
         return drawing

@@ -5,56 +5,18 @@ from collections import defaultdict
 from functools import cmp_to_key
 
 import helper.detector_helper as helper
-from classifier import Classifier
+from helper.utils import Line, Vector, is_parallel, get_point_of_intersection, points_to_line
+# from classifier import Classifier
 import cfg
-from img_preprocess import pre_process
+from img_preprocess import pre_process, get_seq_arrows, get_seq_arrow_direction
 import pools_detector
-import model_exporter
+# import model_exporter
 import translator
 
 input_img = []
 
 pools = []
 all_elements = []
-
-
-class Line:
-    def __init__(self, line):
-        [x1, y1, x2, y2] = line
-        self.li = line
-        self.p1 = (x1, y1)
-        self.p2 = (x2, y2)
-
-        if x2 - x1 != 0:
-            self.k = float((y2 - y1)) / float((x2 - x1))
-            self.b = int(y1 - self.k * x1)
-        else:
-            self.k = None
-            self.b = x1
-
-        if self.k is None:
-            if self.p1[1] > self.p2[1]:
-                self.li = (self.p2[0], self.p2[1], self.p1[0], self.p1[1])
-                self.p1, self.p2 = self.p2, self.p1
-        else:
-            if self.p1[0] > self.p2[0]:
-                self.li = (self.p2[0], self.p2[1], self.p1[0], self.p1[1])
-                self.p1, self.p2 = self.p2, self.p1
-
-        self.length = get_points_dist(self.p1, self.p2)
-
-
-class Vector:
-    def __init__(self, start_point, end_point):
-        self.start, self.end = start_point, end_point
-        self.x = end_point[0] - start_point[0]
-        self.y = end_point[1] - start_point[1]
-
-    def get_cos_x(self):
-        return self.x / (self.x ** 2 + self.y ** 2) ** 0.5
-
-    def __str__(self):
-        return "({}, {})".format(self.x, self.y)
 
 
 def cross_product(v1, v2):
@@ -78,12 +40,6 @@ def is_opposite(v1, v2):
             return v1.x * v2.x < 0
     else:
         return False
-
-
-def get_points_dist(p1, p2):
-    [x1, y1] = p1
-    [x2, y2] = p2
-    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
 
 
 def draw_pools(pools_list):
@@ -129,14 +85,6 @@ def draw_line_info(base, info, k, b, color, thickness):
     return base
 
 
-def draw_lines(base, arrow_lines, color, thickness):
-    for k in arrow_lines.keys():
-        v = arrow_lines[k]
-        for key in v.keys():
-            base = draw_line_info(base, v[key], key[0], key[1], color, thickness)
-    return base
-
-
 def remove_elements(element_border):
     # remove elements
     drawing = np.zeros_like(input_img, dtype=np.uint8)
@@ -145,8 +93,11 @@ def remove_elements(element_border):
 
     for pool in pools:
         pool_rect = pool["rect"]
-        drawing = truncate(drawing, reverse, pool_rect)
+        # drawing = truncate(drawing, reverse, pool_rect)
+        drawing = reverse
         drawing = helper.draw_one_rect(drawing, pool_rect, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
+        # drawing = helper.draw_one_rect(reverse, pool_rect, cfg.COLOR_BLACK, cfg.BOUNDARY_OFFSET)
+
         lanes = pool["lanes"]
         elements = pool.get("elements", defaultdict(list))
         sub_procs = pool.get("sub_procs", {})
@@ -156,7 +107,7 @@ def remove_elements(element_border):
             elements_i = elements[i]
             for element in elements_i:
                 e_rect = helper.dilate(element, element_border)
-                drawing = truncate(drawing, mask, e_rect)
+                drawing = helper.mask(drawing, mask, e_rect)
             lane_sub_procs = sub_procs.get(i, None)
             if lane_sub_procs is not None:
                 for sub_proc in lane_sub_procs:
@@ -164,32 +115,26 @@ def remove_elements(element_border):
     return drawing
 
 
-def truncate(base, target, roi_rect):
-    base[max(0, roi_rect[1]):roi_rect[1] + roi_rect[3], max(0, roi_rect[0]):roi_rect[0] + roi_rect[2], :] \
-        = target[max(0, roi_rect[1]):roi_rect[1] + roi_rect[3], max(0, roi_rect[0]):roi_rect[0] + roi_rect[2], :]
-    return base
-
-
-def get_arrows(flows_img):
-    arrows = []
-    erode_element = helper.get_structure_ele(cv.MORPH_RECT, 2)
-    erode = cv.erode(flows_img, erode_element)
-    _, erode = cv.threshold(erode, 50, 255, cv.THRESH_BINARY)
-
-    gray = cv.cvtColor(erode, cv.COLOR_BGR2GRAY)
-    _, arrow_contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
-    for i, arrow_contour in enumerate(arrow_contours):
-        bound = helper.get_one_contour_rec(i, arrow_contours)
-        ratio = bound[0][3] / bound[0][2]
-        # print("area:{}, ratio:{}".format(bound[2], "%.3f" % ratio))
-        # TODO How to detect an arrow
-        if 5 < bound[2] < 200 and 0.39 < ratio < 4.9:
-            bound_rec = helper.dilate(bound[0], cfg.BOUNDARY_OFFSET)
-            arrows.append(bound_rec)
-    # cv.imshow("remove_elements", flows_img)
-    # cv.imshow("arrow_erode", erode)
-    return arrows
+# def get_arrows(flows_img):
+#     arrows = []
+#     erode_element = helper.get_structure_ele(cv.MORPH_RECT, 2)
+#     erode = cv.erode(flows_img, erode_element)
+#     _, erode = cv.threshold(erode, 50, 255, cv.THRESH_BINARY)
+#
+#     gray = cv.cvtColor(erode, cv.COLOR_BGR2GRAY)
+#     _, arrow_contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+#
+#     for i, arrow_contour in enumerate(arrow_contours):
+#         bound = helper.get_one_contour_rec(i, arrow_contours)
+#         ratio = bound[0][3] / bound[0][2]
+#         # print("area:{}, ratio:{}".format(bound[2], "%.3f" % ratio))
+#         # TODO How to detect an arrow
+#         if 5 < bound[2] < 200 and 0.39 < ratio < 4.9:
+#             bound_rec = helper.dilate(bound[0], cfg.BOUNDARY_OFFSET)
+#             arrows.append(bound_rec)
+#     # cv.imshow("remove_elements", flows_img)
+#     # cv.imshow("arrow_erode", erode)
+#     return arrows
 
 
 def remove_text(flows_only):
@@ -202,14 +147,21 @@ def remove_text(flows_only):
 
     morph.dtype = np.uint8
     gray = cv.cvtColor(morph, cv.COLOR_BGR2GRAY)
+    # cv.imshow("morph", morph)
     _, del_contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+    text = np.zeros_like(flows_only)
 
     for i in range(len(del_contours)):
         bound = helper.get_one_contour_rec(i, del_contours)
         bound_rec = helper.dilate(bound[0], 2)
+        if bound_rec[2] > 8 and bound_rec[3] > 8:
+            helper.draw_one_rect(text, bound_rec, cfg.COLOR_WHITE, 1)
         if bound[1] > 2:
-            flows_only = truncate(flows_only, mask, bound_rec)
+            flows_only = helper.mask(flows_only, mask, bound_rec)
     _, flows_only = cv.threshold(flows_only, 200, 255, cv.THRESH_BINARY)
+    # cv.imshow("text", text)
+    # cv.waitKey(0)
     return flows_only
 
 
@@ -237,6 +189,9 @@ def create_line(one_line):
 
 
 def similar_lines_merge(similar):
+    """相近线段合并"""
+
+    # 确定斜率k
     k = similar[0].k
     b = similar[0].b
     for line in similar:
@@ -246,18 +201,24 @@ def similar_lines_merge(similar):
         elif line.k == 0:
             k = 0
             break
+
     merged_similar = []
     while len(similar) > 0:
+        # 选一条线段
         one_line = similar[0]
+
+        # 选出所有可以和它合并的线段, 平行并有重叠部分的线段
         overlap_list = [0]
         for i in range(1, len(similar)):
             line = similar[i]
             if parallel_lines_are_overlap(one_line, line, k):
                 overlap_list.append(i)
         if len(overlap_list) == 1:
+            # 没有可以合并的线段
             merged_similar.append(one_line)
             similar.pop(0)
         else:
+            # 合并可以合并的线段
             temp = []
             if k is None:
                 for index in overlap_list:
@@ -284,33 +245,39 @@ def similar_lines_merge(similar):
 
 
 def parallel_lines_are_overlap(line1, line2, k):
+    """判断平行的线段是否有重合部分，或者共线线段是否可以合并"""
     length_sum = line1.length + line2.length
     points = [line1.p1, line1.p2, line2.p1, line2.p2]
     if k is None:
         points.sort(key=lambda p: p[1])
-        direct_length = get_points_dist(points[0], points[-1])
+        direct_length = helper.get_points_dist(points[0], points[-1])
     else:
         points.sort(key=lambda p: p[0])
-        direct_length = get_points_dist(points[0], points[-1])
-    if direct_length < length_sum + 30:
+        direct_length = helper.get_points_dist(points[0], points[-1])
+    if direct_length < length_sum + 15:
         return True
     else:
         return False
 
 
 def normalize_all_lines(lines):
-    normalized_lines = []
+    """将 斜率k相同, 截距b相近 的线段合并成一条线段"""
+    normalized_lines = list()
     while len(lines) > 0:
         one_line = lines.pop(0)
         k = one_line.k
         b = one_line.b
         borders = get_parallel_lines_with_d(k, b, 3)
+
         similar = [one_line]
+        others = list()
+
         for i, line in enumerate(lines):
             if is_between(line, borders[0], borders[1]):
                 similar.append(line)
-                lines[i] = None
-        lines = list(filter(lambda l: l is not None, lines))
+            else:
+                others.append(line)
+        lines = others
         if len(similar) > 1:
             merged_similar = similar_lines_merge(similar)
             normalized_lines.extend(merged_similar)
@@ -320,12 +287,14 @@ def normalize_all_lines(lines):
 
 
 def is_between(line, line_border1, line_border2):
+    """判断一条线段在两条平行直线之间"""
     if point_is_between(line.p1, line_border1, line_border2) and point_is_between(line.p2, line_border1, line_border2):
         return True
     return False
 
 
 def point_is_between(point, line_border1, line_border2):
+    """判断一个点在两条平行线之间"""
     [k, b1] = line_border1
     b2 = line_border2[1]
     if k is None:
@@ -342,6 +311,7 @@ def point_is_between(point, line_border1, line_border2):
 
 
 def get_parallel_lines_with_d(k, b, d):
+    """获得一组平行线, 两直线间距离为2d"""
     borders = []
     if k is None:
         borders.append((k, b - d))
@@ -353,18 +323,19 @@ def get_parallel_lines_with_d(k, b, d):
 
 
 def get_line_info(line, p1_in, p2_in):
+    """判断与箭头相连的线段与箭头的位置关系，记录线段的起止点"""
     if p1_in or p2_in:  # 判断线段的方向
         info = None
         if line.k is None:  # 线垂直
             if p1_in:  # 下到上
-                info = [line.p1[1], line.p2[1], 3]
+                info = [line.p1[1], line.p2[1], cfg.DOWN]
             elif p2_in:  # 上到下
-                info = [line.p1[1], line.p2[1], 1]
+                info = [line.p1[1], line.p2[1], cfg.TOP]
         else:  # 线不垂直
             if p1_in:  # 右到左
-                info = [line.p1[0], line.p2[0], 2]
+                info = [line.p1[0], line.p2[0], cfg.RIGHT]
             elif p2_in:  # 左到右
-                info = [line.p1[0], line.p2[0], 4]
+                info = [line.p1[0], line.p2[0], cfg.LEFT]
         return info
     return None
 
@@ -398,24 +369,15 @@ def line_with_same_k_b_merge(line1_info, line2_info):
         return line1_info
 
 
-def get_rect_vertices(rec):
-    # the four vertices of a rectangle
-    points = list()
-    points.append((rec[0], rec[1]))
-    points.append((rec[0] + rec[2], rec[1]))
-    points.append((rec[0] + rec[2], rec[1] + rec[3]))
-    points.append((rec[0], rec[1] + rec[3]))
-    return points
-
-
-def line_is_intersect_rec(line, rec):
-    if helper.is_in(rec, (line[0], line[1], 0, 0)) or helper.is_in(rec, (line[2], line[3], 0, 0)):
+def line_is_intersect_rec(line_li, rec):
+    """在这里 line是一个长度为4的数组"""
+    if helper.is_in(rec, (line_li[0], line_li[1], 0, 0)) or helper.is_in(rec, (line_li[2], line_li[3], 0, 0)):
         return True
 
-    points = get_rect_vertices(rec)
+    points = helper.get_rect_vertices(rec)
     vectors = list()
-    p1 = (line[0], line[1])
-    p2 = (line[2], line[3])
+    p1 = (line_li[0], line_li[1])
+    p2 = (line_li[2], line_li[3])
     line_vector = Vector(p1, p2)
     # print(line_vector)
     for point in points:
@@ -428,17 +390,12 @@ def line_is_intersect_rec(line, rec):
     return cross_product(line_vector, vectors[0]) * cross_product(line_vector, vectors[-1]) <= 0
 
 
-def get_rec_center(rec):
-    rec_center = (rec[0] + rec[2] // 2, rec[1] + rec[3] // 2)
-    return rec_center
-
-
 def get_line_seg_rec_dist(line, rec):
-    # 获取线段到箭头的距离，以及哪一端更近
-    rec_center = get_rec_center(rec)
+    """获取线段到矩形的距离，以及线段哪一端离rec更近"""
+    rec_center = helper.get_rec_center(rec)
 
-    dist_1 = get_points_dist(line.p1, rec_center)
-    dist_2 = get_points_dist(line.p2, rec_center)
+    dist_1 = helper.get_points_dist(line.p1, rec_center)
+    dist_2 = helper.get_points_dist(line.p2, rec_center)
 
     if dist_1 < dist_2:
         return dist_1, 0
@@ -447,8 +404,8 @@ def get_line_seg_rec_dist(line, rec):
 
 
 def get_line_rec_dist(line, rec):
-    # 获取箭头到直线的距离
-    rec_center = get_rec_center(rec)
+    """获取矩形中心到直线的距离"""
+    rec_center = helper.get_rec_center(rec)
 
     if line.k is None:
         return abs(rec_center[0] - line.b)
@@ -465,8 +422,8 @@ def info_to_line(info, k, b):
         return Line(line)
 
 
-def extend_line(line, rect):
-    center = get_rec_center(rect)
+def extend_line_to_rec(line, rect):
+    center = helper.get_rec_center(rect)
     if line.k is None:
         temp_list = [line.li[1], line.li[3], center[1]]
         begin = min(temp_list)
@@ -480,16 +437,16 @@ def extend_line(line, rect):
 
 
 def get_initial_lines(arrows, line_list):
-    # 区分与arrow 直连和分离的线
-    # arrow_lines: {(k, b): info} info: [start_point, end_point, direction]
+    """找seqFlow与箭头相连的部分，确定seqFlow的尾端"""
+    # arrow_lines:{arrow_id: {(k, b): info}} info: [start_point, end_point, direction]
     arrow_lines = dict()
-    discrete_lines = []
+    discrete_lines = list()
     for line in line_list:
         to_next = False
         intersected_arrows = list()
         for i, arrow in enumerate(arrows):
-            p1_in = helper.is_in(arrow, (line.li[0], line.li[1], 0, 0))
-            p2_in = helper.is_in(arrow, (line.li[2], line.li[3], 0, 0))
+            p1_in = helper.point_is_in(arrow, line.p1)
+            p2_in = helper.point_is_in(arrow, line.p2)
             info = get_line_info(line, p1_in, p2_in)
             if info is not None:  # 线段有一端在箭头中
                 # cv.line(flows_cp, line.p1, line.p2, COLOR_GREEN, CONTOUR_THICKNESS)
@@ -497,13 +454,11 @@ def get_initial_lines(arrows, line_list):
                 to_next = True
                 break
             else:  # 线段不与箭头直接连接
-
                 if line_is_intersect_rec(line.li, arrow):
+                    # 找到线段延长后经过的所有箭头
                     intersected_arrows.append(i)
         if not to_next:
-
             if len(intersected_arrows) > 0:  # 线段不在箭头中，但所在直线经过箭头
-                # cv.line(flows_cp, line.p1, line.p2, COLOR_BLUE, CONTOUR_THICKNESS)
                 min_dist = float("inf")
                 min_index = -1
                 closest_point = -1
@@ -518,18 +473,8 @@ def get_initial_lines(arrows, line_list):
                 if min_dist < 45:  # 距离小于45 说明直连
                     arrow_lines = add_info_to_arrow_lines(line, info, arrow_lines, min_index)
                 else:
-                    # cv.line(flows_cp, line.p1, line.p2, COLOR_RED, CONTOUR_THICKNESS)
-                    line_map = arrow_lines.get(min_index)
-                    if line_map is not None:
-                        one_arrow_line = line_map.get((line.k, line.b))
-                        if one_arrow_line is not None and one_arrow_line[2] == info[2] and min_dist < 100:
-                            merge_info = line_with_same_k_b_merge(one_arrow_line, info)
-                            line_map[(line.k, line.b)] = merge_info
-                        else:
-                            discrete_lines.append(line)
-                    else:
-                        discrete_lines.append(line)
-            else:
+                    discrete_lines.append(line)
+            else:  # 线段所在直线不经过箭头
                 # cv.line(flows_cp, line.p1, line.p2, COLOR_BLUE, CONTOUR_THICKNESS)
                 discrete_lines.append(line)
 
@@ -537,18 +482,37 @@ def get_initial_lines(arrows, line_list):
     for i in range(len(arrows)):
         arrow_line = arrow_lines.get(i)
         if arrow_line is None:
+            # 没有连接线的箭头
+
+            connected = False
             for discrete_line in discrete_lines:
+                # 没有连接线的箭头，但是附近有与它垂直的线段，将它们连接起来
+
+                # 计算箭头中心到线段两端的距离，找到距离较近的那一段
                 seg_dist = get_line_seg_rec_dist(discrete_line, arrows[i])
+                # 计算箭头中心到线段所在直线的距离
                 line_dist = get_line_rec_dist(discrete_line, arrows[i])
                 if seg_dist[0] < 60 and 0 <= seg_dist[0] - line_dist < 5:
+                    connected = True
                     begin = (discrete_line.li[seg_dist[1] * 2], discrete_line.li[seg_dist[1] * 2 + 1])
-                    end = get_rec_center(arrows[i])
+                    end = helper.get_rec_center(arrows[i])
                     new_line = create_line((begin[0], begin[1], end[0], end[1]))
-                    p1_in = helper.is_in(arrows[i], (new_line.li[0], new_line.li[1], 0, 0))
-                    p2_in = helper.is_in(arrows[i], (new_line.li[2], new_line.li[3], 0, 0))
+                    p1_in = helper.point_is_in(arrows[i], new_line.p1)
+                    p2_in = helper.point_is_in(arrows[i], new_line.p2)
                     info = get_line_info(new_line, p1_in, p2_in)
                     arrow_lines[i] = {(new_line.k, new_line.b): info}
+
+            # 没有连接线也没有临近的垂直线段的箭头
+            if not connected:
+                # 依据箭头图像，判断箭头及其连接线的方向，这里筛选出的孤立箭头，通常情况下只会是一个箭头，不会是多个箭头的融合体
+                print("found_not_connected_arrow")
+                arrow = helper.dilate(arrows[i], 1)
+                arrow_img = helper.truncate(input_img, arrow)
+                arrow_line = get_seq_arrow_direction(arrow_img, arrow)
+                arrow_lines[i] = arrow_line
+
         else:
+            # 已有连接线的箭头, 将相似线段合并，不知道什么原因在normalize阶段，有一些线段没合并
             one_arrow_line = []
             for k, v in arrow_line.items():
                 one_arrow_line.append(info_to_line(v, k[0], k[1]))
@@ -561,16 +525,17 @@ def get_initial_lines(arrows, line_list):
                 p2_in = helper.is_in(arrow, (normalized_line.li[2], normalized_line.li[3], 0, 0))
                 info = get_line_info(normalized_line, p1_in, p2_in)
                 if info is None:
-                    normalized_line = extend_line(normalized_line, arrow)
+                    normalized_line = extend_line_to_rec(normalized_line, arrow)
                     temp = get_line_seg_rec_dist(normalized_line, arrow)
                     info = get_line_info(normalized_line, temp[1] == 0, temp[1] == 1)
                 arrow_line[(normalized_line.k, normalized_line.b)] = info
             arrow_lines[i] = arrow_line
+
     return arrow_lines, discrete_lines
 
 
 def get_arrow_ele_direct(arrow, ele):
-    arrow_center = get_rec_center(arrow)
+    arrow_center = helper.get_rec_center(arrow)
     ele_shrink = helper.shrink(ele, 10)
     # ele_shrink = helper.shrink(ele, cfg.)
     p1 = (ele_shrink[0], ele_shrink[1])
@@ -583,25 +548,25 @@ def get_arrow_ele_direct(arrow, ele):
 
     if cos1 * cos2 > 0:  # 水平
         if arrow[0] < ele_shrink[0]:  # 在左边
-            return 4
+            return cfg.LEFT
         else:  # 在右边
-            return 2
+            return cfg.RIGHT
     else:  # 竖直
         if arrow[1] < ele_shrink[1]:  # 在上边
-            return 1
+            return cfg.TOP
         else:  # 在下边
-            return 3
+            return cfg.DOWN
 
 
 def get_opposite_direct_list(direct):
-    if direct == 1:
-        return [3]
-    elif direct == 3:
-        return [1]
-    elif direct == 2:
-        return [1, 3, 4]
-    elif direct == 4:
-        return [1, 2, 3]
+    if direct == cfg.TOP:
+        return [cfg.DOWN]
+    elif direct == cfg.DOWN:
+        return [cfg.TOP]
+    elif direct == cfg.RIGHT:
+        return [cfg.TOP, cfg.DOWN, cfg.LEFT]
+    elif direct == cfg.LEFT:
+        return [cfg.TOP, cfg.RIGHT, cfg.DOWN]
 
 
 def filter_arrow_lines(arrow_id, direct, arrow_lines):
@@ -626,16 +591,16 @@ def create_virtual_element(arrow, direct):
     default_width = 70
     default_height = 70
 
-    if direct == 1:
+    if direct == cfg.TOP:
         p_x = arrow[0] + arrow[2] // 2 - default_width // 2
         p_y = arrow[1] + arrow[3]
-    elif direct == 3:
+    elif direct == cfg.DOWN:
         p_x = arrow[0] + arrow[2] // 2 - default_width // 2
         p_y = arrow[1] - default_height
-    elif direct == 2:
+    elif direct == cfg.RIGHT:
         p_x = arrow[0] - default_width
         p_y = arrow[1] + arrow[3] // 2 - default_height // 2
-    elif direct == 4:
+    elif direct == cfg.LEFT:
         p_x = arrow[0] + arrow[2]
         p_y = arrow[1] + arrow[3] // 2 - default_height // 2
     else:
@@ -646,12 +611,141 @@ def create_virtual_element(arrow, direct):
     return default_element
 
 
-def get_possible_element(arrow_id_list, arrows):
+def get_possible_element(same_ele_arrows, arrows):
+    """通过指向同一元素的多个箭头来确定元素的bounding box"""
+    """经过之前的逻辑筛选，输入的多个箭头，不会是在元素的同一条边上"""
+
+    # default_width = 100
+    # default_height = 80
+    #
+    # rec_top = float("inf")
+    # rec_bottom = -1
+    # rec_left = float("inf")
+    # rec_right = -1
+    #
+    # no_top = False
+    # no_bottom = False
+    # no_left = False
+    # no_right = False
+    #
+    # top = None
+    # bottom = None
+    # left = None
+    # right = None
+    #
+    # rec = [-1, -1, -1, -1]
+    #
+    # ele_arrows = defaultdict(list)
+    # for [arrow_id, arrow_direct] in same_ele_arrows:
+    #     arrow = arrows[arrow_id]
+    #     arrow_center = helper.get_rec_center(arrow)
+    #     ele_arrows[arrow_direct].append(arrow_center)
+    #
+    # top_arrows = ele_arrows[cfg.TOP]
+    # if len(top_arrows) > 0:
+    #     for arrow in top_arrows:
+    #         if arrow[1] < rec_top:
+    #             rec_top = arrow[1]
+    #             top = arrow
+    # else:
+    #     no_top = True
+    #
+    # down_arrows = ele_arrows[cfg.DOWN]
+    # if len(down_arrows) > 0:
+    #     for arrow in top_arrows:
+    #         if arrow[1] > rec_bottom:
+    #             rec_bottom = arrow[1]
+    #             bottom = arrow
+    # else:
+    #     no_bottom = True
+    #
+    # left_arrows = ele_arrows[cfg.LEFT]
+    # if len(left_arrows) > 0:
+    #     for arrow in left_arrows:
+    #         if arrow[0] < rec_left:
+    #             rec_left = arrow[0]
+    #             left = arrow
+    #
+    #         if no_bottom and arrow[1] > rec_bottom:
+    #             rec_bottom = arrow[1]
+    #             bottom = arrow
+    #
+    #         if no_top and arrow[1] < rec_top:
+    #             rec_top = arrow[1]
+    #             top = arrow
+    # else:
+    #     no_left = True
+    #
+    # right_arrows = ele_arrows[cfg.RIGHT]
+    # if len(right_arrows) > 0:
+    #     for arrow in right_arrows:
+    #         if arrow[0] > rec_right:
+    #             rec_right = arrow[0]
+    #             right = arrow
+    #
+    #         if no_bottom and arrow[1] > rec_bottom:
+    #             rec_bottom = arrow[1]
+    #             bottom = arrow
+    #
+    #         if no_top and arrow[1] < rec_top:
+    #             rec_top = arrow[1]
+    #             top = arrow
+    # else:
+    #     no_right = True
+    #
+    # print("top:", rec_top)
+    # print("down:", rec_bottom)
+    # print("left:", rec_left)
+    # print("right:", rec_right)
+    #
+    # if no_left and no_right:
+    #     rec[1] = top[1]
+    #     rec[3] = bottom[1] - top[1]
+    #     width = max(int(rec[3] / 3 * 4), default_width)
+    #     x_center = (top[0] + bottom[0]) // 2
+    #     rec[0] = max(0, x_center - width // 2)
+    #     rec[2] = width
+    #     return rec
+    # elif no_left:
+    #     # only has right
+    #     if not no_top and not no_bottom:
+    #         # has top and bottom
+    #         rec[3] = bottom[1] - top[1]
+    #         rec[1] = top[1]
+    #         x_center = (top[0] + bottom[0]) // 2
+    #         width = max(2 * (right[0] - x_center), default_width)
+    #         rec[0] = max(0, x_center - width // 2)
+    #         rec[2] = width
+    #         return rec
+    #     elif top[1] < right[1] and top[0] < right[0] - 5:
+    #         # has valid top
+    #         rec[1] = top[1]
+    #         if bottom[1] > right[1] and bottom[0] < right[0] - 5:
+    #             # has valid bottom
+    #             rec[3] = bottom[1] - top[1]
+    #         else:
+    #             # has no valid bottom
+    #             rec[3] = max(2 * (right[1] - top[1]), default_height)
+    #         width = max(2 * (right[0] - top[0]), default_width)
+    #         rec[0] = max(0, right[0] - width)
+    #         rec[2] = right[0] - rec[0]
+    #         return rec
+    #     else:
+    #         # has no valid top
+    #         if bottom[1] > right[1] and bottom[0] < right[0] - 5:
+    #             # has valid bottom
+    #             rec[3] = max(2 * (bottom[1] - right[1]), default_height)
+    #
+    #         else:
+    #             print("only right is not possible here")
+
+    # has valid bottom
+
     x_list = []
     y_list = []
-    for arrow_id in arrow_id_list:
+    for [arrow_id, _] in same_ele_arrows:
         arrow = arrows[arrow_id]
-        arrow_center = get_rec_center(arrow)
+        arrow_center = helper.get_rec_center(arrow)
         x_list.append(arrow_center[0])
         y_list.append(arrow_center[1])
 
@@ -659,7 +753,7 @@ def get_possible_element(arrow_id_list, arrows):
     p_y = int(np.mean(y_list))
     height = max(y_list) - min(y_list)
     width = max(x_list) - min(x_list)
-    length = max(height, width, 40)
+    length = max(height, width, 80)
 
     ele_rect = (p_x - length // 2, p_y - length // 2, length, length)
     return ele_rect
@@ -749,11 +843,42 @@ def get_all_elements():
                     all_elements.append((i, j, k, 1))
 
 
+def extend_line(line, direct, axis_length):
+    """延长线段，按照指定方向延长线段，在坐标轴上的投影延长axis_length"""
+    """如果direct是cfg.TOP, 则表示，线段从上往下延长"""
+    """如果direct是True, 则表示往x轴或y轴坐标较大的方向延长"""
+
+    if line.k is None:
+        if direct == cfg.TOP or not direct:
+            p1 = line.p1
+            p2 = [line.p2[0], line.p2[1] + axis_length]
+            return points_to_line(p1, p2), p2
+        elif direct == cfg.DOWN or direct:
+            p1 = [line.p1[0], max(line.p1[1] - axis_length, 0)]
+            p2 = line.p2
+            return points_to_line(p1, p2), p1
+    else:
+        if direct == cfg.LEFT or not direct:
+            p1 = line.p1
+            p2_x = line.p2[0] + axis_length
+            p2_y = helper.get_func_value(p2_x, line.k, line.b)
+            p2 = [p2_x, p2_y]
+            return points_to_line(p1, p2), p2
+        elif direct == cfg.RIGHT or direct:
+            p1_x = max(0, line.p1[0] - axis_length)
+            p1_y = helper.get_func_value(p1_x, line.k, line.b)
+            p1 = [p1_x, p1_y]
+            p2 = line.p2
+            return points_to_line(p1, p2), p1
+
+    return None
+
+
 def match_arrows_and_elements(arrow_lines, arrows):
-    # 匹配 arrow 与 element
+    """匹配 arrow 与 element"""
     # 依据两者位置关系，删除一些线
     # 依据 arrow 确定一些未检出的元素
-    # arrwo_ele_map :{ arrow_id : [ele_path, arrow_direction]}
+    # arrow_ele_map :{ arrow_id : [ele_path, arrow_direction]}
     arrow_ele_map = dict()
     possible_ele = dict()
     for arrow_id, arrow in enumerate(arrows):
@@ -765,47 +890,64 @@ def match_arrows_and_elements(arrow_lines, arrows):
                 lanes = pool["lanes"]
                 sub_procs = pool.get("sub_procs", {})
                 for lane_id, lane in enumerate(lanes):
+                    # 确定arrow所在的lane
                     if helper.is_in(lane, arrow):
                         sub_procs_in_lane = sub_procs.get(lane_id, None)
                         elements_in_lane = elements.get(lane_id)
                         dilate_arrow = helper.dilate(arrow, cfg.RECT_DILATION_VALUE)
 
+                        arrow_line = arrow_lines.get(arrow_id)
+                        # print(arrow_line)
+                        one_key = list(arrow_line.keys())[0]
+                        one_line_info = arrow_line[one_key]
+                        one_line = info_to_line(one_line_info, one_key[0], one_key[1])
+                        _, one_point = extend_line(one_line, one_line_info[2], 10)
+
                         if elements_in_lane is not None:
+
+                            # 找与arrow匹配的node元素
                             for ele_id, ele in enumerate(elements_in_lane):
-                                if helper.is_overlap(dilate_arrow, ele):
+                                if helper.point_is_in(helper.dilate(ele, cfg.RECT_DILATION_VALUE), one_point):
                                     found = True
                                     arrow_direct = get_arrow_ele_direct(arrow, ele)
-                                    arrow_line = arrow_lines.get(arrow_id)
-                                    if arrow_line is not None and len(arrow_line) > 1:
-                                        arrow_lines = filter_arrow_lines(arrow_id, arrow_direct, arrow_lines)
+                                    # if arrow_line is not None and len(arrow_line) > 1:
+                                    #     arrow_lines = filter_arrow_lines(arrow_id, arrow_direct, arrow_lines)
                                     arrow_ele_map[arrow_id] = [(pool_id, lane_id, ele_id, 0), arrow_direct]
                                     break
 
                         if not found and sub_procs_in_lane is not None:
+                            # 若没有匹配的元素，则判断是否是指向subProcess的arrow
                             for sub_proc_id, sub_proc in enumerate(sub_procs_in_lane):
                                 if not helper.is_in(sub_proc, dilate_arrow) and helper.is_overlap(dilate_arrow,
                                                                                                   sub_proc):
                                     found = True
                                     arrow_direct = get_arrow_ele_direct(arrow, sub_proc)
-                                    arrow_line = arrow_lines.get(arrow_id)
-                                    if arrow_line is not None and len(arrow_line) > 1:
-                                        arrow_lines = filter_arrow_lines(arrow_id, arrow_direct, arrow_lines)
+                                    # arrow_line = arrow_lines.get(arrow_id)
+                                    # if arrow_line is not None and len(arrow_line) > 1:
+                                    #     arrow_lines = filter_arrow_lines(arrow_id, arrow_direct, arrow_lines)
                                     arrow_ele_map[arrow_id] = [(pool_id, lane_id, sub_proc_id, 1), arrow_direct]
                                     break
-
-                        if not found:
+                        #
+                        if not found:  # 剩下的箭头通过连接线来判断方向
+                            # print("one arrow can't match element")
+                            # print(arrows[arrow_id])
                             arrow_line = arrow_lines.get(arrow_id)
+                            # print(arrow_line)
                             if arrow_line is not None:
                                 values = list(arrow_line.values())
-                                direct_count = [[1, 0], [2, 0], [3, 0], [4, 0]]
+                                direct_count = [[cfg.TOP, 0], [cfg.RIGHT, 0], [cfg.DOWN, 0], [cfg.LEFT, 0]]
                                 for value in values:
                                     direct = value[2]
-                                    direct_count[direct - 1][1] += 1
+                                    direct_count[direct][1] += 1
+                                # print(direct_count)
                                 direct_count.sort(key=lambda x: x[1], reverse=True)
-                                ele_rect = create_virtual_element(arrow, direct_count[0][0])
+                                # print(direct_count[0][0])
+                                arrow_direct = direct_count[0][0]
+                                ele_rect = create_virtual_element(arrow, arrow_direct)
+
+                                possible_ele[arrow_id] = [ele_rect, arrow_direct]
                             else:
-                                ele_rect = create_virtual_element(arrow, 0)
-                            possible_ele[arrow_id] = ele_rect
+                                print("one arrow has no arrow lines")
                         break
                 break
 
@@ -813,34 +955,26 @@ def match_arrows_and_elements(arrow_lines, arrows):
         keys = list(possible_ele.keys())
         while len(keys) > 0:
             one_arrow_id = keys.pop(0)
-            ele_rec = possible_ele[one_arrow_id]
-            adjacent_arrows = [one_arrow_id]
+            poss_ele = possible_ele[one_arrow_id]
+            ele_rec = poss_ele[0]
+            same_ele_arrows = [[one_arrow_id, poss_ele[1]]]
             for i, key in enumerate(keys):
-                if helper.is_overlap(ele_rec, possible_ele[key]):
-                    adjacent_arrows.append(key)
+                if helper.is_overlap(ele_rec, possible_ele[key][0]):
+                    same_ele_arrows.append([key, possible_ele[key][1]])
                     keys[i] = None
             keys = list(filter(lambda x: x is not None, keys))
-            if len(adjacent_arrows) > 1:
-                ele_rec = get_possible_element(adjacent_arrows, arrows)
+            if len(same_ele_arrows) > 1:
+                ele_rec = get_possible_element(same_ele_arrows, arrows)
             ele_path = add_one_element_to_pool(ele_rec)
             if ele_path is not None:
-                ele = get_element_rec_by_path(ele_path)
-                for arrow_id in adjacent_arrows:
-                    arrow = arrows[arrow_id]
-                    arrow_direct = get_arrow_ele_direct(arrow, ele)
+                # ele = get_element_rec_by_path(ele_path)
+                for [arrow_id, arrow_direct] in same_ele_arrows:
+                    # arrow = arrows[arrow_id]
+                    # arrow_direct = get_arrow_ele_direct(arrow, ele)
                     arrow_lines = filter_arrow_lines(arrow_id, arrow_direct, arrow_lines)
                     arrow_ele_map[arrow_id] = [ele_path, arrow_direct]
 
     return arrow_lines, arrow_ele_map
-
-
-def is_parallel(line1, line2):
-    if line1.k is None and line2.k is None:
-        return True
-    elif line1.k is not None and line2.k is not None:
-        return abs(line1.k - line2.k) < 0.000001
-    else:
-        return False
 
 
 def line_is_in_rec(line, rec):
@@ -856,37 +990,17 @@ def line_is_in_rec(line, rec):
         return False, -1
 
 
-def get_point_of_intersection(line1, line2):
-    if is_parallel(line1, line2):
-        return None
-    else:
-        if line1.k is None:
-            p_x = line1.b
-            p_y = int(line2.k * p_x + line2.b)
-            point = (p_x, p_y)
-            return point
-        if line2.k is None:
-            p_x = line2.b
-            p_y = int(line1.k * p_x + line1.b)
-            point = (p_x, p_y)
-            return point
-
-        p_x = (line1.b - line2.b) / (line2.k - line1.k)
-        p_y = line1.k * p_x + line1.b
-        point = (int(p_x), int(p_y))
-        return point
-
-
 def is_begin_point(point, line, end_ele_id):
-    point_rec = helper.dilate((point[0], point[1], 0, 0), 10)
+    """判断是否是顺序流的起点"""
+    point_rec = helper.dilate((point[0], point[1], 0, 0), 15)
     overlapped_ele = {}
     for i in range(len(all_elements)):
         ele_rec = get_element_rec_by_id(i)
         if all_elements[i][3] == 0:
-            if helper.is_overlap(ele_rec, point_rec) and i != end_ele_id:
+            if i != end_ele_id and helper.is_overlap(ele_rec, point_rec):
                 overlapped_ele[i] = ele_rec
         else:
-            if not helper.is_in(ele_rec, point_rec) and helper.is_overlap(ele_rec, point_rec) and i != end_ele_id:
+            if i != end_ele_id and not helper.is_in(ele_rec, point_rec) and helper.is_overlap(ele_rec, point_rec):
                 return True, i
 
     if len(overlapped_ele) == 0:
@@ -922,93 +1036,280 @@ def add_one_flow(flows, flow, arrow_id):
         arrow_flows.append(flow)
 
 
-def detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, merged_lines):
+def point_is_near_line_with_d(line, point, d):
+    borders = get_parallel_lines_with_d(line.k, line.b, d)
+    return point_is_between(point, borders[0], borders[1])
+
+
+def is_extension_line(last_begin, curr_begin, line):
+    p1 = is_extension_point(last_begin, curr_begin, line.p1)
+    p2 = is_extension_point(last_begin, curr_begin, line.p2)
+    return p1 and p2
+
+
+def is_extension_point(last_begin, curr_begin, point):
+    # print(last_begin, curr_begin, point)
+    curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
+    is_near = point_is_near_line_with_d(curr_line, point, 3)
+
+    if is_near:
+        if curr_line.k is None:
+            v1 = curr_begin[1] - last_begin[1]
+            v2 = point[1] - last_begin[1]
+        else:
+            v1 = curr_begin[0] - last_begin[0]
+            v2 = point[0] - last_begin[0]
+
+        if v1 * v2 > 0:
+            return True
+    return False
+
+
+def point_is_on_line_seg(line, point, d):
+    """判断点是否在线段附近"""
+    """该点在线段所在直线上"""
+    """返回值大于等于0表示 交点在线段延长线上，0表示线段的p1离交点较远, 1则对应p2"""
+    d1 = helper.get_points_dist(line.p1, point)
+    d2 = helper.get_points_dist(line.p2, point)
+    length = line.get_points_dist()
+
+    if d1 <= length and d2 <= length:
+        if d1 + d2 <= length + 3:
+            if d1 < 5:
+                return True, 1
+            elif d2 < 5:
+                return True, 0
+            else:
+                return True, -1
+    elif d1 > length and d2 <= d:
+        return True, 2
+    elif d1 <= d and d2 > length:
+        return True, 3
+
+    return False, -2
+
+
+def get_ele_rec_pointed_by_curr_line(curr_line, reverse_tag):
+    """获取当前flow起始段延长后相交的最近元素"""
+    curr_line_ele_rec = []
+    curr_line_ele_id = -1
+    min_dist = float("inf")
+    for ele_id in range(len(all_elements)):
+        ele_rec = get_element_rec_by_id(ele_id)
+        if line_is_intersect_rec(curr_line.li, ele_rec):
+            dist, point_id = get_line_seg_rec_dist(curr_line, ele_rec)
+            if (reverse_tag and point_id == 1) or (not reverse_tag and point_id == 0):
+                if dist < min_dist:
+                    min_dist = dist
+                    curr_line_ele_rec = ele_rec
+                    curr_line_ele_id = ele_id
+    return curr_line_ele_rec, curr_line_ele_id
+
+
+def get_line_rec_intersection(line, reverse, rec):
+    """获取线段延长后与rec的交点"""
+    if line_is_intersect_rec(line.li, rec):
+        vertices = helper.get_rect_vertices(rec)
+        if line.k is None:
+            if reverse:
+                rec_line = points_to_line(vertices[0], vertices[1])
+                intersection = get_point_of_intersection(line, rec_line)
+                if is_extension_point(line.p1, line.p2, intersection):
+                    return intersection
+            else:
+                rec_line = points_to_line(vertices[2], vertices[3])
+                intersection = get_point_of_intersection(line, rec_line)
+                if is_extension_point(line.p2, line.p1, intersection):
+                    return intersection
+        else:
+            if reverse:
+                rec_line = points_to_line(vertices[0], vertices[3])
+                intersection = get_point_of_intersection(line, rec_line)
+
+                if intersection[1] > vertices[3][1]:
+                    rec_line = points_to_line(vertices[2], vertices[3])
+                    intersection = get_point_of_intersection(line, rec_line)
+                elif intersection[1] < vertices[0][1]:
+                    rec_line = points_to_line(vertices[0], vertices[1])
+                    intersection = get_point_of_intersection(line, rec_line)
+
+                if is_extension_point(line.p1, line.p2, intersection):
+                    return intersection
+            else:
+                rec_line = points_to_line(vertices[1], vertices[2])
+                intersection = get_point_of_intersection(line, rec_line)
+
+                if intersection[1] > vertices[3][1]:
+                    rec_line = points_to_line(vertices[2], vertices[3])
+                    intersection = get_point_of_intersection(line, rec_line)
+                elif intersection[1] < vertices[0][1]:
+                    rec_line = points_to_line(vertices[0], vertices[1])
+                    intersection = get_point_of_intersection(line, rec_line)
+
+                if is_extension_point(line.p2, line.p1, intersection):
+                    return intersection
+    return None
+
+
+def detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id, merged_lines):
     curr_begin = flow_points[-1]
     last_begin = flow_points[-2]
+    # print(curr_begin, last_begin)
     curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
 
-    line_range = None
-    if curr_begin[0] < last_begin[0]:
-        line_range = [[curr_begin[0] - cfg.LINE_AREA_THRESHOLD, last_begin[0]], 0]
-    elif curr_begin[0] > last_begin[0]:
-        line_range = [[last_begin[0], curr_begin[0] + cfg.LINE_AREA_THRESHOLD], 0]
+    if curr_line.k is None:
+        dim = 1
     else:
-        if curr_begin[1] < last_begin[1]:
-            line_range = [[curr_begin[1] - cfg.LINE_AREA_THRESHOLD, last_begin[1]], 1]
-        elif curr_begin[1] > last_begin[1]:
-            line_range = [[last_begin[1], curr_begin[1] + cfg.LINE_AREA_THRESHOLD], 1]
+        dim = 0
 
-    is_begin = is_begin_point(curr_begin, curr_line, end_ele_id)
-    if is_begin[0]:
-        temp = flow_points.copy()
-        flow = [end_ele_id, temp, is_begin[1]]
-        add_one_flow(flows, flow, arrow_id)
+    # True表示 flow尾部向x轴变大或y轴变大的方向延长, 坐标系为 左x下y
+    reverse_tag = curr_begin[dim] - last_begin[dim] > 0
 
-    to_extend_lines = []
-    intersected_lines = []
-    next_discrete_lines = []
-    for i, discrete_line in enumerate(discrete_lines):
-        p1_near = point_is_near_line(discrete_line.p1, curr_line, line_range)
-        p2_near = point_is_near_line(discrete_line.p2, curr_line, line_range)
-        if (p1_near and not p2_near) or (p2_near and not p1_near):
-            if is_parallel(discrete_line, curr_line):
-                to_extend_lines.append(discrete_line)
+    curr_begin_rec = helper.dilate([curr_begin[0], curr_begin[1], 0, 0], 3)
+
+    connected_lines = dict()
+    rest_lines = []
+
+    for line_id in discrete_line_ids:
+        discrete_line = discrete_lines[line_id]
+
+        if not is_parallel(curr_line, discrete_line):
+            if helper.point_is_in(curr_begin_rec, discrete_line.p1):
+                connected_lines[line_id] = [discrete_line.p2]
+            elif helper.point_is_in(curr_begin_rec, discrete_line.p2):
+                connected_lines[line_id] = [discrete_line.p1]
             else:
-                intersected_lines.append(discrete_line)
+                rest_lines.append(line_id)
         else:
-            next_discrete_lines.append(discrete_line)
-    discrete_lines = next_discrete_lines
-    if len(to_extend_lines) == 0 and len(intersected_lines) == 0:
-        if not is_begin[0]:
-            flow = [end_ele_id, flow_points, None]
-            flows[arrow_id].append(flow)
-    else:
-        merged_lines.extend(to_extend_lines)
-        merged_lines.extend(intersected_lines)
-        if len(to_extend_lines) > 0:
-            temp = []
-            if curr_line.k is None:
-                for to_extend_line in to_extend_lines:
-                    temp.append(to_extend_line.p1[1])
-                    temp.append(to_extend_line.p2[1])
-                if curr_begin[1] < last_begin[1]:
-                    new_begin = (curr_line.b, min(temp))
-                else:
-                    new_begin = (curr_line.b, max(temp))
-                flow_points[-1] = new_begin
-            else:
-                for to_extend_line in to_extend_lines:
-                    temp.append(to_extend_line.p1[0])
-                    temp.append(to_extend_line.p2[0])
-                if curr_begin[0] < last_begin[0]:
-                    new_x = min(temp)
-                    new_begin = (new_x, int(curr_line.k * new_x + curr_line.b))
-                else:
-                    new_x = max(temp)
-                    new_begin = (new_x, int(curr_line.k * new_x + curr_line.b))
-                flow_points[-1] = new_begin
-            detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, merged_lines)
+            rest_lines.append(line_id)
 
-        if len(intersected_lines) > 0:
-            flow_points_list = [flow_points.copy() for l in range(len(intersected_lines))]
-            for i, intersected_line in enumerate(intersected_lines):
-                intersection = get_point_of_intersection(curr_line, intersected_line)
-                d1 = get_points_dist(intersected_line.p1, intersection)
-                d2 = get_points_dist(intersected_line.p2, intersection)
-                flow_points_list[i][-1] = intersection
-                if d1 > d2:
-                    flow_points_list[i].append(intersected_line.p1)
+    to_extend = True
+    if len(connected_lines) > 0:
+        to_extend = False
+
+    if to_extend:
+        is_begin = is_begin_point(curr_begin, curr_line, end_ele_id)
+        if is_begin[0]:
+            flow = [end_ele_id, flow_points, is_begin[1]]
+            add_one_flow(flows, flow, arrow_id)
+            return
+
+        to_extend_lines = []
+        other_lines = []
+
+        for line_id in rest_lines:
+            discrete_line = discrete_lines[line_id]
+            if is_extension_line(last_begin, curr_begin, discrete_line):
+                # print(discrete_line)
+                d1 = helper.get_points_dist(discrete_line.p1, curr_begin)
+                d2 = helper.get_points_dist(discrete_line.p2, curr_begin)
+                if min(d1, d2) < 80:
+                    to_extend_lines.append(line_id)
                 else:
-                    flow_points_list[i].append(intersected_line.p2)
-                detect_one_flow(flow_points_list[i], discrete_lines, end_ele_id, flows, arrow_id, merged_lines)
+                    other_lines.append(line_id)
+            else:
+                other_lines.append(line_id)
+
+        # 找curr_line指向的最近的元素，作为延长的边界
+        curr_line_ele_rec, _ = get_ele_rec_pointed_by_curr_line(curr_line, reverse_tag)
+
+        curr_line_points = []
+        if len(curr_line_ele_rec) > 0:
+            # 找到作为curr_line延长边界的元素
+            # 从共线的线段中筛选出可以合并到curr_line的线段
+            rec_center = helper.get_rec_center(curr_line_ele_rec)
+            for line_id in to_extend_lines:
+                one_li = discrete_lines[line_id]
+
+                if (reverse_tag and one_li.p1[dim] < rec_center[dim] and one_li.p2[dim] < rec_center[dim]) or \
+                        (not reverse_tag and one_li.p1[dim] > rec_center[dim] and one_li.p2[dim] > rec_center[dim]):
+                    curr_line_points.append(one_li.p1)
+                    curr_line_points.append(one_li.p2)
+                    merged_lines[line_id].append(arrow_id)
+                else:
+                    other_lines.append(line_id)
+        else:
+            # 没找到作为curr_line延长边界的元素
+            # 所有的都可以合并
+            for line_id in to_extend_lines:
+                one_li = discrete_lines[line_id]
+                curr_line_points.append(one_li.p1)
+                curr_line_points.append(one_li.p2)
+                merged_lines[line_id].append(arrow_id)
+
+        # 合并线段到 curr_line
+        if len(curr_line_points) > 0:
+            curr_line_points.sort(key=lambda x: x[dim], reverse=reverse_tag)
+            temp = curr_line_points[0]
+            if curr_line.k is None:
+                new_begin = [curr_begin[0], temp[1]]
+            else:
+                new_begin = [temp[0], helper.get_func_value(temp[0], curr_line.k, curr_line.b)]
+            flow_points[-1] = new_begin
+            discrete_line_ids = other_lines
+            detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id, merged_lines)
+            return
+
+    curr_line, _ = extend_line(curr_line, reverse_tag, 10)
+
+    next_discrete_lines = []
+    for line_id in rest_lines:
+        discrete_line = discrete_lines[line_id]
+        p1_near = point_is_near_line_with_d(curr_line, discrete_line.p1, 20)
+        p2_near = point_is_near_line_with_d(curr_line, discrete_line.p2, 20)
+
+        if (p1_near and not p2_near) or (p2_near and not p1_near):
+            # if not (p1_near and p2_near):
+            intersection = get_point_of_intersection(discrete_line, curr_line)
+            if is_extension_point(last_begin, curr_begin, intersection):
+                on_curr = point_is_on_line_seg(curr_line, intersection, 30)
+                on_disc = point_is_on_line_seg(discrete_line, intersection, 30)
+                if on_curr[0] and on_disc[1] >= 0:
+                    # if on_disc[1] >= 0:
+                    if on_disc[1] % 2 == 0:
+                        connected_lines[line_id] = [discrete_line.p1]
+                    else:
+                        connected_lines[line_id] = [discrete_line.p2]
+                else:
+                    next_discrete_lines.append(line_id)
+            else:
+                next_discrete_lines.append(line_id)
+        else:
+            next_discrete_lines.append(line_id)
+
+    discrete_line_ids = next_discrete_lines
+    if len(connected_lines) == 0:
+        flow = [end_ele_id, flow_points, None]
+        flows[arrow_id].append(flow)
+    else:
+        line_ids = list(connected_lines.keys())
+        flow_points_list = list(map(lambda x: flow_points.copy(), line_ids))
+        for i, line_id in enumerate(line_ids):
+            merged_lines[line_id].append(arrow_id)
+            # discrete_line_ids.remove(line_id)
+            one_line = discrete_lines[line_id]
+            intersection = get_point_of_intersection(curr_line, one_line)
+            flow_points_list[i][-1] = intersection
+            new_begins = connected_lines[line_id]
+            if len(new_begins) == 1:
+                flow_points_list[i].append(new_begins[0])
+                detect_one_flow(flow_points_list[i], discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id,
+                                merged_lines)
+            elif len(new_begins) > 1:
+                for new_begin in new_begins:
+                    flow_points_i = flow_points_list[i].copy()
+                    flow_points_i.append(new_begin)
+                    detect_one_flow(flow_points_i, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id,
+                                    merged_lines)
 
 
 def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
-    # n = len(all_elements)
-    # graph = [[-1 for j in range(n)] for model_i in range(n)]
+    """从seqFlow尾端，递归回溯到连接线的初始位置"""
     # flows: {arrow_id: [[end_ele_id, flow_points, start_ele_id]]}
     flows = defaultdict(list)
-    merged_lines = []
+    merged_lines = defaultdict(list)
+
+    discrete_line_ids = list(range(len(discrete_lines)))
     for arrow_id in range(len(arrows)):
         ele_map = arrow_ele_map.get(arrow_id)
         arrow_line = arrow_lines.get(arrow_id)
@@ -1018,60 +1319,272 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                 line = info_to_line(info, key[0], key[1])
                 flow_points = list()
 
-                if info[2] == 1 or info[2] == 4:
+                if info[2] == cfg.TOP or info[2] == cfg.LEFT:
                     flow_points.extend([line.p2, line.p1])
                 else:
                     flow_points.extend([line.p1, line.p2])
-                detect_one_flow(flow_points, discrete_lines, end_ele_id, flows, arrow_id, merged_lines)
-    for merged_line in merged_lines:
-        try:
-            discrete_lines.remove(merged_line)
-        except ValueError:
-            # print("remove error")
-            continue
+                detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id,
+                                merged_lines)
+
+    not_merged_lines = []
+    shared_lines = []
+    for line_id in discrete_line_ids:
+        share_line_arrow_ids = merged_lines[line_id]
+        arrows_num = len(share_line_arrow_ids)
+        if arrows_num == 0:
+            not_merged_lines.append(line_id)
+        elif arrows_num > 1:
+            shared_lines.append(line_id)
+
+    # 提取 一到多 中共享线段flow的信息
+    share_line_flow_info = defaultdict(list)
+    to_split_shared_lines = []
+    for line_id in shared_lines:
+        discrete_line = discrete_lines[line_id]
+        share_line_arrow_ids = merged_lines[line_id]
+        for arrow_id in share_line_arrow_ids:
+            arrow_flows = flows[arrow_id]
+            for flow_id, one_flow in enumerate(arrow_flows):
+                if one_flow[2] is None:
+                    p1_rec = helper.dilate([discrete_line.p1[0], discrete_line.p1[1], 0, 0], 3)
+                    p2_rec = helper.dilate([discrete_line.p2[0], discrete_line.p2[1], 0, 0], 3)
+                    one_flow_points = one_flow[1]
+                    flow_end_part = []
+                    for point_id, point in enumerate(one_flow_points):
+                        if helper.point_is_in(p1_rec, point) or helper.point_is_in(p2_rec, point):
+                            flow_end_part = one_flow_points[:(point_id + 1)]
+                            break
+                    if len(flow_end_part) > 0:
+                        share_line_flow_info[line_id].append([arrow_id, flow_id, flow_end_part])
+                        to_split_shared_lines.append(line_id)
+                        break
+
+    for arrow_id in range(len(arrows)):
+        arrow_flows = flows[arrow_id]
+        for flow_id, one_flow in enumerate(arrow_flows):
+            one_flow_points = one_flow[1]
+            if one_flow[2] is not None:
+                # 处理 一到多 多的一边最外围的两条连接线
+                for point_id in range(len(one_flow_points) - 1):
+                    last_begin = one_flow_points[point_id]
+                    curr_begin = one_flow_points[point_id + 1]
+                    curr_flow_seg = points_to_line(last_begin, curr_begin)
+
+                    for line_id, share_line_flows in share_line_flow_info.items():
+                        discrete_line = discrete_lines[line_id]
+                        intersection = get_point_of_intersection(curr_flow_seg, discrete_line)
+                        if intersection is not None:
+                            on_curr = point_is_on_line_seg(curr_flow_seg, intersection, 5)
+                            on_disc = point_is_on_line_seg(discrete_line, intersection, 5)
+                            if on_curr[1] == -1 and on_disc[1] == -1:
+                                flow_begin_part = one_flow_points[(point_id + 1):]
+                                flow_begin_part.insert(0, intersection)
+                                for [flow_arrow_id, share_flow_id, flow_end_part] in share_line_flows:
+                                    flow_end_part.extend(flow_begin_part)
+                                    share_line_flow = flows[flow_arrow_id][share_flow_id]
+                                    share_line_flow[1] = flow_end_part
+                                    share_line_flow[2] = one_flow[2]
+                                break
+
+            if one_flow[2] is None:
+                last_begin = one_flow_points[-2]
+                curr_begin = one_flow_points[-1]
+                curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
+                if curr_line.k is None:
+                    dim = 1
+                else:
+                    dim = 0
+                # True表示 flow尾部向x轴变大或y轴变大的方向延长, 坐标系为 左x下y
+                reverse_tag = curr_begin[dim] - last_begin[dim] > 0
+
+                to_extend_lines = []
+                curr_line_points = []
+                for line_id in not_merged_lines:
+                    discrete_line = discrete_lines[line_id]
+                    if is_extension_line(last_begin, curr_begin, discrete_line):
+                        d1 = helper.get_points_dist(discrete_line.p1, curr_begin)
+                        d2 = helper.get_points_dist(discrete_line.p2, curr_begin)
+                        if min(d1, d2) < 110:
+                            curr_line_points.append(discrete_line.p1)
+                            curr_line_points.append(discrete_line.p2)
+                            to_extend_lines.append(line_id)
+
+                if len(to_extend_lines) > 0:
+                    print("extended")
+                    for line_id in to_extend_lines:
+                        not_merged_lines.remove(line_id)
+                    curr_line_points.sort(key=lambda x: x[dim], reverse=reverse_tag)
+                    temp = curr_line_points[0]
+                    if curr_line.k is None:
+                        new_begin = [curr_begin[0], temp[1]]
+                    else:
+                        new_begin = [temp[0], helper.get_func_value(temp[0], curr_line.k, curr_line.b)]
+                    one_flow_points[-1] = new_begin
+
+            # 处理 多到一 的情况
+            one_flow_points = one_flow[1]
+            last_begin = one_flow_points[-2]
+            curr_begin = one_flow_points[-1]
+            curr_flow_seg = points_to_line(last_begin, curr_begin)
+
+            # new_merged_lines = defaultdict(list)
+            connected_lines = dict()
+            for line_id in not_merged_lines:
+                discrete_line = discrete_lines[line_id]
+
+                intersection = get_point_of_intersection(curr_flow_seg, discrete_line)
+                if intersection is not None and is_extension_point(last_begin, curr_begin, intersection):
+                    on_curr = point_is_on_line_seg(curr_flow_seg, intersection, 100)
+                    on_disc = point_is_on_line_seg(discrete_line, intersection, 20)
+
+                    if on_curr[0]:
+                        if on_disc[1] >= 0:
+                            if on_disc[1] % 2 == 0:
+                                connected_lines[line_id] = [discrete_line.p1]
+                            elif on_disc[1] % 2 == 1:
+                                connected_lines[line_id] = [discrete_line.p2]
+                        elif on_disc[1] == -1:
+                            connected_lines[line_id] = [discrete_line.p1, discrete_line.p2]
+
+            if len(connected_lines) > 0:
+                new_merged_lines = defaultdict(list)
+                line_ids = list(connected_lines.keys())
+                flow_points_list = list(map(lambda x: one_flow_points.copy(), line_ids))
+                for i, line_id in enumerate(line_ids):
+                    not_merged_lines.remove(line_id)
+                    one_line = discrete_lines[line_id]
+                    intersection = get_point_of_intersection(curr_flow_seg, one_line)
+                    flow_points_list[i][-1] = intersection
+                    new_begins = connected_lines[line_id]
+                    if len(new_begins) == 1:
+                        flow_points_list[i].append(new_begins[0])
+                        detect_one_flow(flow_points_list[i], not_merged_lines, one_flow[2], discrete_lines, flows,
+                                        arrow_id, new_merged_lines)
+                    elif len(new_begins) > 1:
+                        for new_begin in new_begins:
+                            flow_points_i = flow_points_list[i].copy()
+                            flow_points_i.append(new_begin)
+                            detect_one_flow(flow_points_i, not_merged_lines, one_flow[2], discrete_lines, flows,
+                                            arrow_id, new_merged_lines)
+                if one_flow[2] is None:
+                    arrow_flows.pop(flow_id)
+                for key in new_merged_lines.keys():
+                    not_merged_lines.remove(key)
+
+    # print("not_merged_lines")
+    # for line_id in not_merged_lines:
+    #     print(line_id)
+    #     print(discrete_lines[line_id])
+
+    print("-" * 50)
+    print("complete flows")
+
+    # 下面处理 一到多 的剩余情形
+    not_completed_flows = []
+    completed_flows = []
+
+    for arrow_id in range(len(arrows)):
+        arrow_flows = flows[arrow_id]
+        for flow_id, one_flow in enumerate(arrow_flows):
+            if one_flow[2] is None:
+                not_completed_flows.append([arrow_id, flow_id])
+                # print([arrow_id, flow_id])
+                # print(one_flow)
+            else:
+                completed_flows.append([arrow_id, flow_id])
+    # print("---------origin not_completed----------")
+    # print(not_completed_flows)
+    #
+    # print("---------- begin completing -----------")
+    not_completed_flows, _ = merge_flows(completed_flows, not_completed_flows, flows)
+
+    # print("---------not_completed------------")
+    # print(not_completed_flows)
+    # print("---------adjust---------------")
+    # print(adjust_flows)
+    # completed_flows.extend(adjust_flows)
+
+    # print("--------- merge adjust --------")
+    merge_flows(not_completed_flows, not_completed_flows, flows, False)
+    # print("---------not_completed------------")
+    # print(not_completed_flows)
+    # print("---------adjust---------------")
+    # print(adjust_flows)
 
     return flows, discrete_lines
 
 
-def points_to_line(p1, p2):
-    return Line([p1[0], p1[1], p2[0], p2[1]])
+def merge_flows(completed_flows, not_completed_flows, flows, remove=True):
+    adjust_flows = []
+    for [c_arrow_id, c_flow_id] in completed_flows:
+        completed_flow = flows[c_arrow_id][c_flow_id]
+        one_flow_points = completed_flow[1]
+        for point_id in range(len(one_flow_points) - 1):
+            last_begin = one_flow_points[point_id]
+            curr_begin = one_flow_points[point_id + 1]
+            curr_flow_seg = points_to_line(last_begin, curr_begin)
+            for [arrow_id, flow_id] in not_completed_flows:
+                if arrow_id != c_arrow_id:
+                    not_completed_flow = flows[arrow_id][flow_id]
+                    no_begin_line = points_to_line(not_completed_flow[1][-1], not_completed_flow[1][-2])
+
+                    if not is_parallel(curr_flow_seg, no_begin_line):
+                        intersection = get_point_of_intersection(curr_flow_seg, no_begin_line)
+                        # if intersection is not None:
+                        on_curr = point_is_on_line_seg(curr_flow_seg, intersection, 5)
+                        on_disc = point_is_on_line_seg(no_begin_line, intersection, 5)
+
+                        if on_disc[0] and on_curr[1] == -1:
+                            if on_disc[1] >= 0 and not_completed_flow[0] != completed_flow[2]:
+                                not_completed_flow[1].pop()
+
+                                flow_begin_part = one_flow_points[(point_id + 1):]
+                                flow_begin_part.insert(0, intersection)
+
+                                not_completed_flow[1].extend(flow_begin_part)
+                                not_completed_flow[2] = completed_flow[2]
+                                adjust_flows.append([arrow_id, flow_id])
+                                if remove:
+                                    not_completed_flows.remove([arrow_id, flow_id])
+                                break
+    return not_completed_flows, adjust_flows
 
 
 def get_p2_2_p1_direct(p1, p2):
     if p1[0] < p2[0]:  # 右到左
-        direct = 2
+        direct = cfg.RIGHT
     elif p1[0] > p2[0]:  # 左到右
-        direct = 4
+        direct = cfg.LEFT
     else:
         if p1[1] < p2[1]:  # 下到上
-            direct = 3
+            direct = cfg.DOWN
         elif p1[1] > p2[1]:  # 上到下
-            direct = 1
+            direct = cfg.TOP
         else:
-            direct = 0
+            direct = -1
     return direct
 
 
 def get_end_point_rec_dis(p1, p2, rec, ele_type):
     direct = get_p2_2_p1_direct(p1, p2)
     if ele_type == 0:
-        rec_center = get_rec_center(rec)
+        rec_center = helper.get_rec_center(rec)
         valid = False
 
-        if direct == 1:
+        if direct == cfg.TOP:
             if rec_center[1] >= (p1[1] - 30):
                 valid = True
-        elif direct == 3:
+        elif direct == cfg.DOWN:
             if rec_center[1] <= (p1[1] + 30):
                 valid = True
-        elif direct == 2:
+        elif direct == cfg.RIGHT:
             if rec_center[0] <= (p1[0] + 30):
                 valid = True
-        elif direct == 4:
+        elif direct == cfg.LEFT:
             if rec_center[0] >= (p1[0] - 30):
                 valid = True
         if valid:
-            return get_points_dist(rec_center, p1)
+            return helper.get_points_dist(rec_center, p1)
         else:
             return -1
     else:
@@ -1080,6 +1593,7 @@ def get_end_point_rec_dis(p1, p2, rec, ele_type):
 
 def get_begin_ele_id(p1, p2):
     begin_ele_id = -1
+    begin_ele_rec = []
     min_dis = float("inf")
     for i in range(len(all_elements)):
         ele_type = all_elements[i][3]
@@ -1089,7 +1603,8 @@ def get_begin_ele_id(p1, p2):
         if 0 < dist < min_dis:
             min_dis = dist
             begin_ele_id = i
-    return begin_ele_id
+            begin_ele_rec = ele_rec
+    return begin_ele_rec, begin_ele_id
 
 
 def complete_flow(begin_ele_id, flow_points):
@@ -1098,7 +1613,7 @@ def complete_flow(begin_ele_id, flow_points):
 
     end_line = points_to_line(p1, p2)
     ele_rec = get_element_rec_by_id(begin_ele_id)
-    ele_center = get_rec_center(ele_rec)
+    ele_center = helper.get_rec_center(ele_rec)
     if line_is_intersect_rec(end_line.li, ele_rec):
         if end_line.k is None:
             end_point = (end_line.b, ele_center[1])
@@ -1108,7 +1623,7 @@ def complete_flow(begin_ele_id, flow_points):
     else:
         point_rec = helper.dilate((p1[0], p1[1], 0, 0), 5)
         direct = get_arrow_ele_direct(point_rec, ele_rec)
-        if direct == 1 or direct == 3:
+        if direct == cfg.TOP or direct == cfg.DOWN:
             end_point = (p1[0], ele_center[1])
             flow_points.append(end_point)
         else:
@@ -1134,7 +1649,7 @@ def get_ele_edge_point(begin_ele_id, flow_points):
     rec = get_element_rec_by_id(begin_ele_id)
     rec_type = ele_path[3]
     line = points_to_line(p1, p2)
-    vertices = get_rect_vertices(rec)
+    vertices = helper.get_rect_vertices(rec)
 
     if rec_type == 1 and not line_is_intersect_rec(line.li, rec):
         flow_points = complete_flow(begin_ele_id, flow_points)
@@ -1143,8 +1658,8 @@ def get_ele_edge_point(begin_ele_id, flow_points):
         line = points_to_line(p1, p2)
 
     intersections = []
-    for i, vertice in enumerate(vertices):
-        one_border = points_to_line(vertice, vertices[(i + 1) % 4])
+    for i, vertex in enumerate(vertices):
+        one_border = points_to_line(vertex, vertices[(i + 1) % 4])
         intersection = get_point_of_intersection(line, one_border)
         if intersection is not None:
             v1 = Vector(intersection, p1)
@@ -1155,7 +1670,7 @@ def get_ele_edge_point(begin_ele_id, flow_points):
             else:
                 intersections.append(intersection)
     if len(intersections) > 0:
-        intersections.sort(key=lambda x: get_points_dist(p1, x))
+        intersections.sort(key=lambda x: helper.get_points_dist(p1, x))
         flow_points[-1] = intersections[0]
     return flow_points
 
@@ -1168,202 +1683,237 @@ def parse_img(file_path):
     global pools
     global input_img
 
-    input_img, layers, contours, contours_rec, partial_elements = pre_process(file_path)
+    # 轮廓检测
+    input_img, layers, contours, contours_rec, partial_elements, arrows = pre_process(file_path)
 
-    pools, type_tag, partial_elements = pools_detector.get_pools(input_img, layers, contours_rec, partial_elements)
+    # node元素定位(泳池，泳道，活动，事件，网关，子过程)
+    pools, type_tag, partial_elements = pools_detector.get_pools(input_img, layers, contours_rec, partial_elements,
+                                                                 arrows)
     show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
     # pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
     pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
-
-    pools_img = draw_pools(pools)
+    # pools_img = draw_pools(pools)
     # show_im(pools_img, "raw_elements")
 
+    # 移除node元素， 检测seqFlow的箭头
     flows_img = remove_elements(2)
-    arrows = get_arrows(flows_img)
+    # arrows = get_arrows(flows_img)
+    # show_im(flows_img, "flows_img")
+    arrows = get_seq_arrows(flows_img)
+    # arrows_img = helper.draw_rects(pools_img, arrows, cfg.COLOR_GREEN, 1)
+    # show_im(arrows_img, "arrows_img")
 
+    # 给所有flow-node(活动，事件，网关，子过程 元素编号，记录其所在泳池及泳道编号)
     get_all_elements()
+    # print(all_elements)
     flows = defaultdict(list)
     if len(arrows) > 0:
-        flows_img = remove_elements(4)
+        flows_img = remove_elements(3)
+        # show_im(flows_img, "no_elements")
+
+        # 移除文本
         flows_only = remove_text(flows_img)
+        # show_im(flows_only, "no_text")
 
-        # flows_cp = np.copy(flows_only)
+        # 直线检测
         line_list = detect_lines(flows_only)
+        # print(line_list[0])
+        # all_lines_img = helper.draw_lines(flows_only, [line_list[0]], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+        # show_im(all_lines_img, "all_lines")
+        # cv.waitKey(0)
 
+        # 归一化检测出的直线 (调用两次效果比较好)
         line_list = normalize_all_lines(line_list)
-        # 获取与箭头相连的直线
+        line_list = normalize_all_lines(line_list)
+        background = np.zeros_like(flows_only)
+        normalized_lines_img = helper.draw_lines(background, line_list, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+        show_im(normalized_lines_img, "normalized_lines_img")
+
+        # 获取与箭头相连的线段
         arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
 
         # 将箭头与元素匹配，并获取一些之前未检测出的元素
         arrow_lines, arrow_ele_map = match_arrows_and_elements(arrow_lines, arrows)
-        discrete_lines = normalize_all_lines(discrete_lines)
 
-        # 去除一端在元素里一端在元素外的离散线段
+        # 去除有一端在元素里的离散线段
         for i, line in enumerate(discrete_lines):
             for ele_path in all_elements:
                 if ele_path[3] == 0:
                     ele_rec = get_element_rec_by_path(ele_path)
-                    if helper.point_is_in(ele_rec, line.p1) and helper.point_is_in(ele_rec, line.p2):
+                    if helper.point_is_in(ele_rec, line.p1) or helper.point_is_in(ele_rec, line.p2):
                         discrete_lines[i] = None
         discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
-
-        for line in discrete_lines:
-            cv.line(flows_only, line.p1, line.p2, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS, cv.LINE_AA)
-        draw_lines(flows_only, arrow_lines, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
-        for arrow in arrows:
-            flows_only = helper.draw_one_rect(flows_only, arrow, cfg.COLOR_GREEN, cfg.CONTOUR_THICKNESS)
-
+        # discrete_lines_img = helper.draw_lines(flows_only, discrete_lines, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+        # show_im(discrete_lines_img, "discrete_lines")
+        # cv.waitKey(0)
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
 
-        for i, line in enumerate(discrete_lines):
-            p1_is_begin = is_begin_point(line.p1, line, -1)
-            p2_is_begin = is_begin_point(line.p2, line, -1)
+        # # 从与元素直连的离散线段开始往已有flow 连接
+        # for i, line in enumerate(discrete_lines):
+        #     p1_is_begin = is_begin_point(line.p1, line, -1)
+        #     p2_is_begin = is_begin_point(line.p2, line, -1)
+        #
+        #     if p1_is_begin[0] and p2_is_begin[0]:
+        #         if p1_is_begin[1] == p2_is_begin[1]:
+        #             discrete_lines[i] = None
+        #         discrete_lines[i] = None
+        #         continue
+        #     elif p1_is_begin[0]:
+        #         begin_points = [line.p2, line.p1]
+        #         begin_ele_id = p1_is_begin[1]
+        #     elif p2_is_begin[0]:
+        #         begin_points = [line.p1, line.p2]
+        #         begin_ele_id = p2_is_begin[1]
+        #     else:
+        #         discrete_lines[i] = None
+        #         continue
+        #
+        #     for arrow_id in range(len(arrows)):
+        #         arrow_flows = flows[arrow_id]
+        #         for flow in arrow_flows:
+        #             if flow[2] is None:
+        #                 flow_points = flow[1]
+        #                 p1 = flow_points[-1]
+        #                 p2 = flow_points[-2]
+        #                 end_line = Line([p1[0], p1[1], p2[0], p2[1]])
+        #
+        #                 intersection = get_point_of_intersection(line, end_line)
+        #                 if intersection is not None:
+        #                     d1 = helper.get_points_dist(intersection, begin_points[0])
+        #                     d2 = helper.get_points_dist(intersection, begin_points[1])
+        #                     if d2 <= d1:
+        #                         continue
+        #                     else:
+        #                         d3 = helper.get_points_dist(intersection, p1)
+        #                         if (d3 <= 5 and d1 < 100) or (d1 <= 5 and d3 < 100):
+        #                             flow_points[-1] = intersection
+        #                             flow_points.append(begin_points[-1])
+        #                             flow[2] = begin_ele_id
+        #                             discrete_lines[i] = None
+        # # discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
+        #
+        # for arrow_id_i in range(len(arrows)):
+        #     arrow_flows_i = flows[arrow_id_i]
+        #     for flow_id_i, flow_i in enumerate(arrow_flows_i):
+        #         if flow_i[2] is None:
+        #             to_next = False
+        #             flow_i_points = flow_i[1]
+        #             p1 = flow_i_points[-1]
+        #             p2 = flow_i_points[-2]
+        #             end_line = points_to_line(p1, p2)
+        #             for arrow_id_j in range(len(arrows)):
+        #                 arrow_flows_j = flows[arrow_id_j]
+        #                 for flow_id_j, flow_j in enumerate(arrow_flows_j):
+        #                     if arrow_id_i != arrow_id_j or flow_id_i != flow_id_j:
+        #                         flow_j = arrow_flows_j[flow_id_j]
+        #                         flow_j_points = flow_j[1]
+        #                         for i in range(1, len(flow_j_points)):
+        #                             p3 = flow_j_points[i - 1]
+        #                             p4 = flow_j_points[i]
+        #                             flow_seg = points_to_line(p3, p4)
+        #                             intersection = get_point_of_intersection(end_line, flow_seg)
+        #                             if intersection is not None:
+        #                                 d1 = helper.get_points_dist(intersection, p1)
+        #                                 d2 = helper.get_points_dist(intersection, p2)
+        #                                 v1 = Vector(intersection, p3)
+        #                                 v2 = Vector(intersection, p4)
+        #                                 if d1 < 5 and is_opposite(v1, v2) and d1 < d2:
+        #                                     to_next = True
+        #                                     flow_i_points[-1] = intersection
+        #                                     extend_flow = flow_j_points[i:]
+        #                                     flow_i_points.extend(extend_flow)
+        #                                     if flow_j[2] is not None:
+        #                                         flow_i[2] = flow_j[2]
+        #                                     break
+        #                     if to_next:
+        #                         break
+        #                 if to_next:
+        #                     break
+        #
 
-            if p1_is_begin[0] and p2_is_begin[0]:
-                if p1_is_begin[1] == p2_is_begin[1]:
-                    discrete_lines[i] = None
-                discrete_lines[i] = None
-                continue
-            elif p1_is_begin[0]:
-                begin_points = [line.p2, line.p1]
-                begin_ele_id = p1_is_begin[1]
-            elif p2_is_begin[0]:
-                begin_points = [line.p1, line.p2]
-                begin_ele_id = p2_is_begin[1]
-            else:
-                discrete_lines[i] = None
-                continue
-
-            for arrow_id in range(len(arrows)):
-                arrow_flows = flows[arrow_id]
-                for flow in arrow_flows:
-                    if flow[2] is None:
-                        flow_points = flow[1]
-                        p1 = flow_points[-1]
-                        p2 = flow_points[-2]
-                        end_line = Line([p1[0], p1[1], p2[0], p2[1]])
-
-                        intersection = get_point_of_intersection(line, end_line)
-                        if intersection is not None:
-                            d1 = get_points_dist(intersection, begin_points[0])
-                            d2 = get_points_dist(intersection, begin_points[1])
-                            if d2 <= d1:
-                                continue
-                            else:
-                                d3 = get_points_dist(intersection, p1)
-                                if (d3 <= 5 and d1 < 100) or (d1 <= 5 and d3 < 100):
-                                    flow_points[-1] = intersection
-                                    flow_points.append(begin_points[-1])
-                                    flow[2] = begin_ele_id
-                                    discrete_lines[i] = None
-        # discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
-
-        for arrow_id_i in range(len(arrows)):
-            arrow_flows_i = flows[arrow_id_i]
-            for flow_id_i, flow_i in enumerate(arrow_flows_i):
-                if flow_i[2] is None:
-                    to_next = False
-                    flow_i_points = flow_i[1]
-                    p1 = flow_i_points[-1]
-                    p2 = flow_i_points[-2]
-                    end_line = points_to_line(p1, p2)
-                    for arrow_id_j in range(len(arrows)):
-                        arrow_flows_j = flows[arrow_id_j]
-                        for flow_id_j, flow_j in enumerate(arrow_flows_j):
-                            if arrow_id_i != arrow_id_j or flow_id_i != flow_id_j:
-                                flow_j = arrow_flows_j[flow_id_j]
-                                flow_j_points = flow_j[1]
-                                for i in range(1, len(flow_j_points)):
-                                    p3 = flow_j_points[i - 1]
-                                    p4 = flow_j_points[i]
-                                    flow_seg = points_to_line(p3, p4)
-                                    intersection = get_point_of_intersection(end_line, flow_seg)
-                                    if intersection is not None:
-                                        d1 = get_points_dist(intersection, p1)
-                                        d2 = get_points_dist(intersection, p2)
-                                        v1 = Vector(intersection, p3)
-                                        v2 = Vector(intersection, p4)
-                                        if d1 < 5 and is_opposite(v1, v2) and d1 < d2:
-                                            to_next = True
-                                            flow_i_points[-1] = intersection
-                                            extend_flow = flow_j_points[i:]
-                                            flow_i_points.extend(extend_flow)
-                                            if flow_j[2] is not None:
-                                                flow_i[2] = flow_j[2]
-                                            break
-                            if to_next:
-                                break
-                        if to_next:
-                            break
+        to_remove_flows = []
 
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
             for flow_id, flow in enumerate(arrow_flows):
                 if flow[2] is None:
                     flow_points = flow[1]
-                    begin_ele_id = get_begin_ele_id(flow_points[-1], flow_points[-2])
-                    complete_flow_points = complete_flow(begin_ele_id, flow_points)
-                    flow[1] = complete_flow_points
-                    flow[2] = begin_ele_id
+                    _, begin_ele_id = get_begin_ele_id(flow_points[-1], flow_points[-2])
+                    if begin_ele_id > 0 and begin_ele_id != flow[0]:
+                        complete_flow_points = complete_flow(begin_ele_id, flow_points)
+                        flow[1] = complete_flow_points
+                        flow[2] = begin_ele_id
+                    else:
+                        to_remove_flows.append([arrow_id, flow_id])
 
-        pools_img = draw_pools(pools)
-        show_im(pools_img, "pools_img_no_lines")
+        for [arrow_id, flow_id] in to_remove_flows:
+            flows[arrow_id].pop(flow_id)
 
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
-            arrow_ele = arrow_ele_map.get(arrow_id)
-            if len(arrow_flows) == 0:
-                arrow = arrows[arrow_id]
-                # dilated_arrow = dilate(arrow, 5)
-                ele_path = arrow_ele[0]
-                end_ele_id = get_element_id(ele_path)
-                ele_rec = get_element_rec_by_path(ele_path)
-                rec_center = get_rec_center(ele_rec)
-                arrow_center = get_rec_center(arrow)
-
-                if rec_center[0] == arrow_center[0] or rec_center[1] == arrow_center[1]:
-                    virtual_flow_points = [arrow_center, rec_center]
-                else:
-                    if arrow_ele[1] == 1 or arrow_ele[1] == 3:
-                        virtual_flow_points = [(arrow_center[0], rec_center[1]), arrow_center]
-                    else:
-                        virtual_flow_points = [(rec_center[0], arrow_center[1]), arrow_center]
-
-                p1 = virtual_flow_points[-1]
-                p2 = virtual_flow_points[-2]
-                begin_ele_id = get_begin_ele_id(p1, p2)
-                points = complete_flow(begin_ele_id, virtual_flow_points)
-                if is_same(points[1], arrow_center):
-                    points.pop(0)
-                else:
-                    points[0] = arrow_center
-                flows[arrow_id] = [[end_ele_id, points, begin_ele_id]]
-                arrow_flows = flows[arrow_id]
+            # arrow_ele = arrow_ele_map.get(arrow_id)
+            # if len(arrow_flows) == 0:
+            #     arrow = arrows[arrow_id]
+            #     # dilated_arrow = dilate(arrow, 5)
+            #     ele_path = arrow_ele[0]
+            #     end_ele_id = get_element_id(ele_path)
+            #     ele_rec = get_element_rec_by_path(ele_path)
+            #     rec_center = helper.get_rec_center(ele_rec)
+            #     arrow_center = helper.get_rec_center(arrow)
+            #
+            #     if rec_center[0] == arrow_center[0] or rec_center[1] == arrow_center[1]:
+            #         virtual_flow_points = [arrow_center, rec_center]
+            #     else:
+            #         if arrow_ele[1] == 1 or arrow_ele[1] == 3:
+            #             virtual_flow_points = [(arrow_center[0], rec_center[1]), arrow_center]
+            #         else:
+            #             virtual_flow_points = [(rec_center[0], arrow_center[1]), arrow_center]
+            #
+            #     p1 = virtual_flow_points[-1]
+            #     p2 = virtual_flow_points[-2]
+            #     _, begin_ele_id = get_begin_ele_id(p1, p2)
+            #     points = complete_flow(begin_ele_id, virtual_flow_points)
+            #     if is_same(points[1], arrow_center):
+            #         points.pop(0)
+            #     else:
+            #         points[0] = arrow_center
+            #     flows[arrow_id] = [[end_ele_id, points, begin_ele_id]]
+            #     arrow_flows = flows[arrow_id]
             for flow in arrow_flows:
                 flow_points = flow[1]
                 final_flow_points = get_ele_edge_point(flow[2], flow_points)
                 flow[1] = final_flow_points
 
+        pools_img = draw_pools(pools)
+        # show_im(pools_img, "pools_img_no_lines")
+
         # 画顺序流
         for arrow_id in range(len(arrows)):
+
             arrow_flows = flows.get(arrow_id)
             arrow_ele = arrow_ele_map.get(arrow_id)
+            # 画箭头
             if (arrow_flows is None or len(arrow_flows) == 0) and (arrow_ele is None or len(arrow_ele) == 0):
-                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_RED,
+                                     cfg.CONTOUR_THICKNESS)
             elif arrow_flows is None or len(arrow_flows) == 0:
-                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_BLUE, cfg.CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_BLUE,
+                                     cfg.CONTOUR_THICKNESS)
             elif arrow_ele is None or len(arrow_ele) == 0:
-                helper.draw_one_rect(pools_img, arrows[arrow_id], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_RED,
+                                     cfg.CONTOUR_THICKNESS)
             else:
                 color = cfg.COLOR_GREEN
                 if arrow_ele[0][3] == 1:
                     print("connect sub_process")
                     color = cfg.COLOR_BLUE
-                helper.draw_one_rect(pools_img, arrows[arrow_id], color, cfg.CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), color, cfg.CONTOUR_THICKNESS)
+
                 for flow in arrow_flows:
+
                     show_points = False
                     if flow[2] is None:
                         show_points = True
@@ -1375,6 +1925,7 @@ def parse_img(file_path):
                             color = cfg.COLOR_GREEN
                     flow_points = flow[1]
 
+                    pools_img_copy = np.zeros_like(pools_img)
                     if len(flow_points) >= 2:
                         if show_points:
                             print(flow_points)
@@ -1382,9 +1933,13 @@ def parse_img(file_path):
                             p1 = (int(flow_points[i - 1][0]), int(flow_points[i - 1][1]))
                             p2 = (int(flow_points[i][0]), int(flow_points[i][1]))
                             cv.line(pools_img, p1, p2, color, cfg.CONTOUR_THICKNESS)
+                    #         cv.line(pools_img_copy, p1, p2, color, cfg.CONTOUR_THICKNESS)
+                    #         show_im(pools_img_copy, name="one_flow")
+                    #         show_im(pools_img, name="pools_img")
+                    # cv.waitKey(0)
 
     show_im(pools_img, name="pools_img")
-    # cv.waitKey(0)
+    cv.waitKey(0)
 
     all_seq_flows = []
     if len(flows) > 0:
@@ -1418,9 +1973,9 @@ def classify_elements(classifier, classifier_type):
 
             # all_elements_images.append(ele_img)
 
+    # 直接分类所有
     # elements_type = classifier.classify(all_elements_images, classifier_type)
     # elements_text = translator.translate_images(all_elements_images)
-
 
     # print(all_elements_type)
     # helper.print_time()
@@ -1429,38 +1984,43 @@ def classify_elements(classifier, classifier_type):
     return all_elements_type
 
 
-def show_im(img_matrix, name="img"):
-    pass
+def show_im(img_matrix, name="img", show=True):
+    # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
-    # cv.namedWindow(name)
-    # cv.imshow(name, img_matrix)
-    # cv.waitKey(0)
+    if show:
+        cv.namedWindow(name)
+        cv.imshow(name, img_matrix)
+        # cv.waitKey(0)
 
 
 def detect(file_path, classifier, classifier_type):
     all_seq_flows = parse_img(file_path)
 
-    all_elements_type = classify_elements(classifier, classifier_type)
-    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-                                                                 all_seq_flows)
-    return definitions, all_elements_info, all_seq_flows, all_elements, pools
+    # all_elements_type = classify_elements(classifier, classifier_type)
+    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+    #                                                              all_seq_flows)
+    # return definitions, all_elements_info, all_seq_flows, all_elements, pools
 
 
 def run():
-    classifier = Classifier()
-    # sample_dir = "imgs/admission/"
-    sample_dir = "samples/imgs/loop/"
-    # sample_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/admission/images/"
-    # sample_dir = "samples/imgs/"
+    sample_dir = "samples/imgs/sample_1/"
     images = os.listdir(sample_dir)
-    # 5, -1, -4
-    selected = images
-    for im in selected:
+
+    # classifier = Classifier()
+    # [0, 5, 6, 10, 14, 15]
+    size = len(images)
+    selected = list(range(size))
+    for i in selected:
+
+        im = images[i]
         file_path = sample_dir + im
-        print(im)
         if os.path.isfile(file_path):
-            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
-            model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
+            print("-" * 50)
+            print(i)
+            print(im)
+            detect(file_path, None, None)
+            # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
+            # model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
 
 
 if __name__ == '__main__':
