@@ -1830,7 +1830,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=True):
+def show_im(img_matrix, name="img", show=False):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
