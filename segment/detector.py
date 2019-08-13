@@ -6,10 +6,11 @@ from functools import cmp_to_key
 
 import helper.detector_helper as helper
 from helper.utils import Line, Vector, is_parallel, get_point_of_intersection, points_to_line
-from classifier import Classifier
 import cfg
 from img_preprocess import pre_process, get_seq_arrows, get_seq_arrow_direction
 import pools_detector
+
+from classifier import Classifier
 import model_exporter
 import translator
 
@@ -506,6 +507,7 @@ def get_initial_lines(arrows, line_list):
             if not connected:
                 # 依据箭头图像，判断箭头及其连接线的方向，这里筛选出的孤立箭头，通常情况下只会是一个箭头，不会是多个箭头的融合体
                 # print("found_not_connected_arrow")
+                # print(arrows[i])
                 arrow = helper.dilate(arrows[i], 1)
                 arrow_img = helper.truncate(input_img, arrow)
                 arrow_line = get_seq_arrow_direction(arrow_img, arrow)
@@ -1715,6 +1717,8 @@ def parse_img(file_path):
         normalized_lines_img = helper.draw_lines(background, line_list, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         show_im(normalized_lines_img, "normalized_lines_img")
 
+        # cv.waitKey(0)
+
         # 获取与箭头相连的线段
         arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
 
@@ -1826,7 +1830,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=False):
+def show_im(img_matrix, name="img", show=True):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
@@ -1892,8 +1896,8 @@ def run():
             print("-" * 50)
             print(i)
             print(im)
-            # detect(file_path, None, None)
-            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
+            detect(file_path, None, None)
+            # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
             # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
 
 

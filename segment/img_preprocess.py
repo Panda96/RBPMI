@@ -2,7 +2,7 @@
 import cv2 as cv
 import numpy as np
 import os
-
+from matplotlib import pyplot as plt
 from functools import cmp_to_key
 
 import cfg
@@ -319,7 +319,7 @@ def get_arrow_points(points, center):
         for p in points:
             is_valid = False
             for core in curr_cores:
-                if helper.get_points_dist_square(core, p) < 2.1:
+                if helper.get_points_dist_square(core, p) < 1.1:
                     next_cores.append(p)
                     is_valid = True
                     break
@@ -345,6 +345,9 @@ def get_seq_arrow_direction(a_img, arrow):
     arrow_img = 255 - arrow_img
     _, arrow_img = cv.threshold(arrow_img, 125, 255, cv.THRESH_BINARY)
 
+    # cv.imshow("arrow_img", helper.dilate_drawing(arrow_img))
+    # cv.waitKey(0)
+
     # 获取箭头所有点的坐标
     # 坐标系：右x下y
     res = np.where(arrow_img > 125)
@@ -357,6 +360,9 @@ def get_seq_arrow_direction(a_img, arrow):
 
     points = get_arrow_points(points, center)
     points = np.array(points)
+
+    # plt.scatter(points[:, 0], points[:, 1])
+    # plt.show()
 
     # 获取箭头的凸包
     hull = cv.convexHull(points)
@@ -395,6 +401,8 @@ def get_seq_arrow_direction(a_img, arrow):
 
     # cv.line(a_img, line.p1, line.p2, cfg.COLOR_RED, 1)
     # cv.line(a_img, line_cut.p1, line_cut.p2, cfg.COLOR_BLUE, 1)
+    # cv.imshow("arrow", helper.dilate_drawing(a_img))
+    # cv.waitKey(0)
     real_p1 = [line.p1[0] + arrow[0], line.p1[1] + arrow[1]]
     real_p2 = [line.p2[0] + arrow[0], line.p2[1] + arrow[1]]
 
@@ -416,8 +424,7 @@ def get_seq_arrow_direction(a_img, arrow):
     arrow_line = {(line.k, line.b): info}
 
     # print(arrow_line)
-    # cv.imshow("arrow", helper.dilate_drawing(a_img))
-    # cv.waitKey(0)
+
 
     return arrow_line
 
