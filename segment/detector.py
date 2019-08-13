@@ -1469,8 +1469,13 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                                             arrow_id, new_merged_lines)
                 if one_flow[2] is None:
                     arrow_flows.pop(flow_id)
-                for key in new_merged_lines.keys():
-                    not_merged_lines.remove(key)
+
+                keys = set(list(new_merged_lines.keys()))
+                for key in keys:
+                    try:
+                        not_merged_lines.remove(key)
+                    except ValueError:
+                        continue
 
     # 下面处理 一到多 的剩余情形 complete flows
     not_completed_flows = []
@@ -1807,7 +1812,7 @@ def parse_img(file_path):
                     #         show_im(pools_img, name="pools_img")
                     # cv.waitKey(0)
 
-    show_im(pools_img, name="pools_img")
+    # show_im(pools_img, name="pools_img")
     # cv.waitKey(0)
 
     all_seq_flows = []
@@ -1872,7 +1877,7 @@ def detect(file_path, classifier, classifier_type):
 
 
 def run():
-    sample_dir = "samples/imgs/sample_1/"
+    sample_dir = "samples/imgs/test/"
     images = os.listdir(sample_dir)
 
     classifier = Classifier()
@@ -1889,7 +1894,7 @@ def run():
             print(im)
             # detect(file_path, None, None)
             definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
-            model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
+            # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
 
 
 if __name__ == '__main__':
