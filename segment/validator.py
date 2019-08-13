@@ -178,24 +178,24 @@ def validate_one(bpmn_file, image_file, classifier_type):
             else:
                 print("not detected")
                 detect = [0, 0, 0]
-            print("{}\t{},{},{},{}".format(label, total, detect[0], detect[1], detect[2]))
+            # print("{}\t{},{},{},{}".format(label, total, detect[0], detect[1], detect[2]))
             one_res["shapes"][label] = [total, detect[0], detect[1], detect[2]]
 
-    print("fake_elements\t{}".format(len(fake_elements)))
+    # print("fake_elements\t{}".format(len(fake_elements)))
     one_res["fake_elements"] = len(fake_elements)
 
     seq_record = "sequenceFlow\t{},{},{},{},{}".format(seq_result[0], seq_result[1],
                                                        seq_result[2], seq_result[3], seq_result[4])
     one_res["seq_record"] = seq_record
-    print(seq_record)
+    # print(seq_record)
 
-    print("=" * 100)
+    # print("=" * 100)
     return one_res
 
 
 def validate(data_dir, classifier_type):
     print("validate {}".format(classifier_type))
-    validate_res_dir = "validate_results/"
+    validate_res_dir = "validate_results_1/"
 
     bpmn_dir = data_dir + "bpmn/"
     images_dir = data_dir + "images/"
@@ -207,6 +207,7 @@ def validate(data_dir, classifier_type):
 
     results = []
     for i in range(len(bpmns)):
+        print("-" * 100)
         print(i)
         bpmn_file = bpmn_dir + bpmns[i]
         image_file = images_dir + images[i]
@@ -249,8 +250,8 @@ if __name__ == '__main__':
     # classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]
     if opt == "vgg":
         print("validate vgg")
-        validate(validate_data_dir, "vgg16")
-        validate(validate_data_dir, "vgg16_56")
+        # validate(validate_data_dir, "vgg16")
+        # validate(validate_data_dir, "vgg16_56")
         validate(validate_data_dir, "vgg16_57")
     elif opt == "bcf":
         print("validate bcf")

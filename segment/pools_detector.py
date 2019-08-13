@@ -281,7 +281,6 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
     upper_limit = min(model_tag + 3, layers_num)
     k = model_tag
 
-
     for ele_rec in partial_elements:
         for pool in pools_list:
             if helper.is_in(pool["lanes_rect"], ele_rec):

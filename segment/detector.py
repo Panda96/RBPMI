@@ -6,11 +6,11 @@ from functools import cmp_to_key
 
 import helper.detector_helper as helper
 from helper.utils import Line, Vector, is_parallel, get_point_of_intersection, points_to_line
-# from classifier import Classifier
+from classifier import Classifier
 import cfg
 from img_preprocess import pre_process, get_seq_arrows, get_seq_arrow_direction
 import pools_detector
-# import model_exporter
+import model_exporter
 import translator
 
 input_img = []
@@ -505,7 +505,7 @@ def get_initial_lines(arrows, line_list):
             # 没有连接线也没有临近的垂直线段的箭头
             if not connected:
                 # 依据箭头图像，判断箭头及其连接线的方向，这里筛选出的孤立箭头，通常情况下只会是一个箭头，不会是多个箭头的融合体
-                print("found_not_connected_arrow")
+                # print("found_not_connected_arrow")
                 arrow = helper.dilate(arrows[i], 1)
                 arrow_img = helper.truncate(input_img, arrow)
                 arrow_line = get_seq_arrow_direction(arrow_img, arrow)
@@ -1387,6 +1387,7 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                                 break
 
             if one_flow[2] is None:
+                # 将没有找到开始节点的顺序流与共线的离散线段相连
                 last_begin = one_flow_points[-2]
                 curr_begin = one_flow_points[-1]
                 curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
@@ -1410,7 +1411,7 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                             to_extend_lines.append(line_id)
 
                 if len(to_extend_lines) > 0:
-                    print("extended")
+                    # print("extended")
                     for line_id in to_extend_lines:
                         not_merged_lines.remove(line_id)
                     curr_line_points.sort(key=lambda x: x[dim], reverse=reverse_tag)
@@ -1458,28 +1459,20 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                     new_begins = connected_lines[line_id]
                     if len(new_begins) == 1:
                         flow_points_list[i].append(new_begins[0])
-                        detect_one_flow(flow_points_list[i], not_merged_lines, one_flow[2], discrete_lines, flows,
+                        detect_one_flow(flow_points_list[i], not_merged_lines, one_flow[0], discrete_lines, flows,
                                         arrow_id, new_merged_lines)
                     elif len(new_begins) > 1:
                         for new_begin in new_begins:
                             flow_points_i = flow_points_list[i].copy()
                             flow_points_i.append(new_begin)
-                            detect_one_flow(flow_points_i, not_merged_lines, one_flow[2], discrete_lines, flows,
+                            detect_one_flow(flow_points_i, not_merged_lines, one_flow[0], discrete_lines, flows,
                                             arrow_id, new_merged_lines)
                 if one_flow[2] is None:
                     arrow_flows.pop(flow_id)
                 for key in new_merged_lines.keys():
                     not_merged_lines.remove(key)
 
-    # print("not_merged_lines")
-    # for line_id in not_merged_lines:
-    #     print(line_id)
-    #     print(discrete_lines[line_id])
-
-    print("-" * 50)
-    print("complete flows")
-
-    # 下面处理 一到多 的剩余情形
+    # 下面处理 一到多 的剩余情形 complete flows
     not_completed_flows = []
     completed_flows = []
 
@@ -1492,24 +1485,10 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                 # print(one_flow)
             else:
                 completed_flows.append([arrow_id, flow_id])
-    # print("---------origin not_completed----------")
-    # print(not_completed_flows)
-    #
-    # print("---------- begin completing -----------")
+
     not_completed_flows, _ = merge_flows(completed_flows, not_completed_flows, flows)
 
-    # print("---------not_completed------------")
-    # print(not_completed_flows)
-    # print("---------adjust---------------")
-    # print(adjust_flows)
-    # completed_flows.extend(adjust_flows)
-
-    # print("--------- merge adjust --------")
     merge_flows(not_completed_flows, not_completed_flows, flows, False)
-    # print("---------not_completed------------")
-    # print(not_completed_flows)
-    # print("---------adjust---------------")
-    # print(adjust_flows)
 
     return flows, discrete_lines
 
@@ -1736,6 +1715,11 @@ def parse_img(file_path):
 
         # 将箭头与元素匹配，并获取一些之前未检测出的元素
         arrow_lines, arrow_ele_map = match_arrows_and_elements(arrow_lines, arrows)
+        #
+        # for arrow_id in range(len(arrows)):
+        #     print(arrow_id)
+        #     print(arrow_ele_map[arrow_id])
+        # print("-" * 50)
 
         # 去除有一端在元素里的离散线段
         for i, line in enumerate(discrete_lines):
@@ -1751,91 +1735,6 @@ def parse_img(file_path):
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
 
-        # # 从与元素直连的离散线段开始往已有flow 连接
-        # for i, line in enumerate(discrete_lines):
-        #     p1_is_begin = is_begin_point(line.p1, line, -1)
-        #     p2_is_begin = is_begin_point(line.p2, line, -1)
-        #
-        #     if p1_is_begin[0] and p2_is_begin[0]:
-        #         if p1_is_begin[1] == p2_is_begin[1]:
-        #             discrete_lines[i] = None
-        #         discrete_lines[i] = None
-        #         continue
-        #     elif p1_is_begin[0]:
-        #         begin_points = [line.p2, line.p1]
-        #         begin_ele_id = p1_is_begin[1]
-        #     elif p2_is_begin[0]:
-        #         begin_points = [line.p1, line.p2]
-        #         begin_ele_id = p2_is_begin[1]
-        #     else:
-        #         discrete_lines[i] = None
-        #         continue
-        #
-        #     for arrow_id in range(len(arrows)):
-        #         arrow_flows = flows[arrow_id]
-        #         for flow in arrow_flows:
-        #             if flow[2] is None:
-        #                 flow_points = flow[1]
-        #                 p1 = flow_points[-1]
-        #                 p2 = flow_points[-2]
-        #                 end_line = Line([p1[0], p1[1], p2[0], p2[1]])
-        #
-        #                 intersection = get_point_of_intersection(line, end_line)
-        #                 if intersection is not None:
-        #                     d1 = helper.get_points_dist(intersection, begin_points[0])
-        #                     d2 = helper.get_points_dist(intersection, begin_points[1])
-        #                     if d2 <= d1:
-        #                         continue
-        #                     else:
-        #                         d3 = helper.get_points_dist(intersection, p1)
-        #                         if (d3 <= 5 and d1 < 100) or (d1 <= 5 and d3 < 100):
-        #                             flow_points[-1] = intersection
-        #                             flow_points.append(begin_points[-1])
-        #                             flow[2] = begin_ele_id
-        #                             discrete_lines[i] = None
-        # # discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
-        #
-        # for arrow_id_i in range(len(arrows)):
-        #     arrow_flows_i = flows[arrow_id_i]
-        #     for flow_id_i, flow_i in enumerate(arrow_flows_i):
-        #         if flow_i[2] is None:
-        #             to_next = False
-        #             flow_i_points = flow_i[1]
-        #             p1 = flow_i_points[-1]
-        #             p2 = flow_i_points[-2]
-        #             end_line = points_to_line(p1, p2)
-        #             for arrow_id_j in range(len(arrows)):
-        #                 arrow_flows_j = flows[arrow_id_j]
-        #                 for flow_id_j, flow_j in enumerate(arrow_flows_j):
-        #                     if arrow_id_i != arrow_id_j or flow_id_i != flow_id_j:
-        #                         flow_j = arrow_flows_j[flow_id_j]
-        #                         flow_j_points = flow_j[1]
-        #                         for i in range(1, len(flow_j_points)):
-        #                             p3 = flow_j_points[i - 1]
-        #                             p4 = flow_j_points[i]
-        #                             flow_seg = points_to_line(p3, p4)
-        #                             intersection = get_point_of_intersection(end_line, flow_seg)
-        #                             if intersection is not None:
-        #                                 d1 = helper.get_points_dist(intersection, p1)
-        #                                 d2 = helper.get_points_dist(intersection, p2)
-        #                                 v1 = Vector(intersection, p3)
-        #                                 v2 = Vector(intersection, p4)
-        #                                 if d1 < 5 and is_opposite(v1, v2) and d1 < d2:
-        #                                     to_next = True
-        #                                     flow_i_points[-1] = intersection
-        #                                     extend_flow = flow_j_points[i:]
-        #                                     flow_i_points.extend(extend_flow)
-        #                                     if flow_j[2] is not None:
-        #                                         flow_i[2] = flow_j[2]
-        #                                     break
-        #                     if to_next:
-        #                         break
-        #                 if to_next:
-        #                     break
-        #
-
-        to_remove_flows = []
-
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
             for flow_id, flow in enumerate(arrow_flows):
@@ -1847,42 +1746,9 @@ def parse_img(file_path):
                         flow[1] = complete_flow_points
                         flow[2] = begin_ele_id
                     else:
-                        to_remove_flows.append([arrow_id, flow_id])
-
-        for [arrow_id, flow_id] in to_remove_flows:
-            flows[arrow_id].pop(flow_id)
-
-        for arrow_id in range(len(arrows)):
-            arrow_flows = flows[arrow_id]
-            # arrow_ele = arrow_ele_map.get(arrow_id)
-            # if len(arrow_flows) == 0:
-            #     arrow = arrows[arrow_id]
-            #     # dilated_arrow = dilate(arrow, 5)
-            #     ele_path = arrow_ele[0]
-            #     end_ele_id = get_element_id(ele_path)
-            #     ele_rec = get_element_rec_by_path(ele_path)
-            #     rec_center = helper.get_rec_center(ele_rec)
-            #     arrow_center = helper.get_rec_center(arrow)
-            #
-            #     if rec_center[0] == arrow_center[0] or rec_center[1] == arrow_center[1]:
-            #         virtual_flow_points = [arrow_center, rec_center]
-            #     else:
-            #         if arrow_ele[1] == 1 or arrow_ele[1] == 3:
-            #             virtual_flow_points = [(arrow_center[0], rec_center[1]), arrow_center]
-            #         else:
-            #             virtual_flow_points = [(rec_center[0], arrow_center[1]), arrow_center]
-            #
-            #     p1 = virtual_flow_points[-1]
-            #     p2 = virtual_flow_points[-2]
-            #     _, begin_ele_id = get_begin_ele_id(p1, p2)
-            #     points = complete_flow(begin_ele_id, virtual_flow_points)
-            #     if is_same(points[1], arrow_center):
-            #         points.pop(0)
-            #     else:
-            #         points[0] = arrow_center
-            #     flows[arrow_id] = [[end_ele_id, points, begin_ele_id]]
-            #     arrow_flows = flows[arrow_id]
-            for flow in arrow_flows:
+                        arrow_flows[flow_id] = None
+            flows[arrow_id] = list(filter(lambda x: x is not None, arrow_flows))
+            for flow in flows[arrow_id]:
                 flow_points = flow[1]
                 final_flow_points = get_ele_edge_point(flow[2], flow_points)
                 flow[1] = final_flow_points
@@ -1912,7 +1778,10 @@ def parse_img(file_path):
                     color = cfg.COLOR_BLUE
                 helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), color, cfg.CONTOUR_THICKNESS)
 
+                # print(arrow_id)
+                # print(arrows[arrow_id])
                 for flow in arrow_flows:
+                    # print(flow)
 
                     show_points = False
                     if flow[2] is None:
@@ -1925,7 +1794,7 @@ def parse_img(file_path):
                             color = cfg.COLOR_GREEN
                     flow_points = flow[1]
 
-                    pools_img_copy = np.zeros_like(pools_img)
+                    # pools_img_copy = np.zeros_like(pools_img)
                     if len(flow_points) >= 2:
                         if show_points:
                             print(flow_points)
@@ -1939,7 +1808,7 @@ def parse_img(file_path):
                     # cv.waitKey(0)
 
     show_im(pools_img, name="pools_img")
-    cv.waitKey(0)
+    # cv.waitKey(0)
 
     all_seq_flows = []
     if len(flows) > 0:
@@ -1952,11 +1821,20 @@ def parse_img(file_path):
     return all_seq_flows
 
 
+def show_im(img_matrix, name="img", show=False):
+    # pass
+    # cv.namedWindow(name, cv.WINDOW_NORMAL)
+    if show:
+        cv.namedWindow(name)
+        cv.imshow(name, img_matrix)
+        # cv.waitKey(0)
+
+
 def classify_elements(classifier, classifier_type):
     all_elements_type = []
     # print("Classifying begins...")
     # helper.print_time()
-    all_elements_images = []
+    # all_elements_images = []
     for ele_path in all_elements:
         if ele_path[3] == 1:
             all_elements_type.append(["subProcess_expanded", ""])
@@ -1984,29 +1862,20 @@ def classify_elements(classifier, classifier_type):
     return all_elements_type
 
 
-def show_im(img_matrix, name="img", show=True):
-    # pass
-    # cv.namedWindow(name, cv.WINDOW_NORMAL)
-    if show:
-        cv.namedWindow(name)
-        cv.imshow(name, img_matrix)
-        # cv.waitKey(0)
-
-
 def detect(file_path, classifier, classifier_type):
     all_seq_flows = parse_img(file_path)
 
-    # all_elements_type = classify_elements(classifier, classifier_type)
-    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-    #                                                              all_seq_flows)
-    # return definitions, all_elements_info, all_seq_flows, all_elements, pools
+    all_elements_type = classify_elements(classifier, classifier_type)
+    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+                                                                 all_seq_flows)
+    return definitions, all_elements_info, all_seq_flows, all_elements, pools
 
 
 def run():
     sample_dir = "samples/imgs/sample_1/"
     images = os.listdir(sample_dir)
 
-    # classifier = Classifier()
+    classifier = Classifier()
     # [0, 5, 6, 10, 14, 15]
     size = len(images)
     selected = list(range(size))
@@ -2018,9 +1887,9 @@ def run():
             print("-" * 50)
             print(i)
             print(im)
-            detect(file_path, None, None)
-            # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
-            # model_exporter.export_xml(definitions, "output/{}.bpmn".format(im[0:-4]))
+            # detect(file_path, None, None)
+            definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
+            model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
 
 
 if __name__ == '__main__':
