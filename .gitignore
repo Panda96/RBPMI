@@ -136,6 +136,7 @@ segment/bcf/model/code_book_56_30.data
 
 segment/test_results
 segment/validate_results
+segment/validate_results_1
 
 image_classification/model_log
 segment/*.txt
