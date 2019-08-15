@@ -211,9 +211,6 @@ def get_seq_arrows(input_img):
     return seq_arrows
 
 
-
-
-
 def abs_cross(p1, p2, p3):
     """获取向量p1p2,与p1p3的叉积的绝对值"""
     v1 = [p2[0] - p1[0], p2[1] - p1[1]]
@@ -268,32 +265,51 @@ def get_bisector(seg1, seg2):
         return k, b
 
 
+# def is_border_point(point, width, height):
+#     if point[0] == 0 or point[0] == width - 1 or point[1] == 0 or point[1] == height - 1:
+#         return True
+#     return False
+
+def get_convex_hull_points(points):
+    points = np.array(points)
+
+    # 获取箭头的凸包
+    hull = cv.convexHull(points)
+    hull_points = list()
+    for point in hull:
+        p = list(point[0])
+        hull_points.append(p)
+    return hull_points
+
+
 def get_diam_of_convex_hull(hull, width, height):
     """获取凸包的长轴(距离最远的两个点连成的线) 可用旋转卡壳算法，但点不多，不必要"""
     """输入:逆时针排序的凸包上的点"""
     """输出:线段的序列，每条线段的端点按横坐标，纵坐标排序"""
-    length = 0
-    diams = list
 
+    length = 0
+    diams = list()
     size = len(hull)
 
     for i in range(size):
         for j in range(i + 1, size):
-
             dist = helper.get_points_dist_square(hull[i], hull[j])
-
-            if dist > length:
+            if length < dist:
                 length = dist
                 diams = [[hull[i], hull[j]]]
             elif dist == length:
                 diams.append([hull[i], hull[j]])
 
     for diam in diams:
+        # print("diam")
         diam.sort(key=cmp_to_key(helper.points_cmp))
+        # print(diam)
+        # print("------")
 
+    line = None
     if len(diams) == 1:
         line = points_to_line(diams[0][0], diams[0][1])
-        return line
+        # return line
     elif len(diams) == 2:
         k, b = get_bisector(diams[0], diams[1])
         if k is not None:
@@ -302,15 +318,32 @@ def get_diam_of_convex_hull(hull, width, height):
         else:
             p1 = (int(b), 0)
             p2 = (int(b), height)
-        return points_to_line(p1, p2)
+        line = points_to_line(p1, p2)
     else:
+        # for diam in diams:
+        #     print(diam)
         print("凸包存在多条直径, 或凸包点数少于2")
 
+    return line
 
-def get_arrow_points(points, center):
+
+def get_arrow_points(points, center, arrow):
     """通过聚类，去除噪声点即不属于箭头的点"""
 
-    arrow_points = [center]
+    # if filter:
+    real_points = []
+    for p in points:
+        if (p[1] == 0 or p[1] == arrow[3] - 1) and \
+                (0 < p[0] < center[0] - 1 or center[0] + 1 < p[0] < arrow[2] - 1) \
+                or \
+                (p[0] == 0 or p[0] == arrow[2] - 1) and \
+                (0 < p[1] < center[1] - 1 or center[1] + 1 < p[1] < arrow[1] - 1):
+            pass
+        else:
+            real_points.append(p)
+    points = real_points
+
+    arrow_points = []
     curr_cores = [center]
     next_cores = []
     rest_points = []
@@ -335,97 +368,160 @@ def get_arrow_points(points, center):
     return arrow_points
 
 
-def get_seq_arrow_direction(a_img, arrow):
+def get_seq_arrow_direction(binary_input, arrow, input_img):
     """从箭头图片判断箭头方向"""
     width = arrow[2]
     height = arrow[3]
     center = [width // 2, height // 2]
+    arrow_img = helper.truncate(binary_input, arrow)
 
-    arrow_img = cv.cvtColor(a_img, cv.COLOR_BGR2GRAY)
-    arrow_img = 255 - arrow_img
-    _, arrow_img = cv.threshold(arrow_img, 125, 255, cv.THRESH_BINARY)
+    # a_img = helper.truncate(input_img, arrow)
 
     # cv.imshow("arrow_img", helper.dilate_drawing(arrow_img))
     # cv.waitKey(0)
 
     # 获取箭头所有点的坐标
     # 坐标系：右x下y
-    res = np.where(arrow_img > 125)
     points = []
-    for i in range(len(res[0])):
-        x = res[1][i]
-        y = res[0][i]
-        if x != center[0] or y != center[1]:
-            points.append([res[1][i], res[0][i]])
+    vertical_lines = []
+    horizontal_lines = []
 
-    points = get_arrow_points(points, center)
-    points = np.array(points)
+    for i in range(width):
+        is_possible_diam = True
+        for j in range(height):
+            if arrow_img[j][i] > 125:
+                points.append([i, j])
+            else:
+                is_possible_diam = False
+        if is_possible_diam and center[0] - 3 < i < center[0] + 3:
+            vertical_lines.append(i)
 
-    # plt.scatter(points[:, 0], points[:, 1])
+    for j in range(height):
+        is_possible_diam = True
+        for i in range(width):
+            if arrow_img[j][i] <= 125:
+                is_possible_diam = False
+                break
+        if is_possible_diam and center[1] - 3 < j < center[1] + 3:
+            horizontal_lines.append(j)
+
+    # points = list(points)
+    #
+    # print("vertical_lines:", vertical_lines)
+    # print("horizonal_lines:", horizontal_lines)
+
+    diam = None
+    if len(vertical_lines) > 1 >= len(horizontal_lines):
+        # if max(vertical_lines) - min(vertical_lines)
+        mean_v_line = np.mean(vertical_lines)
+        if center[0] - 2 < mean_v_line < center[0] + 2:
+            x_value = int(mean_v_line)
+            diam = points_to_line([x_value, 0], [x_value, height - 1])
+        else:
+            for v_line in vertical_lines:
+                for j in range(height):
+                    points.remove([v_line, j])
+    elif len(vertical_lines) <= 1 < len(horizontal_lines):
+        mean_h_line = np.mean(horizontal_lines)
+        if center[1] - 2 < mean_h_line < center[0] + 2:
+            y_value = int(mean_h_line)
+            diam = points_to_line([0, y_value], [width-1, y_value])
+        # else:
+    elif len(vertical_lines) > 1 and len(horizontal_lines) > 1:
+        mean_v_line = np.mean(vertical_lines)
+        mean_h_line = np.mean(horizontal_lines)
+        v_center_dist = abs(center[0] - mean_v_line)
+        h_center_dist = abs(center[1] - mean_h_line)
+
+        if v_center_dist < h_center_dist and v_center_dist < 2:
+            x_value = int(mean_v_line)
+            diam = points_to_line([x_value, 0], [x_value, height - 1])
+        elif h_center_dist < v_center_dist and h_center_dist < 2:
+            y_value = int(mean_h_line)
+            diam = points_to_line([0, y_value], [width-1, y_value])
+
+    points = get_arrow_points(points, center, arrow)
+    hull_points = get_convex_hull_points(points)
+    if diam is None:
+        # 获取箭头的轴线，即凸包中最远的两个点
+        diam = get_diam_of_convex_hull(hull_points, width, height)
+
+    if diam is None:
+        print("can't find valid diam")
+        # cv.waitKey(0)
+        return None
+    # print("diam:", diam)
+
+    # hull_points = np.array(hull_points)
+    #
+    # plt.scatter(hull_points[:, 0], hull_points[:, 1])
     # plt.show()
-
-    # 获取箭头的凸包
-    hull = cv.convexHull(points)
-    hull_points = list()
-    for point in hull:
-        p = list(point[0])
-        hull_points.append(p)
-
-    # 获取箭头的轴线，即凸包中最远的两个点
-    line = get_diam_of_convex_hull(hull_points, width, height)
 
     # 获取箭头前端三角形的底
     pos_max = -1
-    pos_polar_point = ()
+    pos_polar_points = []
     neg_min = 1
-    neg_polar_point = ()
+    neg_polar_points = []
     for p in hull_points:
-        if line.k is None:
-            val = p[0] - line.b
+        if diam.k is None:
+            val = p[0] - diam.b
         else:
-            val = (p[1] - line.k * p[0] - line.b) / np.sqrt(1 + line.k ** 2)
+            val = (p[1] - diam.k * p[0] - diam.b) / np.sqrt(1 + diam.k ** 2)
 
         if val > 0:
             if val > pos_max:
                 pos_max = val
-                pos_polar_point = (p[0], p[1])
+                pos_polar_points = [[p[0], p[1]]]
+            elif val == pos_max:
+                pos_polar_points.append([p[0], p[1]])
         else:
             if val < neg_min:
                 neg_min = val
-                neg_polar_point = (p[0], p[1])
+                neg_polar_points = [[p[0], p[1]]]
+            elif val == neg_min:
+                neg_polar_points.append([p[0], p[1]])
+
+    if len(pos_polar_points) == 0 or len(neg_polar_points) == 0:
+        print("invalid diam. The diam can't divide the arrow")
+        return None
+
+    pos_pts = np.array(pos_polar_points)
+    neg_pts = np.array(neg_polar_points)
+
+    pos_polar_point = [int(np.mean(pos_pts[:, 0])), int(np.mean(pos_pts[:, 1]))]
+    neg_polar_point = [int(np.mean(neg_pts[:, 0])), int(np.mean(neg_pts[:, 1]))]
 
     line_cut = points_to_line(pos_polar_point, neg_polar_point)
 
     # 箭头前端三角的底与轴线的交点
-    cut_point = get_point_of_intersection(line, line_cut)
+    cut_point = get_point_of_intersection(diam, line_cut)
 
-    # cv.line(a_img, line.p1, line.p2, cfg.COLOR_RED, 1)
+    # cv.line(a_img, diam.p1, diam.p2, cfg.COLOR_RED, 1)
     # cv.line(a_img, line_cut.p1, line_cut.p2, cfg.COLOR_BLUE, 1)
     # cv.imshow("arrow", helper.dilate_drawing(a_img))
-    # cv.waitKey(0)
-    real_p1 = [line.p1[0] + arrow[0], line.p1[1] + arrow[1]]
-    real_p2 = [line.p2[0] + arrow[0], line.p2[1] + arrow[1]]
 
-    line = points_to_line(real_p1, real_p2)
+    real_p1 = [diam.p1[0] + arrow[0], diam.p1[1] + arrow[1]]
+    real_p2 = [diam.p2[0] + arrow[0], diam.p2[1] + arrow[1]]
 
-    if line.k is None:
+    diam = points_to_line(real_p1, real_p2)
+
+    if diam.k is None:
         if cut_point[1] < height / 2:
             direction = cfg.TOP
         else:
             direction = cfg.DOWN
-        info = [line.p1[1], line.p2[1], direction]
+        info = [diam.p1[1], diam.p2[1], direction]
     else:
         if cut_point[0] < width / 2:
             direction = cfg.LEFT
         else:
             direction = cfg.RIGHT
-        info = [line.p1[0], line.p2[0], direction]
+        info = [diam.p1[0], diam.p2[0], direction]
 
-    arrow_line = {(line.k, line.b): info}
+    arrow_line = {(diam.k, diam.b): info}
 
     # print(arrow_line)
-
-
+    # cv.waitKey(0)
     return arrow_line
 
 

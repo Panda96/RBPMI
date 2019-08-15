@@ -10,8 +10,8 @@ import cfg
 from img_preprocess import pre_process, get_seq_arrows, get_seq_arrow_direction
 import pools_detector
 
-from classifier import Classifier
-import model_exporter
+# from classifier import Classifier
+# import model_exporter
 import translator
 
 input_img = []
@@ -440,6 +440,11 @@ def extend_line_to_rec(line, rect):
 def get_initial_lines(arrows, line_list):
     """找seqFlow与箭头相连的部分，确定seqFlow的尾端"""
     # arrow_lines:{arrow_id: {(k, b): info}} info: [start_point, end_point, direction]
+
+    binary_input = cv.cvtColor(input_img, cv.COLOR_BGR2GRAY)
+    binary_input = 255 - binary_input
+    _, binary_input = cv.threshold(binary_input, 125, 255, cv.THRESH_BINARY)
+
     arrow_lines = dict()
     discrete_lines = list()
     for line in line_list:
@@ -506,12 +511,14 @@ def get_initial_lines(arrows, line_list):
             # 没有连接线也没有临近的垂直线段的箭头
             if not connected:
                 # 依据箭头图像，判断箭头及其连接线的方向，这里筛选出的孤立箭头，通常情况下只会是一个箭头，不会是多个箭头的融合体
-                # print("found_not_connected_arrow")
+                print("found_not_connected_arrow")
                 # print(arrows[i])
                 arrow = helper.dilate(arrows[i], 1)
-                arrow_img = helper.truncate(input_img, arrow)
-                arrow_line = get_seq_arrow_direction(arrow_img, arrow)
-                arrow_lines[i] = arrow_line
+                arrow_line = get_seq_arrow_direction(binary_input, arrow, input_img)
+                if arrow_line is not None:
+                    arrow_lines[i] = arrow_line
+                else:
+                    arrow_lines[i] = dict()
 
         else:
             # 已有连接线的箭头, 将相似线段合并，不知道什么原因在normalize阶段，有一些线段没合并
@@ -1696,7 +1703,7 @@ def parse_img(file_path):
     # print(all_elements)
     flows = defaultdict(list)
     if len(arrows) > 0:
-        flows_img = remove_elements(3)
+        flows_img = remove_elements(4)
         # show_im(flows_img, "no_elements")
 
         # 移除文本
@@ -1816,8 +1823,8 @@ def parse_img(file_path):
                     #         show_im(pools_img, name="pools_img")
                     # cv.waitKey(0)
 
-    # show_im(pools_img, name="pools_img")
-    # cv.waitKey(0)
+        show_im(pools_img, name="pools_img")
+        cv.waitKey(0)
 
     all_seq_flows = []
     if len(flows) > 0:
@@ -1830,7 +1837,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=False):
+def show_im(img_matrix, name="img", show=True):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
@@ -1874,17 +1881,17 @@ def classify_elements(classifier, classifier_type):
 def detect(file_path, classifier, classifier_type):
     all_seq_flows = parse_img(file_path)
 
-    all_elements_type = classify_elements(classifier, classifier_type)
-    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-                                                                 all_seq_flows)
-    return definitions, all_elements_info, all_seq_flows, all_elements, pools
+    # all_elements_type = classify_elements(classifier, classifier_type)
+    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+    #                                                              all_seq_flows)
+    # return definitions, all_elements_info, all_seq_flows, all_elements, pools
 
 
 def run():
-    sample_dir = "samples/imgs/test/"
+    sample_dir = "samples/imgs/sample_1/"
     images = os.listdir(sample_dir)
 
-    classifier = Classifier()
+    # classifier = Classifier()
     # [0, 5, 6, 10, 14, 15]
     size = len(images)
     selected = list(range(size))

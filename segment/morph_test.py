@@ -46,8 +46,8 @@ def main():
 
 
 if __name__ == '__main__':
-    src = cv.imread("samples/imgs/test/arrows.png")
-    src = 255 - src
+    src = cv.imread("samples/imgs/test/027_06_FIN-STABILIZER-INSTALLATION.png")
+    # src = 255 - src
 
     # # closing 2, ellipse
     # closing_ele = get_structure(cv.MORPH_ELLIPSE, 2)
