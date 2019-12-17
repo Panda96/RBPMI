@@ -290,7 +290,9 @@ def validate(data_dir):
     projects.sort()
 
     results = []
-    for i, project in enumerate(projects):
+    for i in range(len(projects)-1, -1, -1):
+        project = projects[i]
+        print("----------------{}, {}----------------".format(i, project))
         project_dir = "{}{}".format(validate_data_dir, project)
         files = os.listdir(project_dir)
         png_file = ""
