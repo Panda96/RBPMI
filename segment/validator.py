@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 import sys
 import re
-
 sys.path.append("..")
 
 import os
@@ -12,6 +11,8 @@ from classifier import Classifier
 from collections import defaultdict
 
 from helper import detector_helper as helper
+
+
 
 classifier = Classifier()
 classifier_type = "vgg16_52"
@@ -188,7 +189,8 @@ def validate_one(json_file, image_file):
 
             lanes = pool["lanes"]
             for lane_id, lane in enumerate(lanes):
-                lane_shapes = match_ele_and_shape((pool_id, lane_id), lane, "lane", lane_shapes, shape_labels, fake_lanes,
+                lane_shapes = match_ele_and_shape((pool_id, lane_id), lane, "lane", lane_shapes, shape_labels,
+                                                  fake_lanes,
                                                   image_lane_id_map)
 
     # [file seq num, not matched, target match, source match, others]
@@ -307,33 +309,59 @@ def validate(data_dir):
         else:
             image_file = jpg_file
 
-        try:
-            one_res = validate_one(json_file, image_file)
-        except TypeError:
-            with open("validate_invalid_list.txt", "a+") as f:
-                f.write("{}\t{}:{}\n".format("TypeError", i, image_file))
-            continue
-        except IndexError:
-            with open("validate_invalid_list.txt", "a+") as f:
-                f.write("{}\t{}:{}\n".format("IndexError", i, image_file))
-            continue
-        except KeyError:
-            with open("validate_invalid_list.txt", "a+") as f:
-                f.write("{}\t{}:{}\n".format("KeyError", i, image_file))
-            continue
-        results.append(one_res)
+        _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
+                                                                                   classifier_type)
+        for seq_flow in all_seq_flows:
+            points = seq_flow[1]
+            for p_id in range(len(points)):
+                points[p_id] = [float(x) for x in points[p_id]]
+        # print(all_seq_flows)
+        detect_result = {"all_elements_info": all_elements_info,
+                         "all_seq_flows": all_seq_flows,
+                         "all_elements": all_elements,
+                         "pools": pools}
 
-    if not os.path.exists(validate_res_dir):
-        os.mkdir(validate_res_dir)
+        result_root_dir = "detect_results"
+        image_type_result_dir = "{}/{}".format(result_root_dir, img_type)
 
-    data_dir_name = data_dir.split("/")[-2]
+        project_result_dir = "{}/{}".format(image_type_result_dir, project)
 
-    file_id = len(os.listdir(validate_res_dir))
-    file_name = "{}_{}_{}_res.json".format(file_id, classifier_type, data_dir_name)
-    file_path = validate_res_dir + file_name
+        if not os.path.exists(project_result_dir):
+            os.makedirs(project_result_dir, exist_ok=True)
 
-    with open(file_path, "w") as f:
-        json.dump(results, f)
+        result_file = "{}/{}_detect.json".format(project_result_dir, project)
+        # temp = json.dumps(detect_result)
+        # print(temp)
+        with open(result_file, encoding="utf-8", mode="w") as f:
+            json.dump(detect_result, f)
+
+        # try:
+        #     one_res = validate_one(json_file, image_file)
+        # except TypeError:
+        #     with open("validate_invalid_list.txt", "a+") as f:
+        #         f.write("{}\t{}:{}\n".format("TypeError", i, image_file))
+        #     continue
+        # except IndexError:
+        #     with open("validate_invalid_list.txt", "a+") as f:
+        #         f.write("{}\t{}:{}\n".format("IndexError", i, image_file))
+        #     continue
+        # except KeyError:
+        #     with open("validate_invalid_list.txt", "a+") as f:
+        #         f.write("{}\t{}:{}\n".format("KeyError", i, image_file))
+        #     continue
+        # results.append(one_res)
+
+    # if not os.path.exists(validate_res_dir):
+    #     os.mkdir(validate_res_dir)
+    #
+    # data_dir_name = data_dir.split("/")[-2]
+    #
+    # file_id = len(os.listdir(validate_res_dir))
+    # file_name = "{}_{}_{}_res.json".format(file_id, classifier_type, data_dir_name)
+    # file_path = validate_res_dir + file_name
+    #
+    # with open(file_path, "w") as f:
+    #     json.dump(results, f)
 
 
 if __name__ == '__main__':
