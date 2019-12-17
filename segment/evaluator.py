@@ -96,7 +96,7 @@ def get_average_ratio(ratios):
 
 
 def main():
-    v_res_dir = "validate_results/"
+    v_res_dir = "validate_results_1/"
     bcf_56_1_json_file = "1_bcf_56_gen_data_valid_res.json"
     bcf_56_2_json_file = "4_bcf_56_gen_data_valid_res.json"
     bcf_57_1_json_file = "2_bcf_57_gen_data_valid_res.json"
@@ -106,6 +106,8 @@ def main():
     vgg16_56_2_json_file = "7_vgg16_56_gen_data_valid_res.json"
     vgg16_57_1_json_file = "2_vgg16_57_gen_data_valid_res.json"
     vgg16_57_2_json_file = "8_vgg16_57_gen_data_valid_res.json"
+
+    vgg16_57_0_json_file = "0_vgg16_57_gen_data_valid_res.json"
 
     data_dir = "../gen_data_valid/"
     labels = ["task", "userTask", "serviceTask", "sendTask", "scriptTask", "receiveTask", "manualTask",
@@ -126,7 +128,7 @@ def main():
     # json_path = v_res_dir + bcf_57_1_json_file
     # json_path = v_res_dir + bcf_57_2_json_file
     # json_path = v_res_dir + vgg16_57_1_json_file
-    json_path = v_res_dir + vgg16_57_2_json_file
+    json_path = v_res_dir + vgg16_57_0_json_file
 
     # json_path = v_res_dir + bcf_56_1_json_file
     # json_path = v_res_dir + bcf_56_2_json_file

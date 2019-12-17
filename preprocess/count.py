@@ -303,11 +303,6 @@ def count_one_bpmn(file):
     offset_x = 6 - min_x
     offset_y = 6 - min_y
 
-    # print(min_x)
-    # print(min_y)
-    # print(offset_x)
-    # print(offset_y)
-
     for shape_label in shapes_label:
         shape_label[2][0] += offset_x
         shape_label[2][1] += offset_y

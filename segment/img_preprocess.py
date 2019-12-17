@@ -46,8 +46,9 @@ def draw_contours(input_img, contors, contours, reverse=False):
     return drawing
 
 
-def get_layers_img(f, show, output, split, reverse, show_text):
-    input_img, layers, contours, contours_rec, _ = pre_process(f, split)
+def get_layers_img(f, show=True, output=False, split=True, reverse=True, show_text=True):
+    # input_img, layers, contours, contours_rec, partial_elements, arrows
+    _, input_img, layers, contours, contours_rec, _, _ = pre_process(f, split)
 
     for model_i in range(len(layers)):
         layer = layers[model_i].keys()
@@ -85,6 +86,12 @@ def get_contours(image, split=True):
     operation = cv.MORPH_BLACKHAT
 
     reverse = 255 - image
+
+    # op_element = helper.get_structure_ele(cv.MORPH_RECT, 1)
+    # reverse = cv.morphologyEx(reverse, cv.MORPH_CLOSE, op_element)
+    # reverse = cv.dilate(reverse, op_element)
+    # cv.imshow("reverse", reverse)
+
     arrows = get_seq_arrows(reverse)
 
     if split:
@@ -181,7 +188,7 @@ def normalize_arrow(arrow):
         y = max(0, center_y - 4)
 
         arrow = (x, y, 8, 8)
-    arrow = helper.dilate(arrow, 1)
+    arrow = helper.dilate(arrow, 2)
     return arrow
 
 
@@ -189,9 +196,10 @@ def get_seq_arrows(input_img):
     """获取sequence flow的箭头 实心箭头"""
     # detect_base = 255 - input_img
     detect_base = input_img.copy()
+    # cv.imshow("detect_base", detect_base)
 
-    # Opening, kernel:3, element:ellipse
-    open_struct = helper.get_structure_ele(cv.MORPH_OPEN, 3)
+    # Opening, kernel:2, element:ellipse
+    open_struct = helper.get_structure_ele(cv.MORPH_ELLIPSE, 2)
     detect_base = cv.morphologyEx(detect_base, cv.MORPH_OPEN, open_struct)
     # cv.imshow("seq_opening", detect_base)
 
@@ -205,7 +213,7 @@ def get_seq_arrows(input_img):
     # Filter
     seq_arrows = list(map(normalize_arrow, seq_arrows))
 
-    # seq_arrows_img = helper.draw_rects(input_img, seq_arrows, cfg.COLOR_GREEN, 1)
+    seq_arrows_img = helper.draw_rects(input_img, seq_arrows, cfg.COLOR_GREEN, 1)
     # cv.imshow("seq_arrows_img", seq_arrows_img)
     # cv.waitKey(0)
     return seq_arrows
@@ -425,7 +433,7 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
         mean_h_line = np.mean(horizontal_lines)
         if center[1] - 2 < mean_h_line < center[0] + 2:
             y_value = int(mean_h_line)
-            diam = points_to_line([0, y_value], [width-1, y_value])
+            diam = points_to_line([0, y_value], [width - 1, y_value])
         # else:
     elif len(vertical_lines) > 1 and len(horizontal_lines) > 1:
         mean_v_line = np.mean(vertical_lines)
@@ -438,7 +446,7 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
             diam = points_to_line([x_value, 0], [x_value, height - 1])
         elif h_center_dist < v_center_dist and h_center_dist < 2:
             y_value = int(mean_h_line)
-            diam = points_to_line([0, y_value], [width-1, y_value])
+            diam = points_to_line([0, y_value], [width - 1, y_value])
 
     points = get_arrow_points(points, center, arrow)
     hull_points = get_convex_hull_points(points)
@@ -562,25 +570,96 @@ def get_msg_arrows(input_img, seq_arrows):
     return msg_arrows
 
 
+def threshold_one_dim(one_dim):
+    # cv.imshow("one_dim", one_dim)
+    _, dst = cv.threshold(one_dim, 205, 255, cv.THRESH_TOZERO)
+    # cv.imshow("dst", dst)
+    _, final = cv.threshold(one_dim, 205, 255, cv.THRESH_BINARY)
+    # cv.imshow("final", final)
+
+    op_element = helper.get_structure_ele(cv.MORPH_RECT, 3)
+    dilation = cv.dilate(final, op_element)
+    # cv.imshow("one_dim_dilation", dilation)
+    final = final - dilation + 255
+    # cv.imshow("final_op", final)
+    return final
+
+
+def convert_to_black_white(input_img):
+    """将彩色图片变为黑白图片"""
+    # cv.imshow("input", input_img)
+    b = input_img[:, :, 0]
+    g = input_img[:, :, 1]
+    r = input_img[:, :, 2]
+
+    input_copy = input_img.copy()
+    b = threshold_one_dim(b)
+    # cv.waitKey(0)
+    g = threshold_one_dim(g)
+    # cv.waitKey(0)
+    r = threshold_one_dim(r)
+    # cv.waitKey(0)
+    input_copy[:, :, 0] = b
+    input_copy[:, :, 1] = g
+    input_copy[:, :, 2] = r
+
+    for i in range(input_copy.shape[0]):
+        for j in range(input_copy.shape[1]):
+            a = input_copy[i, j, :]
+            if a[0] > 0 or a[1] > 0 or a[2] > 0:
+                input_copy[i, j, :] = [255, 255, 255]
+
+            black = input_img[i, j, :]
+            if black[0] == 0 or black[1] == 0 or black[2] == 0:
+                input_copy[i, j, :] = black
+
+    # op_element = helper.get_structure_ele(cv.MORPH_RECT, 1)
+    # # erosion = cv.erode(input_img, op_element)
+    # dilation = cv.dilate(input_img, op_element)
+    # cv.imshow("dilation", dilation)
+    # # closure = cv.morphologyEx(input_img, cv.MORPH_CLOSE, op_element)
+    # # cv.imshow("closure", closure)
+    #
+    # op_element = helper.get_structure_ele(cv.MORPH_RECT, 2)
+    # dilation_close = cv.morphologyEx(dilation, cv.MORPH_CLOSE, op_element)
+    # dilation_close_reverse = 255 - dilation_close
+    # cv.imshow("dilation_close_resverse", dilation_close_reverse)
+    #
+    # input_img = input_img + dilation_close_reverse
+    # op_element = helper.get_structure_ele(cv.MORPH_ELLIPSE, 1)
+    # input_img = cv.morphologyEx(input_img, cv.MORPH_OPEN, op_element)
+
+    # cv.imshow("convertion", input_img)
+
+    return input_copy
+
+
 def pre_process(file_path, split=True):
-    input_img = cv.imread(file_path)
+    raw_img = cv.imread(file_path)
+    input_img = raw_img.copy()
+    if file_path.endswith(".jpeg"):
+        input_img = convert_to_black_white(input_img)
+        # return
     contours, hierarchy, partial_elements, arrows = get_contours(input_img, split)
     layers = divide_layers(contours, hierarchy)
     contours_rec = get_contours_rec(contours, layers)
-    return input_img, layers, contours, contours_rec, partial_elements, arrows
+    return raw_img, input_img, layers, contours, contours_rec, partial_elements, arrows
 
 
 def main():
-    sample_dir = "samples/imgs/test/"
+    sample_dir = "gen_my_data_jpg/imgs/"
     images = os.listdir(sample_dir)
 
-    selected = images[0:1]
+    selected = images[::2]
     for im in selected:
         file_path = sample_dir + im
         if os.path.isfile(file_path):
-            input_img = cv.imread(file_path)
-            seq_arrows = get_seq_arrows(input_img)
-            # get_msg_arrows(input_img, seq_arrows)
+            # get_layers_img(file_path, reverse=False)
+            _, input_img, _, _, _, _, _ = pre_process(file_path)
+            cv.imshow("input", input_img)
+            # input_img = cv.imread(file_path)
+            # convert_to_black_white(input_img)
+        cv.waitKey(0)
 
 
 if __name__ == '__main__':

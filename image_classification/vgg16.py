@@ -14,7 +14,7 @@ def image_reverse(image):
 def train(all_data_dir, model_id):
     print(model_id)
     data_train = all_data_dir + "train/"
-    data_test = all_data_dir + "test/"
+    # data_test = all_data_dir + "test/"
     data_val = all_data_dir + "val/"
 
     labels = os.listdir(data_train)
@@ -52,7 +52,7 @@ def train(all_data_dir, model_id):
         validation_data=val_iter,
         validation_steps=32
     )
-    weights_name = "VGG16_fc_model_{}.h5".format(model_id)
+    weights_name = "png_weights/VGG16_fc_model_{}.h5".format(model_id)
     tune_model.save_weights(weights_name)
 
     acc = history.history['acc']
@@ -76,14 +76,8 @@ def train(all_data_dir, model_id):
 
 if __name__ == '__main__':
 
-    data_dir = "../622data/"
-    data_56_dir = "../56_622data/"
-    data_57_dir = "../57_622data/"
+    data_dir = "../png_training_data/"
 
-    for model_i in range(5):
-        model__id = "{}".format(model_i)
-        model_56_id = "56_{}".format(model_i)
-        model_57_id = "57_{}".format(model_i)
+    for model_i in range(20):
+        model__id = "png_{}".format(model_i)
         train(data_dir, model__id)
-        train(data_56_dir, model_56_id)
-        train(data_57_dir, model_57_id)

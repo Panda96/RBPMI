@@ -1,6 +1,5 @@
 # -*- coding:utf-8 -*-
 import sys
-import getopt
 
 sys.path.append("../")
 sys.path.append("../bcf/")
@@ -15,24 +14,27 @@ import os
 
 class Classifier:
     def __init__(self):
-        self.vgg_16_classifier = None
-        self.vgg_16_56_classifier = None
-        self.vgg_16_57_classifier = None
+        self.vgg_classifier = None
 
         self.bcf_classifier = None
         self.bcf_56_classifier = None
         self.bcf_57_classifier = None
 
-        self.classes = os.listdir("../622data/train/")
-        self.classes_56 = os.listdir("../56_622data/train/")
-        self.classes_57 = os.listdir("../57_622data/train/")
+        self.img_type = None
 
-        # self.classes_weights = "../image_classification/VGG16_fc_model_4.h5"
-        # self.classes_56_weights = "../image_classification/VGG16_fc_model_56_4.h5"
-        # self.classes_57_weights = "../image_classification/VGG16_fc_model_57_4.h5"
-        self.classes_weights = "../image_classification/weights_2/VGG16_fc_model_3.h5"
-        self.classes_56_weights = "../image_classification/weights_2/VGG16_fc_model_56_2.h5"
-        self.classes_57_weights = "../image_classification/weights_2/VGG16_fc_model_57_2.h5"
+        self.classifiers = ["vgg16", "vgg16_56",
+                            "vgg16_57", "vgg16_52"]
+
+        # self.classes = [os.listdir("../622data/train/"), os.listdir("../56_622data/train/"),
+        #                 os.listdir("../57_622data/train/"),
+        #                 os.listdir("../png_training_data/train/")]
+        self.classes = [[], [], [], os.listdir("../training_data_png/train/")]
+
+        self.weights = ["../image_classification/weights_2/VGG16_fc_model_3.h5",
+                        "../image_classification/weights_2/VGG16_fc_model_56_2.h5",
+                        "../image_classification/weights_2/VGG16_fc_model_57_2.h5",
+                        {"png": "../image_classification/weights_52/png/VGG16_fc_model_png_1.h5",
+                         "jpg": "../image_classification/weights_52/jpg/VGG16_fc_model_jpg_4.h5"}]
 
         self.img_size = 150
 
@@ -60,20 +62,23 @@ class Classifier:
         # imgs = np.array(imgs)
         return imgs
 
-    def load_vgg_16_classifier(self):
-        if self.vgg_16_classifier is None:
-            self.vgg_16_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes))
-            self.vgg_16_classifier.load_weights(self.classes_weights)
+    def load_vgg_classifier(self, classifier_type):
+        classifier_id = self.classifiers.index(classifier_type)
+        if classifier_id >= 0:
+            self.vgg_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes[classifier_id]))
+            one_weight = self.weights[classifier_id]
+            if classifier_type == "vgg16_52":
+                if self.img_type is not None:
+                    one_weight = one_weight[self.img_type]
+                else:
+                    print("vgg16_52 classifier needs to specify one image type")
+                    exit(0)
+            self.vgg_classifier.load_weights(one_weight)
+        else:
+            print("invalid classifier type:{}".format(classifier_type))
 
-    def load_vgg_16_56_classifier(self):
-        if self.vgg_16_56_classifier is None:
-            self.vgg_16_56_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_56))
-            self.vgg_16_56_classifier.load_weights(self.classes_56_weights)
-
-    def load_vgg_16_57_classifier(self):
-        if self.vgg_16_57_classifier is None:
-            self.vgg_16_57_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes_57))
-            self.vgg_16_57_classifier.load_weights(self.classes_57_weights)
+    # def load_bcf_classifier(self, classifier_type):
+    #     print("bcf classifiers are not considered from now on")
 
     def classify_with_vgg_16(self, clf, images, labels):
         imgs = self.vgg_pre_process_image(images)
@@ -86,6 +91,7 @@ class Classifier:
                 label = "task"
                 print(result.shape)
                 print(np.where(result == 1))
+                print("default type is task")
             predictions.append(label)
         return predictions
 
@@ -121,15 +127,10 @@ class Classifier:
         return clf.get_images_type(imgs)
 
     def classify(self, images, classifier_type):
-        if classifier_type == "vgg16":
-            self.load_vgg_16_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_classifier, images, self.classes)
-        elif classifier_type == "vgg16_56":
-            self.load_vgg_16_56_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_56_classifier, images, self.classes_56)
-        elif classifier_type == "vgg16_57":
-            self.load_vgg_16_57_classifier()
-            predictions = self.classify_with_vgg_16(self.vgg_16_57_classifier, images, self.classes_57)
+        classifier_id = self.classifiers.index(classifier_type)
+        if classifier_type.startswith("vgg"):
+            self.load_vgg_classifier(classifier_type)
+            predictions = self.classify_with_vgg_16(self.vgg_classifier, images, self.classes[classifier_id])
         elif classifier_type == "bcf":
             self.load_bcf_classifier()
             predictions = self.classify_with_bcf(self.bcf_classifier, images)
@@ -148,8 +149,10 @@ class Classifier:
             data_dir = "../622data/"
         elif type_info[1] == "56":
             data_dir = "../56_622data/"
-        else:
+        elif type_info[1] == "57":
             data_dir = "../57_622data/"
+        else:
+            data_dir = "../{}_training_data/".format(img_type)
 
         data_test = data_dir + "test/"
         # labels = os.listdir(data_test)
@@ -174,7 +177,7 @@ class Classifier:
         test_logs = os.listdir("test_results/")
         file_id = len(test_logs)
 
-        test_res_file = "test_results/{}_{}_{}_test.txt".format(file_id, classifier_type, 4)
+        test_res_file = "test_results/{}_{}_{}_test.txt".format(file_id, classifier_type, weights_suffix)
         with open(test_res_file, "w") as f:
             all_total = 0
             all_correct = 0
@@ -190,7 +193,7 @@ class Classifier:
                 # if correct_num < total:
                 for info in test_res[label][1]:
                     print(info)
-                    f.write(info + "\n")
+                    f.write(str(info) + "\n")
             record = "{}\t{},{},{}".format("all", all_total, all_correct, all_correct / all_total)
             print(record)
             f.write(record + "\n")
@@ -203,14 +206,23 @@ if __name__ == '__main__':
 
     if opt == "vgg":
         print("test vgg")
-        classifier.test("vgg16")
-        classifier.test("vgg16_56")
-        classifier.test("vgg16_57")
+        c_type = "vgg16_52"
+        c_id = classifier.classifiers.index(c_type)
 
-    elif opt == "bcf":
-        print("test bcf")
-        classifier.test("bcf")
-        classifier.test("bcf_56")
-        classifier.test("bcf_57")
+        for img_type in ["png"]:
+            weights_list = classifier.weights[c_id][img_type]
+            for one_weights in weights_list[4:]:
+                weights_suffix = "_".join(one_weights.split("_")[-2:])
+                print(weights_suffix)
+                classifier.test(c_type)
+        # classifier.test("vgg16")
+        # classifier.test("vgg16_56")
+        # classifier.test("vgg16_57")
+
+    # elif opt == "bcf":
+    #     print("test bcf")
+    #     classifier.test("bcf")
+    #     classifier.test("bcf_56")
+    #     classifier.test("bcf_57")
     else:
-        print("wrong args, it should be 'bcf or vgg'")
+        print("wrong args, it should be vgg'")

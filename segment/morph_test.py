@@ -46,7 +46,7 @@ def main():
 
 
 if __name__ == '__main__':
-    src = cv.imread("samples/imgs/test/027_06_FIN-STABILIZER-INSTALLATION.png")
+    src = cv.imread("samples/imgs/test/preprocess_0.png")
     # src = 255 - src
 
     # # closing 2, ellipse

@@ -77,8 +77,8 @@ def divide_120_data():
 
 def divide_6_2_2_data():
     # all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
-    all_data = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500/"
-    data_622 = "E:/diagrams/bpmn-io/bpmn2image/data0423/57_622data/"
+    all_data = "E:/master/data_1031/shapes_png/pool/"
+    data_622 = "E:/master/data_1031/shapes_png/training_data/"
     data_622_train = data_622 + "train/"
     data_622_val = data_622 + "val/"
     data_622_test = data_622 + "test/"
@@ -102,19 +102,19 @@ def divide_6_2_2_data():
         index = np.arange(size)
         np.random.shuffle(index)
 
-        for i in index[0:int(0.6 * size)]:
+        for i in index[0:1000]:
             image_name = type_images[i]
             image_path = type_dir + image_name
             target_path = data_622_train + each_type + "/" + image_name
             shutil.copy(image_path, target_path)
 
-        for i in index[int(0.6 * size): int(0.8 * size)]:
+        for i in index[1000:1500]:
             image_name = type_images[i]
             image_path = type_dir + image_name
             target_path = data_622_val + each_type + "/" + image_name
             shutil.copy(image_path, target_path)
 
-        for i in index[int(0.8 * size):]:
+        for i in index[1500:]:
             image_name = type_images[i]
             image_path = type_dir + image_name
             target_path = data_622_test + each_type + "/" + image_name

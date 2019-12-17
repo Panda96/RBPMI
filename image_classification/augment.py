@@ -5,8 +5,31 @@ import numpy as np
 from keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
 
 
-def augment():
+def sample():
     type_dirs = os.listdir(data_dir)
+    for each_type in type_dirs:
+        type_dir = "{}/{}".format(data_dir, each_type)
+        max_size = 500
+        shapes = os.listdir(type_dir)
+        current_size = len(shapes)
+        type_target_dir = "{}/{}".format(sample_dir, each_type)
+        if current_size < max_size:
+            shutil.copytree(type_dir, type_target_dir)
+        else:
+            index = np.arange(current_size)
+            np.random.shuffle(index)
+
+            if not os.path.exists(type_target_dir):
+                os.mkdir(type_target_dir)
+
+            for i in index[:500]:
+                shape_name = shapes[i]
+                shape_file = "{}/{}".format(type_dir, shape_name)
+                shutil.copy(shape_file, type_target_dir)
+
+
+def augment():
+    type_dirs = os.listdir(sample_dir)
 
     # for each_type in type_dirs:
     #     type_target_dir = augment_data_dir + each_type + "/"
@@ -25,48 +48,28 @@ def augment():
 
     for each_type in type_dirs:
         print(each_type)
-        type_dir = data_dir + each_type + "/"
-        type_target_dir = augment_data_57_dir + each_type + "/"
-        # type_dir = "raw/"
-        # augment_data_dir = "test/"
-        max_size = 500
-        gen_num = 600
+        type_dir = "{}/{}".format(sample_dir, each_type)
+        type_target_dir = "{}/{}".format(data_pool_dir, each_type)
+
+        if not os.path.exists(type_target_dir):
+            os.mkdir(type_target_dir)
+
+        gen_num = 2000
         images = os.listdir(type_dir)
         current_size = len(images)
-        if len(images) < max_size:
 
-            # loop_num = (gen_num - current_size) // current_size
-            loop_num = gen_num // current_size
+        loop_num = gen_num // current_size + 2
 
-            for image in images:
-                image_path = type_dir + image
-                img = load_img(image_path)
-                x = img_to_array(img)
-                x = x.reshape((1,) + x.shape)
-                i = 0
-                for batch in data_gen.flow(x, batch_size=1, save_to_dir=type_target_dir, save_prefix=image[0:-4]):
-                    i += 1
-                    if i > loop_num:
-                        break
-
-        else:
-            index = np.arange(current_size)
-            np.random.shuffle(index)
-            current_size = 500
-
-            loop_num = gen_num // current_size
-
-            for i in index[:500]:
-                image = images[i]
-                image_path = type_dir + images[i]
-                img = load_img(image_path)
-                x = img_to_array(img)
-                x = x.reshape((1,) + x.shape)
-                i = 0
-                for batch in data_gen.flow(x, batch_size=1, save_to_dir=type_target_dir, save_prefix=image[0:-4]):
-                    i += 1
-                    if i > loop_num:
-                        break
+        for image in images:
+            image_path = "{}/{}".format(type_dir, image)
+            img = load_img(image_path)
+            x = img_to_array(img)
+            x = x.reshape((1,) + x.shape)
+            i = 0
+            for batch in data_gen.flow(x, batch_size=1, save_to_dir=type_target_dir, save_prefix=image[0:-4]):
+                if i > loop_num:
+                    break
+                i += 1
 
 
 def count_data():
@@ -82,7 +85,7 @@ def count_data():
 def count_one_dir(one_dir):
     type_dirs = os.listdir(one_dir)
     for each_type in type_dirs:
-        type_dir = merge_data_dir + each_type + "/"
+        type_dir = one_dir + "/" + each_type + "/"
         print("{}:{}".format(each_type, len(os.listdir(type_dir))))
 
 
@@ -120,17 +123,22 @@ def merge_data():
 
 
 if __name__ == '__main__':
-    data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_data/"
+    data_dir = "E:/master/data_1031/shapes_png/all_elements"
+    sample_dir = "E:/master/data_1031/shapes_png/sample"
+    data_pool_dir = "E:/master/data_1031/shapes_png/pool"
+    training_root_dir = "E:/master/data_1031/shapes_png/training_data"
     augment_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_aug_data/"
-    augment_data_57_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_data/"
+    # augment_data_57_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_data/"
     merge_data_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data/"
-    merge_data_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
-
-    augment_data_57_500_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500_data/"
-
-    data_57_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500/"
+    # merge_data_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_merge_data_500/"
+    #
+    # augment_data_57_500_dir = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500_data/"
+    #
+    # data_57_500 = "E:/diagrams/bpmn-io/bpmn2image/data0423/ele_type_57_aug_500/"
     # count_data()
-    make_dirs(data_57_500)
+    # make_dirs(data_57_500)
+    # sample()
     # augment()
+    count_one_dir(data_pool_dir)
     # merge_data()
     # count_one_dir(merge_data_dir)

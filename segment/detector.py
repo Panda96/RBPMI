@@ -15,6 +15,7 @@ import model_exporter
 import translator
 
 input_img = []
+raw_img = []
 
 pools = []
 all_elements = []
@@ -1675,20 +1676,20 @@ def is_same(p1, p2):
 def parse_img(file_path):
     global pools
     global input_img
+    global raw_img
 
     # 轮廓检测
-    input_img, layers, contours, contours_rec, partial_elements, arrows = pre_process(file_path)
+    raw_img, input_img, layers, contours, contours_rec, partial_elements, arrows = pre_process(file_path)
 
     # node元素定位(泳池，泳道，活动，事件，网关，子过程)
-    pools, type_tag, partial_elements = pools_detector.get_pools(input_img, layers, contours_rec, partial_elements,
-                                                                 arrows)
+    pools, type_tag, partial_elements = pools_detector.get_pools(layers, contours_rec, partial_elements, arrows)
     show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
     # pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
     pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
-    # pools_img = draw_pools(pools)
-    # show_im(pools_img, "raw_elements")
+    pools_img = draw_pools(pools)
+    show_im(pools_img, "raw_elements")
 
     # 移除node元素， 检测seqFlow的箭头
     flows_img = remove_elements(2)
@@ -1857,7 +1858,7 @@ def classify_elements(classifier, classifier_type):
         else:
             ele_rec = get_element_rec_by_path(ele_path)
             ele_rec = helper.dilate(ele_rec, 10)
-            ele_img = helper.truncate(input_img, ele_rec)
+            ele_img = helper.truncate(raw_img, ele_rec)
 
             ele_type = classifier.classify([ele_img], classifier_type)[0]
             text = ""
@@ -1888,15 +1889,16 @@ def detect(file_path, classifier, classifier_type):
 
 
 def run():
-    sample_dir = "samples/imgs/sample_1/"
+
+    sample_dir = "gen_my_data_jpg/imgs/"
+    # sample_dir = "samples/imgs/sample_1/"
     images = os.listdir(sample_dir)
 
     # classifier = Classifier()
     # [0, 5, 6, 10, 14, 15]
     size = len(images)
-    selected = list(range(size))
+    selected = range(1)
     for i in selected:
-
         im = images[i]
         file_path = sample_dir + im
         if os.path.isfile(file_path):
@@ -1906,6 +1908,7 @@ def run():
             detect(file_path, None, None)
             # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
             # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
+        cv.waitKey(0)
 
 
 if __name__ == '__main__':
