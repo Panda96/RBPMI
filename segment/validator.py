@@ -311,8 +311,12 @@ def validate(data_dir):
         else:
             image_file = jpg_file
 
-        _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
-                                                                                   classifier_type)
+        try:
+            _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
+                                                                                       classifier_type)
+        except TypeError:
+            print("{}, {} invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            continue
         for seq_flow in all_seq_flows:
             points = seq_flow[1]
             for p_id in range(len(points)):
