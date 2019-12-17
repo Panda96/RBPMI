@@ -290,7 +290,7 @@ def validate(data_dir):
     projects.sort()
 
     results = []
-    for i in range(len(projects)-1, -1, -1):
+    for i in range(begin, end):
         project = projects[i]
         print("----------------{}, {}----------------".format(i, project))
         project_dir = "{}{}".format(validate_data_dir, project)
@@ -369,6 +369,9 @@ def validate(data_dir):
 if __name__ == '__main__':
 
     opt = sys.argv[1]
+
+    begin = int(sys.argv[2])
+    end = int(sys.argv[3])
     # opt = "bcf"
 
     validate_data_dir = "../merge_info_validate/"
