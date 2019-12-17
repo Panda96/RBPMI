@@ -328,7 +328,7 @@ def validate(data_dir):
                          "pools": pools}
 
         result_root_dir = "detect_results"
-        image_type_result_dir = "{}/{}".format(result_root_dir, img_type)
+        image_type_result_dir = "{}/{}_{}".format(result_root_dir, img_type, i)
 
         project_result_dir = "{}/{}".format(image_type_result_dir, project)
 
