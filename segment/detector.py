@@ -1755,7 +1755,7 @@ def parse_img(file_path):
 
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
-        cv.waitKey(0)
+        # cv.waitKey(0)
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
             for flow_id, flow in enumerate(arrow_flows):
@@ -1903,7 +1903,7 @@ def run():
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected:
+    for i in selected[25:30]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)
@@ -1921,7 +1921,7 @@ def run():
                 # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_52")
                 # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
 
-        cv.waitKey(0)
+        # cv.waitKey(0)
 
 
 if __name__ == '__main__':

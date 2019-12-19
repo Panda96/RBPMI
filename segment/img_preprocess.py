@@ -572,9 +572,9 @@ def get_msg_arrows(input_img, seq_arrows):
 
 def threshold_one_dim(one_dim):
     # cv.imshow("one_dim", one_dim)
-    _, dst = cv.threshold(one_dim, 205, 255, cv.THRESH_TOZERO)
+    # _, dst = cv.threshold(one_dim, 100, 255, cv.THRESH_TOZERO)
     # cv.imshow("dst", dst)
-    _, final = cv.threshold(one_dim, 205, 255, cv.THRESH_BINARY)
+    _, final = cv.threshold(one_dim, 210, 255, cv.THRESH_BINARY)
     # cv.imshow("final", final)
 
     op_element = helper.get_structure_ele(cv.MORPH_RECT, 3)
@@ -614,22 +614,7 @@ def convert_to_black_white(input_img):
                 input_copy[i, j, :] = black
 
     # op_element = helper.get_structure_ele(cv.MORPH_RECT, 1)
-    # # erosion = cv.erode(input_img, op_element)
-    # dilation = cv.dilate(input_img, op_element)
-    # cv.imshow("dilation", dilation)
-    # # closure = cv.morphologyEx(input_img, cv.MORPH_CLOSE, op_element)
-    # # cv.imshow("closure", closure)
-    #
-    # op_element = helper.get_structure_ele(cv.MORPH_RECT, 2)
-    # dilation_close = cv.morphologyEx(dilation, cv.MORPH_CLOSE, op_element)
-    # dilation_close_reverse = 255 - dilation_close
-    # cv.imshow("dilation_close_resverse", dilation_close_reverse)
-    #
-    # input_img = input_img + dilation_close_reverse
-    # op_element = helper.get_structure_ele(cv.MORPH_ELLIPSE, 1)
-    # input_img = cv.morphologyEx(input_img, cv.MORPH_OPEN, op_element)
-
-    # cv.imshow("convertion", input_img)
+    # input_copy = cv.erode(input_copy, op_element)
 
     return input_copy
 
@@ -655,8 +640,8 @@ def pre_process(file_path, split=True):
 
 
 def convert_jpg_projects():
-    root_dir = "E:/master/data_1031/merge_info_validate"
-    # root_dir = "../merge_info_validate"
+    # root_dir = "E:/master/data_1031/merge_info_validate"
+    root_dir = "gen_my_data_jpg/projects"
     projects = os.listdir(root_dir)
     for project in projects:
         print(project)
@@ -667,6 +652,10 @@ def convert_jpg_projects():
             if file.endswith("jpeg"):
                 jpg_file = "{}/{}".format(project_dir, file)
                 break
+    # root_dir = "gen_my_data_jpg/imgs"
+    # imgs = os.listdir(root_dir)
+    # for img in imgs[::2]:
+    #     jpg_file = "{}/{}".format(root_dir, img)
         input_img = cv.imread(jpg_file)
         input_img = convert_to_black_white(input_img)
         convert_dir = "{}/{}".format(project_dir, "jpg_convert")
@@ -674,26 +663,28 @@ def convert_jpg_projects():
             os.mkdir(convert_dir)
         convert_img_file = "{}/{}.jpeg".format(convert_dir, project)
 
+        # cv.imshow("convert", input_img)
+        # cv.waitKey(0)
         cv.imwrite(convert_img_file, input_img)
 
 
 def main():
-    # convert_jpg_projects()
+    convert_jpg_projects()
 
-    sample_dir = "gen_my_data_jpg/imgs/"
-    images = os.listdir(sample_dir)
-
-    selected = images[1:2]
-    for im in selected:
-        file_path = sample_dir + im
-        if os.path.isfile(file_path):
-            # pass
-            get_layers_img(file_path, reverse=False)
-            # _, input_img, _, _, _, _, _ = pre_process(file_path)
-            # cv.imshow("input", input_img)
-            # # input_img = cv.imread(file_path)
-            # # convert_to_black_white(input_img)
-        cv.waitKey(0)
+    # sample_dir = "gen_my_data_jpg/imgs/"
+    # images = os.listdir(sample_dir)
+    #
+    # selected = images[1:2]
+    # for im in selected:
+    #     file_path = sample_dir + im
+    #     if os.path.isfile(file_path):
+    #         # pass
+    #         get_layers_img(file_path, reverse=False)
+    #         # _, input_img, _, _, _, _, _ = pre_process(file_path)
+    #         # cv.imshow("input", input_img)
+    #         # # input_img = cv.imread(file_path)
+    #         # # convert_to_black_white(input_img)
+    #     cv.waitKey(0)
 
 
 if __name__ == '__main__':
