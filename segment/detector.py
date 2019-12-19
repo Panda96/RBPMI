@@ -10,7 +10,7 @@ import cfg
 from img_preprocess import pre_process, get_seq_arrows, get_seq_arrow_direction
 import pools_detector
 
-from classifier import Classifier
+
 import model_exporter
 import translator
 
@@ -1683,6 +1683,7 @@ def parse_img(file_path):
 
     # node元素定位(泳池，泳道，活动，事件，网关，子过程)
     pools, type_tag, partial_elements = pools_detector.get_pools(layers, contours_rec, partial_elements, arrows)
+
     show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
@@ -1889,25 +1890,30 @@ def detect(file_path, classifier, classifier_type):
 
 
 def run():
-
-    sample_dir = "gen_my_data_jpg/imgs/"
+    sample_dir = "gen_my_data_jpg/projects/"
     # sample_dir = "samples/imgs/sample_1/"
-    images = os.listdir(sample_dir)
+    projects = os.listdir(sample_dir)
 
     # classifier = Classifier()
+    # classifier.img_type = "jpg"
     # [0, 5, 6, 10, 14, 15]
-    size = len(images)
-    selected = range(1)
+    size = len(projects)
+    selected = range(size)
     for i in selected:
-        im = images[i]
-        file_path = sample_dir + im
-        if os.path.isfile(file_path):
-            print("-" * 50)
-            print(i)
-            print(im)
-            detect(file_path, None, None)
-            # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_57")
-            # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
+        project = projects[i]
+        project_dir = "{}/{}".format(sample_dir, project)
+        files = os.listdir(project_dir)
+        for file in files:
+            if file.endswith("jpeg"):
+                file_path = "{}/{}".format(project_dir, file)
+                print("-" * 50)
+                print(i)
+                print(project)
+                detect(file_path, None, None)
+                break
+                # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_52")
+                # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
+
         cv.waitKey(0)
 
 

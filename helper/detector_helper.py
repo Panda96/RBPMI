@@ -76,7 +76,7 @@ def draw_one_rect(draw_img, bound_rect, color, thickness, show_text=False):
 def draw_rects(draw_img, rects, color, thickness, show_text=False):
     base_img = draw_img.copy()
     for rect in rects:
-        base_img = draw_one_rect(base_img, rect, color, thickness)
+        base_img = draw_one_rect(base_img, rect, color, thickness, show_text)
     return base_img
 
 

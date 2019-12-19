@@ -315,7 +315,7 @@ def validate(data_dir):
             _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
                                                                                        classifier_type)
         except TypeError:
-            print("{}, {} invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             continue
         for seq_flow in all_seq_flows:
             points = seq_flow[1]
@@ -328,16 +328,16 @@ def validate(data_dir):
                          "pools": pools}
 
         result_root_dir = "detect_results"
-        image_type_result_dir = "{}/{}_{}".format(result_root_dir, img_type, i)
+        image_type_result_dir = "{}/{}".format(result_root_dir, img_type)
 
-        project_result_dir = "{}/{}".format(image_type_result_dir, project)
+        project_result_dir = "{}/{}_{}".format(image_type_result_dir, project, i)
 
         if not os.path.exists(project_result_dir):
             os.makedirs(project_result_dir, exist_ok=True)
 
         result_file = "{}/{}_detect.json".format(project_result_dir, project)
         # temp = json.dumps(detect_result)
-        # print(temp)
+        # print(result_file)
         with open(result_file, encoding="utf-8", mode="w") as f:
             json.dump(detect_result, f)
 

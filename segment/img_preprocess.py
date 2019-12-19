@@ -636,29 +636,63 @@ def convert_to_black_white(input_img):
 
 def pre_process(file_path, split=True):
     raw_img = cv.imread(file_path)
-    input_img = raw_img.copy()
+    # cv.imshow("raw_img", raw_img)
     if file_path.endswith(".jpeg"):
-        input_img = convert_to_black_white(input_img)
-        # return
+        project_dir = file_path[:file_path.rindex("/")]
+        project = project_dir[project_dir.rindex("/") + 1:]
+        convert_img_file = "{}/jpg_convert/{}.jpeg".format(project_dir, project)
+        # print(convert_img_file)
+        input_img = cv.imread(convert_img_file)
+    else:
+        input_img = raw_img.copy()
+        # _, input_img = cv.threshold(raw_img, 254, 255, cv.THRESH_BINARY)
+        # cv.imshow("input_img", input_img)
+
     contours, hierarchy, partial_elements, arrows = get_contours(input_img, split)
     layers = divide_layers(contours, hierarchy)
     contours_rec = get_contours_rec(contours, layers)
     return raw_img, input_img, layers, contours, contours_rec, partial_elements, arrows
 
 
+def convert_jpg_projects():
+    root_dir = "E:/master/data_1031/merge_info_validate"
+    # root_dir = "../merge_info_validate"
+    projects = os.listdir(root_dir)
+    for project in projects:
+        print(project)
+        project_dir = "{}/{}".format(root_dir, project)
+        files = os.listdir(project_dir)
+        jpg_file = ""
+        for file in files:
+            if file.endswith("jpeg"):
+                jpg_file = "{}/{}".format(project_dir, file)
+                break
+        input_img = cv.imread(jpg_file)
+        input_img = convert_to_black_white(input_img)
+        convert_dir = "{}/{}".format(project_dir, "jpg_convert")
+        if not os.path.exists(convert_dir):
+            os.mkdir(convert_dir)
+        convert_img_file = "{}/{}.jpeg".format(convert_dir, project)
+
+        cv.imwrite(convert_img_file, input_img)
+
+
 def main():
+    # convert_jpg_projects()
+
     sample_dir = "gen_my_data_jpg/imgs/"
     images = os.listdir(sample_dir)
 
-    selected = images[::2]
+    selected = images[1:2]
     for im in selected:
         file_path = sample_dir + im
         if os.path.isfile(file_path):
-            # get_layers_img(file_path, reverse=False)
-            _, input_img, _, _, _, _, _ = pre_process(file_path)
-            cv.imshow("input", input_img)
-            # input_img = cv.imread(file_path)
-            # convert_to_black_white(input_img)
+            # pass
+            get_layers_img(file_path, reverse=False)
+            # _, input_img, _, _, _, _, _ = pre_process(file_path)
+            # cv.imshow("input", input_img)
+            # # input_img = cv.imread(file_path)
+            # # convert_to_black_white(input_img)
         cv.waitKey(0)
 
 

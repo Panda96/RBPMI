@@ -171,9 +171,14 @@ def get_pools_in_one_rec(c_children, contours_rec, pool_bound, c_i):
     return pools_in_one_rec
 
 
+
+
+
 def get_pools(layers, contours_rec, partial_elements, arrows):
     layer_0 = layers[0].keys()
     potential_pools = get_potential_pools(layer_0, contours_rec, layers, arrows)
+
+    # print(potential_pools)
 
     pools_list = []
 
@@ -218,6 +223,7 @@ def get_pools(layers, contours_rec, partial_elements, arrows):
                             pool_rect = pool_bound[0]
                             # remove header contour id
                             children_rest.remove(child_id)
+
                             header_rect = child_bound[0]
                             pool["header_rect"] = header_rect
 
@@ -231,41 +237,44 @@ def get_pools(layers, contours_rec, partial_elements, arrows):
                             pool["lanes_rect"] = pool_lanes_rect
 
                             pool_lanes = []
-
                             lane_y_begin = pool_lanes_rect[1]
-                            # print(lane_y_begin)
+                            last_y_begin = lane_y_begin
+                            next_y_begin = lane_y_begin
                             while lane_y_begin < pool_lanes_rect[1] + pool_lanes_rect[3] - 20:
-
                                 # 按水平方向寻找lane
-                                next_y_begin = lane_y_begin
+
                                 for c_id in children_rest:
+                                    # print(next_y_begin)
                                     lane_seg_bound = contours_rec[c_id]
                                     lane_seg_rec = lane_seg_bound[0]
+
                                     if helper.is_in(helper.dilate(pool_lanes_rect, 5), lane_seg_rec) and \
                                             lane_y_begin - 5 <= lane_seg_rec[1] < lane_y_begin + 5:
                                         # one_lane_seg.append(c_id)
-                                        # print(lane_seg_rec[1])
                                         if lane_seg_rec[2] > 35:
                                             seg_y_end = lane_seg_rec[1] + lane_seg_rec[3]
                                             if seg_y_end > next_y_begin:
                                                 next_y_begin = seg_y_end
                                         # else:
-                                if next_y_begin == lane_y_begin:
+                                if next_y_begin <= last_y_begin:
                                     break
-                                lane = [pool_lanes_rect[0], lane_y_begin, pool_lanes_rect[2],
-                                        next_y_begin - lane_y_begin]
+                                else:
+                                    last_y_begin = lane_y_begin
+                                    lane_y_begin = next_y_begin
+                                lane = [pool_lanes_rect[0], last_y_begin, pool_lanes_rect[2],
+                                        lane_y_begin - last_y_begin]
                                 # print(lane)
                                 pool_lanes.append(lane)
 
                                 one_lane_seg = []
                                 for c_id in children_rest:
                                     lane_seg_rec = contours_rec[c_id][0]
-                                    if helper.is_overlap(lane, lane_seg_rec):
+                                    if helper.is_in(helper.dilate(lane, 5), lane_seg_rec):
                                         one_lane_seg.append(c_id)
 
                                 for lane_seg in one_lane_seg:
                                     children_rest.remove(lane_seg)
-                                lane_y_begin = next_y_begin
+
                             if len(pool_lanes) > 0:
                                 pool["lanes"] = pool_lanes
                                 pools_in_one_rec.append(pool)
@@ -373,6 +382,20 @@ def create_default_pool(layer0, contours_rec, pool_dilate_value, layer1=None):
     return pool
 
 
+def get_recs_bound(adjacent_recs):
+    min_x = float("inf")
+    min_y = float("inf")
+    max_x = -1
+    max_y = -1
+    for [x, y, width, height] in adjacent_recs:
+        min_x = min(min_x, x)
+        min_y = min(min_y, y)
+        max_x = max(max_x, x + width)
+        max_y = max(max_y, y + height)
+
+    return min_x, min_y, max_x - min_x, max_y - min_y
+
+
 def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, model_tag):
     layers_num = len(layers)
     upper_limit = min(model_tag + 3, layers_num)
@@ -395,8 +418,9 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
         # print(k)
         # layer_contour_rec = list(map(lambda x: contours_rec[x][0], layer))
         # base = np.zeros_like(input_img)
-        # layer_img = helper.draw_rects(base, layer_contour_rec, cfg.COLOR_WHITE, cfg.CONTOUR_THICKNESS)
-        # cv.imshow(str(k), layer_img)
+        # layer_img = helper.draw_rects(base, layer_contour_rec, cfg.COLOR_WHITE, cfg.CONTOUR_THICKNESS, show_text=True)
+        # # cv.namedWindow("one_layer", cv.WINDOW_NORMAL)
+        # cv.imshow("one_layer", layer_img)
         # cv.waitKey(0)
 
         boundary_fake_elements = []
@@ -447,7 +471,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                         if bound[2] < 800:
                             bound_rect = helper.dilate(bound_rect, cfg.RECT_DILATION_VALUE)
 
-                        if bound[2] > 1100:
+                        if bound[2] > 1050:
                             elements[lane_id][j] = bound_rect
 
                         if ele_i_j[2] * ele_i_j[3] > 3000:
@@ -469,7 +493,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                             # print("found sub_proc")
                             sub_procs[lane_id].append(bound_rect)
         # pools_img = draw_pools(pools_list, input_img)
-        # # cv.namedWindow("elements", cv.WINDOW_NORMAL)
+        # cv.namedWindow("elements", cv.WINDOW_NORMAL)
         # cv.imshow("elements", pools_img)
         # cv.waitKey(0)
 
@@ -559,5 +583,33 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                     unique_eles.append(ele)
             elements[lane_id] = unique_eles
             # print(len(unique_eles))
+
+    for pool in pools_list:
+        lanes = pool["lanes"]
+        elements = pool.get("elements", defaultdict(list))
+        for lane_id in range(len(lanes)):
+            independent_eles = []
+            one_lane_elements = elements[lane_id]
+            to_merge_index = []
+
+            for i in range(len(one_lane_elements)):
+                if i in to_merge_index:
+                    continue
+                adjacent_eles = []
+                for j in range(i+1, len(one_lane_elements)):
+                    if helper.is_adjacent(one_lane_elements[i], one_lane_elements[j], dilation_value=3):
+                        adjacent_eles.append(j)
+                        to_merge_index.append(i)
+                if len(adjacent_eles) == 0:
+                    independent_eles.append(one_lane_elements[i])
+                else:
+                    adjacent_eles.append(i)
+                    to_merge_index.extend(adjacent_eles)
+
+                    adjacent_recs = [one_lane_elements[x] for x in adjacent_eles]
+
+                    one_rec = get_recs_bound(adjacent_recs)
+                    independent_eles.append(one_rec)
+            elements[lane_id] = independent_eles
 
     return pools_list

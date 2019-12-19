@@ -118,6 +118,7 @@ dmypy.json
 *.bpmn
 *.png
 *.jpg
+*.json
 *.h5
 
 bcf/classifier*
@@ -132,6 +133,7 @@ segment/bcf/codebook_*.txt
 segment/output
 segment/bcf/model/classifier_30_50
 segment/bcf/model/code_book_56_30.data
+
 
 segment/test_results
 segment/validate_results
