@@ -63,20 +63,21 @@ class Classifier:
         return imgs
 
     def load_vgg_classifier(self, classifier_type):
-        classifier_id = self.classifiers.index(classifier_type)
-        if classifier_id >= 0:
-            self.vgg_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes[classifier_id]))
-            one_weight = self.weights[classifier_id]
-            if classifier_type == "vgg16_52":
-                if self.img_type is not None:
-                    one_weight = one_weight[self.img_type]
-                else:
-                    print("vgg16_52 classifier needs to specify one image type")
-                    exit(0)
-            self.vgg_classifier.load_weights(one_weight)
-        else:
-            print("invalid classifier type:{}".format(classifier_type))
-
+        if self.vgg_classifier is None:
+            classifier_id = self.classifiers.index(classifier_type)
+            if classifier_id >= 0:
+                self.vgg_classifier = modeler.get_vgg16_fc(self.img_size, len(self.classes[classifier_id]))
+                one_weight = self.weights[classifier_id]
+                if classifier_type == "vgg16_52":
+                    if self.img_type is not None:
+                        one_weight = one_weight[self.img_type]
+                    else:
+                        print("vgg16_52 classifier needs to specify one image type")
+                        exit(0)
+                self.vgg_classifier.load_weights(one_weight)
+            else:
+                print("invalid classifier type:{}".format(classifier_type))
+        
     # def load_bcf_classifier(self, classifier_type):
     #     print("bcf classifiers are not considered from now on")
 
