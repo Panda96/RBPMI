@@ -508,6 +508,8 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
             valid_sub_p = []
             for sub_p in sub_procs[lane_id]:
                 # print(sub_p)
+                if not helper.is_in(helper.shrink(lane, 5), sub_p):
+                    continue
                 sub_p_elements_num = 0
                 valid = True
                 for ele in elements[lane_id]:

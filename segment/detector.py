@@ -1903,25 +1903,25 @@ def run():
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected[25:30]:
+    for i in selected[27:30]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)
         for file in files:
-            if file.endswith("jpeg"):
+            if file.endswith("png"):
                 file_path = "{}/{}".format(project_dir, file)
                 print("-" * 50)
                 print(project)
-                try:
-                    detect(file_path, None, None)
-                except:
-                    print("{}invalid!!!!!!!!!!!!!!".format(project))
-                    break
+                # try:
+                detect(file_path, None, None)
+                # except:
+                #     print("{}invalid!!!!!!!!!!!!!!".format(project))
+                #     break
                 break
                 # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_52")
                 # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))
 
-        # cv.waitKey(0)
+        cv.waitKey(0)
 
 
 if __name__ == '__main__':
