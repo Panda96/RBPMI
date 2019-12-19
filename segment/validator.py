@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 import sys
 import re
+
 sys.path.append("..")
 
 import os
@@ -11,8 +12,6 @@ from classifier import Classifier
 from collections import defaultdict
 
 from helper import detector_helper as helper
-
-
 
 classifier = Classifier()
 classifier_type = "vgg16_52"
@@ -292,6 +291,8 @@ def validate(data_dir):
     results = []
     for i in range(begin, end):
         project = projects[i]
+        if project in invalid_projects:
+            continue
         print("----------------{}, {}----------------".format(i, project))
         project_dir = "{}{}".format(validate_data_dir, project)
         files = os.listdir(project_dir)
@@ -311,12 +312,12 @@ def validate(data_dir):
         else:
             image_file = jpg_file
 
-        try:
-            _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
+        # try:
+        _, all_elements_info, all_seq_flows, all_elements, pools = detector.detect(image_file, classifier,
                                                                                        classifier_type)
-        except TypeError:
-            print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            continue
+        # except TypeError:
+        #     print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        #     continue
         for seq_flow in all_seq_flows:
             points = seq_flow[1]
             for p_id in range(len(points)):
@@ -377,6 +378,15 @@ if __name__ == '__main__':
     begin = int(sys.argv[2])
     end = int(sys.argv[3])
     # opt = "bcf"
+
+    invalid_projects = ["00142_00", "00144_00", "00170_01", "00205_03", "00222_00", "00227_00", "00473_00", "00570_00",
+                        "00750_00", "00870_00", "00878_00", "00978_00", "01117_00", "01119_00", "01178_00", "01357_00",
+                        "01381_00", "01595_00", "01608_00", "01634_00", "01718_00", "01811_00", "01838_00", "01847_00",
+                        "01986_00", "02693_02", "02833_00", "02901_00", "03223_00", "03819_00", "03979_00", "04121_00",
+                        "04136_00", "04303_00", "04378_00", "04410_03", "04429_00", "04544_01", "04618_00", "04621_00",
+                        "04909_00", "04939_01", "04988_00", "05080_00", "05229_00", "05613_00", "05888_00", "05912_00",
+                        "05968_00", "06126_00", "06169_00", "06298_01", "06874_00", "07198_00", "07290_00", "07603_00",
+                        "07832_00", "08510_00", "08972_00", "09195_00", "09232_00", "09393_00", "09557_04", "09652_01"]
 
     validate_data_dir = "../merge_info_validate/"
     # classifier_types = ["bcf", "bcf_56", "bcf_57", "vgg16", "vgg16_56", "vgg16_57"]

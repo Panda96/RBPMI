@@ -253,7 +253,7 @@ def get_bisector(seg1, seg2):
     # 因为两个向量模相等，相加后得角平分线向量, 得到的是锐角的角平分线
     if cos_angle > 0:
         v3 = v1 + v2
-    elif cos_angle < 0:
+    elif cos_angle <= 0:
         v3 = v1 - v2
     else:
         print("两条线段垂直")

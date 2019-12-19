@@ -1,3 +1,7 @@
+import sys
+
+# sys.path.append("..")
+
 import cv2 as cv
 import numpy as np
 import os
@@ -1726,7 +1730,6 @@ def parse_img(file_path):
         normalized_lines_img = helper.draw_lines(background, line_list, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         show_im(normalized_lines_img, "normalized_lines_img")
 
-        # cv.waitKey(0)
 
         # 获取与箭头相连的线段
         arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
@@ -1749,10 +1752,10 @@ def parse_img(file_path):
         discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
         # discrete_lines_img = helper.draw_lines(flows_only, discrete_lines, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         # show_im(discrete_lines_img, "discrete_lines")
-        # cv.waitKey(0)
+
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
-
+        cv.waitKey(0)
         for arrow_id in range(len(arrows)):
             arrow_flows = flows[arrow_id]
             for flow_id, flow in enumerate(arrow_flows):
@@ -1890,8 +1893,9 @@ def detect(file_path, classifier, classifier_type):
 
 
 def run():
-    sample_dir = "gen_my_data_jpg/projects/"
-    # sample_dir = "samples/imgs/sample_1/"
+    # sample_dir = "gen_my_data_jpg/projects"
+    sample_dir = "../merge_info_validate"
+    # sample_dir = "samples/imgs/sample_1"
     projects = os.listdir(sample_dir)
 
     # classifier = Classifier()
@@ -1907,9 +1911,12 @@ def run():
             if file.endswith("jpeg"):
                 file_path = "{}/{}".format(project_dir, file)
                 print("-" * 50)
-                print(i)
                 print(project)
-                detect(file_path, None, None)
+                try:
+                    detect(file_path, None, None)
+                except:
+                    print("{}invalid!!!!!!!!!!!!!!".format(project))
+                    break
                 break
                 # definitions, _, _, _, _ = detect(file_path, classifier, "vgg16_52")
                 # model_exporter.export_xml(definitions, "output_1/{}.bpmn".format(im[0:-4]))

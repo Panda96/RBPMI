@@ -427,6 +427,7 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
         for c_i in layer:
             bound = contours_rec[c_i]
             bound_rect = bound[0]
+            bound_rect_center = helper.get_rec_center(bound_rect)
 
             # filter the rec formed by lane boundary lines and sequence flows
             is_fake = False
@@ -447,7 +448,8 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
                     for lane_i, lane in enumerate(lanes):
                         # filter the rec formed by lane boundary lines and sequence flows
                         if helper.is_in(lane, bound_rect):
-                            dilate_rec = helper.dilate(bound_rect, 5)
+
+                            dilate_rec = helper.dilate([bound_rect_center[0], bound_rect_center[1], 0, 0], 3)
                             if helper.is_in(lane, dilate_rec):
                                 lane_id = lane_i
                                 break
