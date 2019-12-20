@@ -13,12 +13,7 @@ from collections import defaultdict
 
 from helper import detector_helper as helper
 
-classifier = Classifier()
-classifier_type = "vgg16_52"
-img_type = "jpg"
-classifier.img_type = img_type
-classifier_id = classifier.classifiers.index(classifier_type)
-labels = classifier.classes[classifier_id].copy()
+
 
 
 def get_type_info(type_info):
@@ -374,9 +369,9 @@ def validate(data_dir):
 if __name__ == '__main__':
 
     opt = sys.argv[1]
-
-    begin = int(sys.argv[2])
-    end = int(sys.argv[3])
+    img_type = sys.argv[2]
+    begin = int(sys.argv[3])
+    end = int(sys.argv[4])
     # opt = "bcf"
 
     invalid_projects = ["00142_00", "00144_00", "00170_01", "00205_03", "00222_00", "00227_00", "00473_00", "00570_00",
@@ -394,6 +389,11 @@ if __name__ == '__main__':
         print("validate vgg")
         # validate(validate_data_dir, "vgg16")
         # validate(validate_data_dir, "vgg16_56")
+        classifier = Classifier()
+        classifier_type = "vgg16_52"
+        classifier.img_type = img_type
+        classifier_id = classifier.classifiers.index(classifier_type)
+        labels = classifier.classes[classifier_id].copy()
         validate(validate_data_dir)
     elif opt == "bcf":
         print("validate bcf")
