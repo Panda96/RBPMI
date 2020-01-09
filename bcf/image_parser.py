@@ -112,7 +112,7 @@ def get_layers_by_img(input_img):
     _, contours, hierarchy = cv.findContours(input_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     layers = divide_layers(input_img.shape, hierarchy, contours)
-    show_layers(input_img, layers, contours)
+    # show_layers(input_img, layers, contours)
     return input_img, layers, contours
 
 

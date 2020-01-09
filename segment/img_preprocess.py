@@ -128,7 +128,8 @@ def get_contours(image, split=True):
 
 # remove the contours with small area
 def get_contours_bt(contours, area_threshold, contour_list):
-    return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
+    # return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
+    return list(filter(lambda i: helper.get_one_contour_rec(i, contours)[2] > 2000, contour_list))
 
 
 def divide_layers(contours, hierarchy):
@@ -628,11 +629,17 @@ def pre_process(file_path, split=True):
         convert_img_file = "{}/jpg_convert/{}.jpeg".format(project_dir, project)
         # print(convert_img_file)
         input_img = cv.imread(convert_img_file)
-    else:
+    elif file_path.endswith(".png"):
         input_img = raw_img.copy()
         # _, input_img = cv.threshold(raw_img, 254, 255, cv.THRESH_BINARY)
         # cv.imshow("input_img", input_img)
-
+    else:
+        input_img = 255 - raw_img
+        # op_element = helper.get_structure_ele(cv.MORPH_CROSS, 1)
+        # input_img = cv.morphologyEx(input_img, cv.MORPH_TOPHAT, op_element)
+        # input_img = cv.erode(input_img, op_element)
+        cv.imshow("input_img", input_img)
+        cv.waitKey(0)
     contours, hierarchy, partial_elements, arrows = get_contours(input_img, split)
     layers = divide_layers(contours, hierarchy)
     contours_rec = get_contours_rec(contours, layers)

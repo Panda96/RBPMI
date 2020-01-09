@@ -21,9 +21,9 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self, ):
-        self.DATA_DIR = "../22data/train/"
-        self.CODEBOOK_FILE = "model/ode_book_57_30.data"
-        self.CLASSIFIER_FILE = "lassifier_56_30_50"
+        self.DATA_DIR = "/home/plw/workplace/python/segmentation/training_data_png/train/"
+        self.CODEBOOK_FILE = "model/code_book_52.data"
+        self.CLASSIFIER_FILE = "model/classifier_52"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -374,34 +374,9 @@ if __name__ == "__main__":
     classifier_train_num = 50
     bcf = BCF()
 
-    data_dir = "../622data/train/"
-    data_56_dir = "../56_622data/train/"
-    data_57_dir = "../57_622data/train/"
+    print("--------train code book-----------")
+    bcf.train_code_book(code_book_train_num)
 
-    for model_i in range(1):
-        model_id = "{}".format(model_i)
-        model_56_id = "56_{}".format(model_i)
-        model_57_id = "57_{}".format(model_i)
+    print("---------train model----------")
+    bcf.train(classifier_train_num)
 
-        # model_57_classifier_name = "classifier_{}_30_50".format(model_57_id)
-        # bcf.CLASSIFIER_FILE = model_57_classifier_name
-        # bcf.DATA_DIR = data_57_dir
-        # bcf.CODEBOOK_FILE = "model/code_book_57_30.data"
-        # print(model_57_classifier_name)
-        # bcf.train(classifier_train_num)
-
-        # model_56_classifier_name = "classifier_{}_30_50".format(model_56_id)
-        # bcf.CLASSIFIER_FILE = model_56_classifier_name
-        # bcf.DATA_DIR = data_56_dir
-        # bcf.CODEBOOK_FILE = "model/code_book_56_30.data"
-        # print(model_56_classifier_name)
-        # bcf.train(classifier_train_num)
-
-        model_classifier_name = "classifier_{}_30_50".format(model_id)
-        bcf.CLASSIFIER_FILE = model_classifier_name
-        bcf.DATA_DIR = data_dir
-        bcf.CODEBOOK_FILE = "model/code_book_56_30.data"
-        print(model_classifier_name)
-        bcf.train(classifier_train_num)
-    # bcf.test_dir("../56_622data/test/")
-    # print(os.getcwd())

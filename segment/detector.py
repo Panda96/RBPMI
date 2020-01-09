@@ -1842,7 +1842,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=False):
+def show_im(img_matrix, name="img", show=True):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
@@ -1886,15 +1886,15 @@ def classify_elements(classifier, classifier_type):
 def detect(file_path, classifier, classifier_type):
     all_seq_flows = parse_img(file_path)
 
-    all_elements_type = classify_elements(classifier, classifier_type)
-    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-                                                                 all_seq_flows)
-    return definitions, all_elements_info, all_seq_flows, all_elements, pools
+    # all_elements_type = classify_elements(classifier, classifier_type)
+    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+    #                                                              all_seq_flows)
+    # return definitions, all_elements_info, all_seq_flows, all_elements, pools
 
 
 def run():
-    # sample_dir = "gen_my_data_jpg/projects"
-    sample_dir = "../merge_info_validate"
+    sample_dir = "gen_my_data_jpg/projects"
+    # sample_dir = "../merge_info_validate"
     # sample_dir = "samples/imgs/sample_1"
     projects = os.listdir(sample_dir)
 
@@ -1903,12 +1903,12 @@ def run():
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected[27:30]:
+    for i in selected[-1:]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)
         for file in files:
-            if file.endswith("png"):
+            if file.endswith("jpg"):
                 file_path = "{}/{}".format(project_dir, file)
                 print("-" * 50)
                 print(project)

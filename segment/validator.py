@@ -182,8 +182,7 @@ def validate_one(json_file, image_file):
             lanes = pool["lanes"]
             for lane_id, lane in enumerate(lanes):
                 lane_shapes = match_ele_and_shape((pool_id, lane_id), lane, "lane", lane_shapes, shape_labels,
-                                                  fake_lanes,
-                                                  image_lane_id_map)
+                                                  fake_lanes, image_lane_id_map)
 
     # [file seq num, not matched, target match, source match, others]
     seq_result = [0, 0, 0, 0, 0]

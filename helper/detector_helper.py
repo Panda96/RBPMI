@@ -116,6 +116,10 @@ def is_overlap(rec1, rec2):
            and rec1[0] + rec1[2] > rec2[0] and rec1[0] < rec2[0] + rec2[2]
 
 
+def get_rect_area(rect):
+    return rect[2] * rect[3]
+
+
 def get_overlap_area(rec1, rec2):
     if is_overlap(rec1, rec2):
         p1_x = max(rec1[0], rec2[0])
