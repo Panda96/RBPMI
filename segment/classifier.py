@@ -19,6 +19,8 @@ class Classifier:
         self.bcf_classifier = None
         self.bcf_56_classifier = None
         self.bcf_57_classifier = None
+        self.bcf_52_classifier = None
+        self.bcf_52_jpg_classifier = None
 
         self.img_type = None
 
@@ -123,13 +125,31 @@ class Classifier:
             bcf.load_classifier()
             self.bcf_57_classifier = bcf
 
+    def load_bcf_52_classifier(self):
+        if self.bcf_52_classifier is None:
+            bcf = BCF()
+            bcf.CLASSIFIER_FILE = "../bcf/model/classifier_52"
+            bcf.CODEBOOK_FILE = "../bcf/model/code_book_52.data"
+            bcf.load_kmeans()
+            bcf.load_classifier()
+            self.bcf_52_classifier = bcf
+
+    def load_bcf_52_jpg_classifier(self):
+        if self.bcf_52_jpg_classifier is None:
+            bcf = BCF()
+            bcf.CLASSIFIER_FILE = "../bcf/model/classifier_52_jpg"
+            bcf.CODEBOOK_FILE = "../bcf/model/code_book_52_jpg.data"
+            bcf.load_kmeans()
+            bcf.load_classifier()
+            self.bcf_52_jpg_classifier = bcf
+
     def classify_with_bcf(self, clf, images):
         imgs = self.bcf_pre_process_image(images)
         return clf.get_images_type(imgs)
 
     def classify(self, images, classifier_type):
-        classifier_id = self.classifiers.index(classifier_type)
         if classifier_type.startswith("vgg"):
+            classifier_id = self.classifiers.index(classifier_type)
             self.load_vgg_classifier(classifier_type)
             predictions = self.classify_with_vgg_16(self.vgg_classifier, images, self.classes[classifier_id])
         elif classifier_type == "bcf":
@@ -138,9 +158,15 @@ class Classifier:
         elif classifier_type == "bcf_56":
             self.load_bcf_56_classifier()
             predictions = self.classify_with_bcf(self.bcf_56_classifier, images)
-        else:
+        elif classifier_type == "bcf_57":
             self.load_bcf_57_classifier()
             predictions = self.classify_with_bcf(self.bcf_57_classifier, images)
+        elif classifier_type == "bcf_52":
+            self.load_bcf_52_classifier()
+            predictions = self.classify_with_bcf(self.bcf_52_classifier, images)
+        else:
+            self.load_bcf_52_jpg_classifier()
+            predictions = self.classify_with_bcf(self.bcf_52_jpg_classifier, images)
         return predictions
 
     def test(self, classifier_type):
@@ -153,7 +179,7 @@ class Classifier:
         elif type_info[1] == "57":
             data_dir = "../57_622data/"
         else:
-            data_dir = "../{}_training_data/".format(img_type)
+            data_dir = "../training_data_{}/".format(img_type)
 
         data_test = data_dir + "test/"
         # labels = os.listdir(data_test)
@@ -166,7 +192,7 @@ class Classifier:
             test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
             image_names = os.listdir(type_dir)
-            images = [type_dir + name for name in image_names]
+            images = [type_dir + name for name in image_names[:1]]
             predictions = self.classify(images, classifier_type)
             test_res[each_type][0][0] = len(images)
             for i, prediction in enumerate(predictions):
@@ -177,8 +203,10 @@ class Classifier:
 
         test_logs = os.listdir("test_results/")
         file_id = len(test_logs)
-
-        test_res_file = "test_results/{}_{}_{}_test.txt".format(file_id, classifier_type, weights_suffix)
+        if classifier_type.startswith("vgg"):
+            test_res_file = "test_results/{}_{}_{}_test.txt".format(file_id, classifier_type, weights_suffix)
+        else:
+            test_res_file = "test_results/{}_{}_test.txt".format(file_id, classifier_type)
         with open(test_res_file, "w") as f:
             all_total = 0
             all_correct = 0
@@ -220,8 +248,14 @@ if __name__ == '__main__':
         # classifier.test("vgg16_56")
         # classifier.test("vgg16_57")
 
-    # elif opt == "bcf":
-    #     print("test bcf")
+    elif opt in ["bcf_52", "bcf_52_jpg"]:
+        print("test bcf")
+        c_type = str(opt)
+        if opt == "bcf_52":
+            img_type = "png"
+        else:
+            img_type = "jpg"
+        classifier.test(c_type)
     #     classifier.test("bcf")
     #     classifier.test("bcf_56")
     #     classifier.test("bcf_57")
