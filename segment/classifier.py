@@ -192,7 +192,7 @@ class Classifier:
             test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
             image_names = os.listdir(type_dir)
-            images = [type_dir + name for name in image_names[:1]]
+            images = [type_dir + name for name in image_names]
             predictions = self.classify(images, classifier_type)
             test_res[each_type][0][0] = len(images)
             for i, prediction in enumerate(predictions):
