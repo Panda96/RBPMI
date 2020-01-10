@@ -21,9 +21,9 @@ import image_parser as image_parser
 
 class BCF:
     def __init__(self, ):
-        self.DATA_DIR = "/home/plw/workplace/python/segmentation/training_data_png/train/"
-        self.CODEBOOK_FILE = "model/code_book_52.data"
-        self.CLASSIFIER_FILE = "model/classifier_52"
+        self.DATA_DIR = "/home/plw/workplace/python/segmentation/training_data_jpg/train/"
+        self.CODEBOOK_FILE = "model/code_book_52_jpg.data"
+        self.CLASSIFIER_FILE = "model/classifier_52_jpg"
         # self.LABEL_TO_CLASS_MAPPING_FILE = "model/labels_to_classes.data"
         self.classes = defaultdict(list)
         self.data = defaultdict(dict)
@@ -374,8 +374,8 @@ if __name__ == "__main__":
     classifier_train_num = 50
     bcf = BCF()
 
-    print("--------train code book-----------")
-    bcf.train_code_book(code_book_train_num)
+    # print("--------train code book-----------")
+    # bcf.train_code_book(code_book_train_num)
 
     print("---------train model----------")
     bcf.train(classifier_train_num)
