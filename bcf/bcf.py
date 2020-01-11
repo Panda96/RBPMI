@@ -325,12 +325,17 @@ class BCF:
     def get_images_type(self, images):
         clf = self.load_classifier()
         testing_data = []
-        for image in images:
-            spp_feature = self.get_one_image_feature(image)
+        invalid_data = []
+        for image_id, image in enumerate(images):
+            try:
+                spp_feature = self.get_one_image_feature(image)
+            except IndexError:
+                invalid_data.append(image_id)
+
             testing_data.append(spp_feature)
         testing_data = np.array(testing_data)
         predictions = clf.predict(testing_data)
-        return predictions
+        return predictions, invalid_data
 
     def test_dir(self, test_data):
 
@@ -343,7 +348,7 @@ class BCF:
             type_dir = test_data + each_type + "/"
             image_names = os.listdir(type_dir)
             images = [type_dir + name for name in image_names]
-            predictions = self.get_images_type(images[0:1])
+            predictions, _ = self.get_images_type(images[0:1])
             test_res[each_type][0][0] = len(images)
             for i, prediction in enumerate(predictions):
                 if prediction == each_type:

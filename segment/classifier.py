@@ -145,7 +145,9 @@ class Classifier:
 
     def classify_with_bcf(self, clf, images):
         imgs = self.bcf_pre_process_image(images)
-        return clf.get_images_type(imgs)
+        predictions, invalid_data = clf.get_images_type(imgs)
+        print("invalid data:", invalid_data)
+        return predictions
 
     def classify(self, images, classifier_type):
         if classifier_type.startswith("vgg"):
@@ -192,8 +194,9 @@ class Classifier:
             test_res[each_type] = [[0, 0], []]
             type_dir = data_test + each_type + "/"
             image_names = os.listdir(type_dir)
-            images = [type_dir + name for name in image_names]
+            images = [type_dir + name for name in image_names[:150]]
             predictions = self.classify(images, classifier_type)
+
             test_res[each_type][0][0] = len(images)
             for i, prediction in enumerate(predictions):
                 if prediction == each_type:
