@@ -1,6 +1,8 @@
 import os
 import json
 import re
+from collections import defaultdict
+import numpy as np
 import helper.detector_helper as helper
 
 
@@ -165,7 +167,6 @@ def validate_one(project):
                "match_map": match_map,
                "project": project}
 
-    validate_result_root_dir = infer_result_dir.replace("infer_results", "detect_results")
     validate_result_dir = "{}/{}".format(validate_result_root_dir, project)
     if not os.path.exists(validate_result_dir):
         os.makedirs(validate_result_dir, exist_ok=True)
@@ -183,12 +184,98 @@ def validate():
         validate_one(project)
 
 
+def get_validate_info(parent_dir, project):
+    project_dir = "{}/{}".format(parent_dir, project)
+    validate_result = "{}/validate.json".format(project_dir)
+    with open(validate_result, mode="r", encoding="utf-8") as f:
+        one_res = json.load(f)
+
+    return one_res
+
+
+def evaluate_one(project):
+    one_val_res = get_validate_info(validate_result_root_dir, project)
+    all_shape_labels = one_val_res["all_shape_labels"]
+    infer_info = one_val_res["infer_info"]
+    shapes_result = one_val_res["shapes_result"]
+    match_map = one_val_res["match_map"]
+    match_mask = one_val_res["match_mask"]
+
+    shape_division = defaultdict(list)
+
+    for shape_id, shape_label in enumerate(all_shape_labels):
+        shape_division[shape_label[0]].append(shape_id)
+
+    infer_division = defaultdict(list)
+
+    for infer_id, infer in enumerate(infer_info):
+        infer_division[infer[0]].append(infer_id)
+
+    one_evaluate_res = dict()
+    all_located = 0
+    all_correct = 0
+    all_match_infos = []
+    all_num = 0
+    for cate_id, cate in enumerate(categories):
+        [cate_num, cate_located, cate_correct, cate_error] = shapes_result[cate_id]
+        if cate not in ["pool", "lane", "subprocess_expanded"]:
+            all_num += cate_num
+        if cate_num == 0:
+            cate_locate_acc_rate = None
+            cate_locate_recall_rate = None
+            cate_classify_acc_rate = None
+            x_offset = None
+            y_offset = None
+            width_offset = None
+            height_offset = None
+        else:
+            all_located += cate_located
+            all_correct += cate_correct
+            cate_locate_acc_rate = cate_located / cate_num
+            cate_infered = len(infer_division[cate])
+            if cate_infered > 0:
+                cate_locate_recall_rate = cate_located / cate_infered
+            else:
+                cate_locate_recall_rate = 0
+            cate_classify_acc_rate = cate_correct / cate_located
+
+            cate_shapes = shape_division[cate]
+
+            cate_match_infos = []
+            for shape_id in cate_shapes:
+                if str(shape_id) in match_map.keys():
+                    cate_match_infos.append(match_map[str(shape_id)][-1])
+
+            all_match_infos.extend(cate_match_infos)
+
+            cate_diff = [0] * 4
+            for one in range(4):
+                cate_diff[one] = np.mean(np.array(cate_match_infos)[:, one])
+            [x_offset, y_offset, width_offset, height_offset] = cate_diff
+
+        one_evaluate_res[cate] = [cate_locate_acc_rate, cate_locate_recall_rate, cate_classify_acc_rate, x_offset, y_offset,
+                              width_offset, height_offset]
+
+
+    all_locate_acc_rate = all_located / len(all_shape_labels)
+    all_locate_recall_rate = np.sum(match_mask) / len(match_mask)
+    all_classify_acc_rate = all_correct / all_located
+    all_diff = [0] * 4
+    for one in range(4):
+        all_diff[one] = np.mean(np.array(all_match_infos)[:, one])
+
+    all_res = [all_locate_acc_rate, all_locate_recall_rate, all_classify_acc_rate]
+    all_res.extend(all_diff)
+    one_evaluate_res[all] = all_res
+    one_evaluate_res["num"] = all_num
+
+
 def evaluate():
-    projects = os.listdir(validate_dir)
+    projects = os.listdir(validate_result_root_dir)
     projects.sort()
-    for project in projects:
+    for project in projects[:1]:
         print(project)
-        validate_one(project)
+        evaluate_one(project)
 
 
 def main():
@@ -201,7 +288,8 @@ if __name__ == '__main__':
     img_type = "png"
     model_id = "ssd_resnet_02"
     infer_result_dir = "infer_results/{}/{}".format(img_type, model_id)
-    detect_result_file = "detect_results/{}/{}/validate.json".format(img_type, model_id)
+    # detect_result_file = "detect_results/{}/{}/validate.json".format(img_type, model_id)
+    validate_result_root_dir = infer_result_dir.replace("infer_results", "detect_results")
     categories = ['task', 'sendTask', 'userTask', 'manualTask', 'scriptTask', 'receiveTask', 'serviceTask',
                   'businessRuleTask', 'endEvent', 'endEvent_cancel', 'endEvent_terminate', 'endEvent_signal',
                   'endEvent_link', 'endEvent_compensate', 'endEvent_error', 'endEvent_message', 'endEvent_escalation',
