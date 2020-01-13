@@ -308,8 +308,10 @@ def validate(data_dir):
             _, all_elements_info, all_seq_flows, all_elements, pools, time_recorder = detector.detect(image_file, classifier,
                                                                                        classifier_type)
         except TypeError:
-            print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TypeError")
             continue
+        except IndexError:
+            print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  IndexError")
         for seq_flow in all_seq_flows:
             points = seq_flow[1]
             for p_id in range(len(points)):
