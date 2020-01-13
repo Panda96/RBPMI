@@ -1,6 +1,7 @@
 import sys
 
 # sys.path.append("..")
+import time
 
 import cv2 as cv
 import numpy as np
@@ -1884,17 +1885,21 @@ def classify_elements(classifier, classifier_type):
 
 
 def detect(file_path, classifier, classifier_type):
+    t1 = time.time()
     all_seq_flows = parse_img(file_path)
-
+    t2 = time.time()
     all_elements_type = classify_elements(classifier, classifier_type)
+    t3 = time.time()
     definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
                                                                  all_seq_flows)
-    return definitions, all_elements_info, all_seq_flows, all_elements, pools
+    t4 = time.time()
+    time_recorder = [t1, t2, t3, t4]
+    return definitions, all_elements_info, all_seq_flows, all_elements, pools, time_recorder
 
 
 def run():
-    sample_dir = "gen_my_data_jpg/projects"
-    # sample_dir = "../merge_info_validate"
+    # sample_dir = "gen_my_data_jpg/projects"
+    sample_dir = "../merge_info_validate"
     # sample_dir = "samples/imgs/sample_1"
     projects = os.listdir(sample_dir)
 
@@ -1903,7 +1908,7 @@ def run():
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected[:3]:
+    for i in selected[1:2]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)
