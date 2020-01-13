@@ -7,7 +7,7 @@ from functools import cmp_to_key
 
 import cfg
 from helper import detector_helper as helper
-from helper.utils import Vector, points_to_line, get_point_of_intersection
+from helper.utils import Vector, points_to_line, get_point_of_intersection, get_float_point_of_intersection
 
 
 def draw_contours_rec(input_img, contors, contours_rec, show_text=True, reverse=False):
@@ -128,8 +128,8 @@ def get_contours(image, split=True):
 
 # remove the contours with small area
 def get_contours_bt(contours, area_threshold, contour_list):
-    # return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
-    return list(filter(lambda i: helper.get_one_contour_rec(i, contours)[2] > 2000, contour_list))
+    return list(filter(lambda i: cv.contourArea(contours[i]) > area_threshold, contour_list))
+    # return list(filter(lambda i: helper.get_one_contour_rec(i, contours)[2] > 2000, contour_list))
 
 
 def divide_layers(contours, hierarchy):
@@ -214,7 +214,7 @@ def get_seq_arrows(input_img):
     # Filter
     seq_arrows = list(map(normalize_arrow, seq_arrows))
 
-    seq_arrows_img = helper.draw_rects(input_img, seq_arrows, cfg.COLOR_GREEN, 1)
+    # seq_arrows_img = helper.draw_rects(input_img, seq_arrows, cfg.COLOR_GREEN, 1)
     # cv.imshow("seq_arrows_img", seq_arrows_img)
     # cv.waitKey(0)
     return seq_arrows
@@ -235,7 +235,9 @@ def get_bisector(seg1, seg2):
     l1 = points_to_line(seg1[0], seg1[1])
     l2 = points_to_line(seg2[0], seg2[1])
 
-    p = get_point_of_intersection(l1, l2)
+    # p = get_point_of_intersection(l1, l2)
+    p = get_float_point_of_intersection([seg1[0][0], seg1[0][1], seg1[1][0], seg1[1][1]],
+                                        [seg2[0][0], seg2[0][1], seg2[1][0], seg2[1][1]])
 
     if not (l1.p1[0] <= p[0] <= l1.p2[0] and l2.p1[0] <= p[0] <= l2.p2[0]):
         print("invalid segs")
@@ -252,12 +254,10 @@ def get_bisector(seg1, seg2):
     cos_angle = v1.dot(v2) / length_seq
 
     # 因为两个向量模相等，相加后得角平分线向量, 得到的是锐角的角平分线
-    if cos_angle > 0:
+    if cos_angle < 0:
         v3 = v1 + v2
-    elif cos_angle <= 0:
-        v3 = v1 - v2
     else:
-        print("两条线段垂直")
+        v3 = v1 - v2
 
     v4 = np.array([1, 0])
 
@@ -379,6 +379,8 @@ def get_arrow_points(points, center, arrow):
 
 def get_seq_arrow_direction(binary_input, arrow, input_img):
     """从箭头图片判断箭头方向"""
+    # print(arrow)
+
     width = arrow[2]
     height = arrow[3]
     center = [width // 2, height // 2]
@@ -397,27 +399,72 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
 
     for i in range(width):
         is_possible_diam = True
+        count = 0
         for j in range(height):
             if arrow_img[j][i] > 125:
                 points.append([i, j])
             else:
-                is_possible_diam = False
+                count += 1
+                if count > 1:
+                    is_possible_diam = False
         if is_possible_diam and center[0] - 3 < i < center[0] + 3:
             vertical_lines.append(i)
 
     for j in range(height):
         is_possible_diam = True
+        count = 0
         for i in range(width):
             if arrow_img[j][i] <= 125:
-                is_possible_diam = False
-                break
+                count += 1
+                if count > 1:
+                    is_possible_diam = False
+                    break
         if is_possible_diam and center[1] - 3 < j < center[1] + 3:
             horizontal_lines.append(j)
 
-    # points = list(points)
+    points_copy = points.copy()
+    # points = np.array(points)
+    # #
+    # # 坐标轴翻转
+    # ax = plt.gca()
+    # ax.xaxis.set_ticks_position("top")
     #
-    # print("vertical_lines:", vertical_lines)
-    # print("horizonal_lines:", horizontal_lines)
+    # # 设置网格线
+    # plt.ylim(-1, height)
+    # plt.xlim(-1, width)
+    # maloc = plt.MultipleLocator(2)
+    # miloc = plt.MultipleLocator(1)
+    # ax.xaxis.set_major_locator(maloc)
+    # ax.yaxis.set_major_locator(maloc)
+    # ax.xaxis.set_minor_locator(miloc)
+    # ax.yaxis.set_minor_locator(miloc)
+    # ax.grid(which="minor", axis="x", linewidth=1)
+    # ax.grid(which="minor", axis="y", linewidth=1)
+    # ax.invert_yaxis()
+    #
+    # # 坐标轴刻度的字体
+    # plt.xticks(size=16)
+    # plt.yticks(size=16)
+    #
+    # plt.scatter(points[:, 0], points[:, 1], c="black", s=120)
+    # plt.show()
+
+    core_points = []
+    for p in points_copy:
+        all_in = True
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if [p[0] + i, p[1] + j] not in points_copy:
+                    all_in = False
+                    break
+        if all_in:
+            core_points.append(p)
+
+    # core_points = np.array(core_points)
+    # plt.ylim(-1, height)
+    # plt.xlim(-1, width)
+    # plt.scatter(core_points[:, 0], core_points[:, 1])
+    # plt.show()
 
     diam = None
     if len(vertical_lines) > 1 >= len(horizontal_lines):
@@ -449,8 +496,9 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
             y_value = int(mean_h_line)
             diam = points_to_line([0, y_value], [width - 1, y_value])
 
-    points = get_arrow_points(points, center, arrow)
-    hull_points = get_convex_hull_points(points)
+    # arrow_points = get_arrow_points(core_points, center, arrow)
+    hull_points = get_convex_hull_points(core_points)
+
     if diam is None:
         # 获取箭头的轴线，即凸包中最远的两个点
         diam = get_diam_of_convex_hull(hull_points, width, height)
@@ -459,19 +507,13 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
         print("can't find valid diam")
         # cv.waitKey(0)
         return None
-    # print("diam:", diam)
-
-    # hull_points = np.array(hull_points)
-    #
-    # plt.scatter(hull_points[:, 0], hull_points[:, 1])
-    # plt.show()
 
     # 获取箭头前端三角形的底
     pos_max = -1
     pos_polar_points = []
     neg_min = 1
     neg_polar_points = []
-    for p in hull_points:
+    for p in core_points:
         if diam.k is None:
             val = p[0] - diam.b
         else:
@@ -503,30 +545,30 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
     line_cut = points_to_line(pos_polar_point, neg_polar_point)
 
     # 箭头前端三角的底与轴线的交点
-    cut_point = get_point_of_intersection(diam, line_cut)
+    float_cut_point = get_float_point_of_intersection(diam.li, line_cut.li)
+    diam_center = [np.mean([diam.li[0], diam.li[2]]), np.mean([diam.li[1], diam.li[3]])]
 
     # cv.line(a_img, diam.p1, diam.p2, cfg.COLOR_RED, 1)
-    # cv.line(a_img, line_cut.p1, line_cut.p2, cfg.COLOR_BLUE, 1)
     # cv.imshow("arrow", helper.dilate_drawing(a_img))
-
+    #
     real_p1 = [diam.p1[0] + arrow[0], diam.p1[1] + arrow[1]]
     real_p2 = [diam.p2[0] + arrow[0], diam.p2[1] + arrow[1]]
 
     diam = points_to_line(real_p1, real_p2)
 
     if diam.k is None:
-        if cut_point[1] < height / 2:
+        if float_cut_point[1] < diam_center[1]:
             direction = cfg.TOP
         else:
             direction = cfg.DOWN
         info = [diam.p1[1], diam.p2[1], direction]
     else:
-        if cut_point[0] < width / 2:
+        if float_cut_point[0] < diam_center[0]:
             direction = cfg.LEFT
         else:
             direction = cfg.RIGHT
         info = [diam.p1[0], diam.p2[0], direction]
-
+    # print(info, cfg.DIRECTIONS[info[-1]])
     arrow_line = {(diam.k, diam.b): info}
 
     # print(arrow_line)
@@ -659,10 +701,10 @@ def convert_jpg_projects():
             if file.endswith("jpeg"):
                 jpg_file = "{}/{}".format(project_dir, file)
                 break
-    # root_dir = "gen_my_data_jpg/imgs"
-    # imgs = os.listdir(root_dir)
-    # for img in imgs[::2]:
-    #     jpg_file = "{}/{}".format(root_dir, img)
+        # root_dir = "gen_my_data_jpg/imgs"
+        # imgs = os.listdir(root_dir)
+        # for img in imgs[::2]:
+        #     jpg_file = "{}/{}".format(root_dir, img)
         input_img = cv.imread(jpg_file)
         input_img = convert_to_black_white(input_img)
         convert_dir = "{}/{}".format(project_dir, "jpg_convert")

@@ -47,6 +47,41 @@ def is_parallel(line1, line2):
         return False
 
 
+def get_float_point_of_intersection(line1_list, line2_list):
+    [x1, y1, x2, y2] = line1_list
+    [x3, y3, x4, y4] = line2_list
+    if x1 == x2:
+        k1 = None
+        b1 = x1
+    else:
+        k1 = (y2 - y1) / (x2 - x1)
+        b1 = y1 - k1 * x1
+
+    if x3 == x4:
+        k2 = None
+        b2 = x3
+    else:
+        k2 = (y4 - y3) / (x4 - x3)
+        b2 = y4 - k2 * x4
+
+    if k1 == k2:
+        return None
+    else:
+        if k1 is None:
+            p_x = b1
+            p_y = k2 * p_x + b2
+            return p_x, p_y
+
+        if k2 is None:
+            p_x = b2
+            p_y = k1 * p_x + b1
+            return p_x, p_y
+
+        p_x = (b1 - b2) / (k2 - k1)
+        p_y = k1 * p_x + b1
+        return p_x, p_y
+
+
 def get_point_of_intersection(line1, line2):
     if is_parallel(line1, line2):
         return None

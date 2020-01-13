@@ -31,5 +31,6 @@ LINE_AREA_THRESHOLD = 10
 
 TASK_LIKE_LIST = ["adHocSubProcess", "callActivity", "subProcess", "subProcess_triggeredByEvent", "transaction"]
 
-
+# TOP TO DOWN, RIGHT TO LEFT, DOWN TO TOP, LEFT TO RIGHT
 [TOP, RIGHT, DOWN, LEFT] = [0, 1, 2, 3]
+DIRECTIONS = ["TOP", "RIGHT", "DOWN", "LEFT"]

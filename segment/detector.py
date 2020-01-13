@@ -860,26 +860,25 @@ def get_all_elements():
 
 def extend_line(line, direct, axis_length):
     """延长线段，按照指定方向延长线段，在坐标轴上的投影延长axis_length"""
-    """如果direct是cfg.TOP, 则表示，线段从上往下延长"""
-    """如果direct是True, 则表示往x轴或y轴坐标较大的方向延长"""
+    """如果direct是cfg.TOP, 则表示，箭头方向是从上往下， 线段从上往下延长, 坐标轴 右x下y"""
 
     if line.k is None:
-        if direct == cfg.TOP or not direct:
+        if direct == cfg.TOP:
             p1 = line.p1
             p2 = [line.p2[0], line.p2[1] + axis_length]
             return points_to_line(p1, p2), p2
-        elif direct == cfg.DOWN or direct:
+        elif direct == cfg.DOWN:
             p1 = [line.p1[0], max(line.p1[1] - axis_length, 0)]
             p2 = line.p2
             return points_to_line(p1, p2), p1
     else:
-        if direct == cfg.LEFT or not direct:
+        if direct == cfg.LEFT:
             p1 = line.p1
             p2_x = line.p2[0] + axis_length
             p2_y = helper.get_func_value(p2_x, line.k, line.b)
             p2 = [p2_x, p2_y]
             return points_to_line(p1, p2), p2
-        elif direct == cfg.RIGHT or direct:
+        elif direct == cfg.RIGHT:
             p1_x = max(0, line.p1[0] - axis_length)
             p1_y = helper.get_func_value(p1_x, line.k, line.b)
             p1 = [p1_x, p1_y]
@@ -1166,18 +1165,32 @@ def get_line_rec_intersection(line, reverse, rec):
     return None
 
 
+def get_extend_direction_from(dim, reverse_tag):
+    if dim == 1:
+        if reverse_tag:
+            return cfg.TOP
+        else:
+            return cfg.DOWN
+    else:
+        if reverse_tag:
+            return cfg.LEFT
+        else:
+            return cfg.RIGHT
+
+
 def detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id, merged_lines):
     curr_begin = flow_points[-1]
     last_begin = flow_points[-2]
     # print(curr_begin, last_begin)
-    curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
+    # curr_line = Line([last_begin[0], last_begin[1], curr_begin[0], curr_begin[1]])
+    curr_line = points_to_line(curr_begin, last_begin)
 
     if curr_line.k is None:
         dim = 1
     else:
         dim = 0
 
-    # True表示 flow尾部向x轴变大或y轴变大的方向延长, 坐标系为 左x下y
+    # True表示 flow尾部向x轴变大或y轴变大的方向延长, 坐标系为 右x下y
     reverse_tag = curr_begin[dim] - last_begin[dim] > 0
 
     curr_begin_rec = helper.dilate([curr_begin[0], curr_begin[1], 0, 0], 3)
@@ -1227,10 +1240,12 @@ def detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, 
 
         # 找curr_line指向的最近的元素，作为延长的边界
         curr_line_ele_rec, _ = get_ele_rec_pointed_by_curr_line(curr_line, reverse_tag)
+        # print(curr_line.li, curr_line_ele_rec)
+        # print(to_extend_lines)
 
         curr_line_points = []
         if len(curr_line_ele_rec) > 0:
-            # 找到作为curr_line延长边界的元素
+            # 找到了作为curr_line延长边界的元素
             # 从共线的线段中筛选出可以合并到curr_line的线段
             rec_center = helper.get_rec_center(curr_line_ele_rec)
             for line_id in to_extend_lines:
@@ -1265,7 +1280,8 @@ def detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, 
             detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id, merged_lines)
             return
 
-    curr_line, _ = extend_line(curr_line, reverse_tag, 10)
+    direction = get_extend_direction_from(dim, reverse_tag)
+    curr_line, _ = extend_line(curr_line, direction, 10)
 
     next_discrete_lines = []
     for line_id in rest_lines:
@@ -1338,6 +1354,7 @@ def connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines):
                     flow_points.extend([line.p2, line.p1])
                 else:
                     flow_points.extend([line.p1, line.p2])
+
                 detect_one_flow(flow_points, discrete_line_ids, end_ele_id, discrete_lines, flows, arrow_id,
                                 merged_lines)
 
@@ -1689,21 +1706,21 @@ def parse_img(file_path):
     # node元素定位(泳池，泳道，活动，事件，网关，子过程)
     pools, type_tag, partial_elements = pools_detector.get_pools(layers, contours_rec, partial_elements, arrows)
 
-    show_im(input_img, "input")
+    # show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
     # pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
     pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
     pools_img = draw_pools(pools)
-    show_im(pools_img, "raw_elements")
+    # show_im(pools_img, "raw_elements")
 
     # 移除node元素， 检测seqFlow的箭头
     flows_img = remove_elements(2)
     # arrows = get_arrows(flows_img)
     # show_im(flows_img, "flows_img")
     arrows = get_seq_arrows(flows_img)
-    # arrows_img = helper.draw_rects(pools_img, arrows, cfg.COLOR_GREEN, 1)
-    # show_im(arrows_img, "arrows_img")
+    arrows_img = helper.draw_rects(pools_img, arrows, cfg.COLOR_GREEN, 1)
+    show_im(arrows_img, "arrows_img")
 
     # 给所有flow-node(活动，事件，网关，子过程 元素编号，记录其所在泳池及泳道编号)
     get_all_elements()
@@ -1730,7 +1747,7 @@ def parse_img(file_path):
         background = np.zeros_like(flows_only)
         normalized_lines_img = helper.draw_lines(background, line_list, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         show_im(normalized_lines_img, "normalized_lines_img")
-
+        # cv.waitKey(0)
 
         # 获取与箭头相连的线段
         arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
@@ -1753,6 +1770,7 @@ def parse_img(file_path):
         discrete_lines = list(filter(lambda x: x is not None, discrete_lines))
         # discrete_lines_img = helper.draw_lines(flows_only, discrete_lines, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         # show_im(discrete_lines_img, "discrete_lines")
+
 
         # 依据顺序流的末端，递归回溯，找到起点
         flows, discrete_lines = connect_elements(arrows, arrow_lines, arrow_ele_map, discrete_lines)
@@ -1785,20 +1803,20 @@ def parse_img(file_path):
             arrow_ele = arrow_ele_map.get(arrow_id)
             # 画箭头
             if (arrow_flows is None or len(arrow_flows) == 0) and (arrow_ele is None or len(arrow_ele) == 0):
-                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_RED,
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], -1), cfg.COLOR_RED,
                                      cfg.CONTOUR_THICKNESS)
             elif arrow_flows is None or len(arrow_flows) == 0:
-                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_BLUE,
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], -1), cfg.COLOR_BLUE,
                                      cfg.CONTOUR_THICKNESS)
             elif arrow_ele is None or len(arrow_ele) == 0:
-                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), cfg.COLOR_RED,
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], -1), cfg.COLOR_RED,
                                      cfg.CONTOUR_THICKNESS)
             else:
                 color = cfg.COLOR_GREEN
                 if arrow_ele[0][3] == 1:
                     print("connect sub_process")
                     color = cfg.COLOR_BLUE
-                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], 5), color, cfg.CONTOUR_THICKNESS)
+                helper.draw_one_rect(pools_img, helper.dilate(arrows[arrow_id], -1), color, cfg.CONTOUR_THICKNESS)
 
                 # print(arrow_id)
                 # print(arrows[arrow_id])
@@ -1843,7 +1861,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=False):
+def show_im(img_matrix, name="img", show=True):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
@@ -1885,30 +1903,32 @@ def classify_elements(classifier, classifier_type):
 
 
 def detect(file_path, classifier, classifier_type):
-    t1 = time.time()
+    # t1 = time.time()
     all_seq_flows = parse_img(file_path)
-    t2 = time.time()
-    all_elements_type = classify_elements(classifier, classifier_type)
-    t3 = time.time()
-    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-                                                                 all_seq_flows)
-    t4 = time.time()
-    time_recorder = [t1, t2, t3, t4]
-    return definitions, all_elements_info, all_seq_flows, all_elements, pools, time_recorder
+    # t2 = time.time()
+    # all_elements_type = classify_elements(classifier, classifier_type)
+    # t3 = time.time()
+    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+    #                                                              all_seq_flows)
+    # t4 = time.time()
+    # time_recorder = [t1, t2, t3, t4]
+    # return definitions, all_elements_info, all_seq_flows, all_elements, pools, time_recorder
 
 
 def run():
-    # sample_dir = "gen_my_data_jpg/projects"
-    sample_dir = "../merge_info_validate"
+    sample_dir = "gen_my_data_jpg/projects"
+    # sample_dir = "../merge_info_validate"
     # sample_dir = "samples/imgs/sample_1"
     projects = os.listdir(sample_dir)
+    # print(projects)
+    # return
 
     # classifier = Classifier()
     # classifier.img_type = "jpg"
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected[1:2]:
+    for i in selected[-2:-1]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)

@@ -171,9 +171,6 @@ def get_pools_in_one_rec(c_children, contours_rec, pool_bound, c_i):
     return pools_in_one_rec
 
 
-
-
-
 def get_pools(layers, contours_rec, partial_elements, arrows):
     layer_0 = layers[0].keys()
     potential_pools = get_potential_pools(layer_0, contours_rec, layers, arrows)
