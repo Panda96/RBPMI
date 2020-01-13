@@ -312,6 +312,7 @@ def validate(data_dir):
             continue
         except IndexError:
             print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  IndexError")
+            continue
         for seq_flow in all_seq_flows:
             points = seq_flow[1]
             for p_id in range(len(points)):
@@ -323,7 +324,7 @@ def validate(data_dir):
                          "pools": pools,
                          "time_recorder": time_recorder}
 
-        result_root_dir = "detect_results_all"
+        result_root_dir = "detect_results_all_gpu"
         image_type_result_dir = "{}/{}".format(result_root_dir, img_type)
 
         project_result_dir = "{}/{}_{}".format(image_type_result_dir, project, i)
