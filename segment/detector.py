@@ -1861,7 +1861,7 @@ def parse_img(file_path):
     return all_seq_flows
 
 
-def show_im(img_matrix, name="img", show=True):
+def show_im(img_matrix, name="img", show=False):
     # pass
     # cv.namedWindow(name, cv.WINDOW_NORMAL)
     if show:
@@ -1903,16 +1903,16 @@ def classify_elements(classifier, classifier_type):
 
 
 def detect(file_path, classifier, classifier_type):
-    # t1 = time.time()
+    t1 = time.time()
     all_seq_flows = parse_img(file_path)
-    # t2 = time.time()
-    # all_elements_type = classify_elements(classifier, classifier_type)
-    # t3 = time.time()
-    # definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
-    #                                                              all_seq_flows)
-    # t4 = time.time()
-    # time_recorder = [t1, t2, t3, t4]
-    # return definitions, all_elements_info, all_seq_flows, all_elements, pools, time_recorder
+    t2 = time.time()
+    all_elements_type = classify_elements(classifier, classifier_type)
+    t3 = time.time()
+    definitions, all_elements_info = model_exporter.create_model(input_img, pools, all_elements, all_elements_type,
+                                                                 all_seq_flows)
+    t4 = time.time()
+    time_recorder = [t1, t2, t3, t4]
+    return definitions, all_elements_info, all_seq_flows, all_elements, pools, time_recorder
 
 
 def run():
