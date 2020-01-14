@@ -438,6 +438,8 @@ def get_elements(input_img, layers, contours_rec, partial_elements, pools_list, 
 
             pool_id = -1
             lane_id = -1
+            if bound_rect[2] < 15 or bound_rect[3] < 15:
+                continue
             for pool_i, pool in enumerate(pools_list):
                 if helper.is_in(pool["lanes_rect"], bound_rect):
                     pool_id = pool_i

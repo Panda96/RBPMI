@@ -384,12 +384,14 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
     width = arrow[2]
     height = arrow[3]
     center = [width // 2, height // 2]
+    binary_input = cv.cvtColor(input_img, cv.COLOR_BGR2GRAY)
+    binary_input = 255 - binary_input
     arrow_img = helper.truncate(binary_input, arrow)
 
     # a_img = helper.truncate(input_img, arrow)
 
     # cv.imshow("arrow_img", helper.dilate_drawing(arrow_img))
-    # cv.waitKey(0)
+    #     # cv.waitKey(0)
 
     # 获取箭头所有点的坐标
     # 坐标系：右x下y
@@ -495,6 +497,18 @@ def get_seq_arrow_direction(binary_input, arrow, input_img):
         elif h_center_dist < v_center_dist and h_center_dist < 2:
             y_value = int(mean_h_line)
             diam = points_to_line([0, y_value], [width - 1, y_value])
+    else:
+        if len(vertical_lines) == 1 and len(horizontal_lines) == 1:
+            v_center_dist = abs(center[0] - vertical_lines[0])
+            h_center_dist = abs(center[1] - horizontal_lines[0])
+            if v_center_dist < h_center_dist:
+                diam = points_to_line([vertical_lines[0], 0], [vertical_lines[0], height - 1])
+            else:
+                diam = points_to_line([0, horizontal_lines[0]], [width - 1, horizontal_lines[0]])
+        elif len(vertical_lines) == 1:
+            diam = points_to_line([vertical_lines[0], 0], [vertical_lines[0], height - 1])
+        elif len(horizontal_lines) == 1:
+            diam = points_to_line([0, horizontal_lines[0]], [width - 1, horizontal_lines[0]])
 
     # arrow_points = get_arrow_points(core_points, center, arrow)
     hull_points = get_convex_hull_points(core_points)
@@ -664,22 +678,15 @@ def convert_to_black_white(input_img):
 
 def pre_process(file_path, split=True):
     raw_img = cv.imread(file_path)
-    # cv.imshow("raw_img", raw_img)
     if file_path.endswith(".jpeg"):
         project_dir = file_path[:file_path.rindex("/")]
         project = project_dir[project_dir.rindex("/") + 1:]
         convert_img_file = "{}/jpg_convert/{}.jpeg".format(project_dir, project)
-        # print(convert_img_file)
         input_img = cv.imread(convert_img_file)
     elif file_path.endswith(".png"):
         input_img = raw_img.copy()
-        # _, input_img = cv.threshold(raw_img, 254, 255, cv.THRESH_BINARY)
-        # cv.imshow("input_img", input_img)
     else:
         input_img = 255 - raw_img
-        # op_element = helper.get_structure_ele(cv.MORPH_CROSS, 1)
-        # input_img = cv.morphologyEx(input_img, cv.MORPH_TOPHAT, op_element)
-        # input_img = cv.erode(input_img, op_element)
         cv.imshow("input_img", input_img)
         cv.waitKey(0)
     contours, hierarchy, partial_elements, arrows = get_contours(input_img, split)

@@ -275,12 +275,12 @@ def validate_one(json_file, image_file):
 
 def validate(data_dir):
     print("validate {}".format(classifier_type))
-    validate_res_dir = "validate_results_2/"
+    # validate_res_dir = "validate_results_2/"
 
     projects = os.listdir(validate_data_dir)
     projects.sort()
 
-    results = []
+    # results = []
     for i in range(begin, end):
         project = projects[i]
         if project in invalid_projects:
@@ -307,6 +307,7 @@ def validate(data_dir):
         try:
             _, all_elements_info, all_seq_flows, all_elements, pools, time_recorder = detector.detect(image_file, classifier,
                                                                                        classifier_type)
+
         except TypeError:
             print("invalid!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TypeError")
             continue

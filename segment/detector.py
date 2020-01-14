@@ -1706,7 +1706,7 @@ def parse_img(file_path):
     # node元素定位(泳池，泳道，活动，事件，网关，子过程)
     pools, type_tag, partial_elements = pools_detector.get_pools(layers, contours_rec, partial_elements, arrows)
 
-    # show_im(input_img, "input")
+    show_im(input_img, "input")
     # pools_img = draw_pools(pools)
     # show_im(pools_img, "pools_img_no_elements")
     # pools = pools_detector.get_elements(input_img, layers, contours_rec, partial_elements, pools, type_tag)
@@ -1714,8 +1714,8 @@ def parse_img(file_path):
     pools_img = draw_pools(pools)
     # show_im(pools_img, "raw_elements")
 
-    # 移除node元素， 检测seqFlow的箭头
-    flows_img = remove_elements(2)
+    # 移除node元素， 检测seqFlow的箭头 png:2 jpg:1
+    flows_img = remove_elements(1)
     # arrows = get_arrows(flows_img)
     # show_im(flows_img, "flows_img")
     arrows = get_seq_arrows(flows_img)
@@ -1727,7 +1727,8 @@ def parse_img(file_path):
     # print(all_elements)
     flows = defaultdict(list)
     if len(arrows) > 0:
-        flows_img = remove_elements(4)
+        # png:4 jpg:2
+        flows_img = remove_elements(2)
         # show_im(flows_img, "no_elements")
 
         # 移除文本
@@ -1739,15 +1740,13 @@ def parse_img(file_path):
         # print(line_list[0])
         # all_lines_img = helper.draw_lines(flows_only, [line_list[0]], cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
         # show_im(all_lines_img, "all_lines")
-        # cv.waitKey(0)
 
         # 归一化检测出的直线 (调用两次效果比较好)
         line_list = normalize_all_lines(line_list)
         line_list = normalize_all_lines(line_list)
         background = np.zeros_like(flows_only)
         normalized_lines_img = helper.draw_lines(background, line_list, cfg.COLOR_RED, cfg.CONTOUR_THICKNESS)
-        show_im(normalized_lines_img, "normalized_lines_img")
-        # cv.waitKey(0)
+        # show_im(normalized_lines_img, "normalized_lines_img")
 
         # 获取与箭头相连的线段
         arrow_lines, discrete_lines = get_initial_lines(arrows, line_list)
@@ -1848,7 +1847,6 @@ def parse_img(file_path):
                     # cv.waitKey(0)
 
         show_im(pools_img, name="pools_img")
-        # cv.waitKey(0)
 
     all_seq_flows = []
     if len(flows) > 0:
@@ -1916,8 +1914,8 @@ def detect(file_path, classifier, classifier_type):
 
 
 def run():
-    sample_dir = "gen_my_data_jpg/projects"
-    # sample_dir = "../merge_info_validate"
+    # sample_dir = "gen_my_data_jpg/projects"
+    sample_dir = "../merge_info_validate"
     # sample_dir = "samples/imgs/sample_1"
     projects = os.listdir(sample_dir)
     # print(projects)
@@ -1928,12 +1926,12 @@ def run():
     # [0, 5, 6, 10, 14, 15]
     size = len(projects)
     selected = range(size)
-    for i in selected[-2:-1]:
+    for i in selected[0:5]:
         project = projects[i]
         project_dir = "{}/{}".format(sample_dir, project)
         files = os.listdir(project_dir)
         for file in files:
-            if file.endswith("png"):
+            if file.endswith("jpeg"):
                 file_path = "{}/{}".format(project_dir, file)
                 print("-" * 50)
                 print(project)
